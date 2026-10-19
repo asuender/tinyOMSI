@@ -23,7 +23,9 @@ checking the implementation.
 - `assets/`: project assets, not OMSI 2 game content.
 
 The inherited website, Pages publishing, governance and issue/PR policy bots have
-been removed. Build, security, architecture, size and locale checks remain.
+been removed. Docker server packaging and its container-based bus-sync test helper
+have also been removed; native server code and build jobs remain pending removal.
+Build, security, architecture, size and locale checks remain.
 
 Read `docs/ARCHITECTURE.md` before changing subsystem boundaries and
 `docs/BUILDING.md` before changing build tooling.

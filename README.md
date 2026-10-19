@@ -17,7 +17,9 @@ existing OMSI 2 content while reducing features, configuration and maintenance.
 - Incorporate upstream improvements where they fit these goals.
 
 These are ongoing goals. The code still contains upstream features scheduled for
-removal. Expect bugs and incomplete functionality.
+removal. The inherited website, repository policy bots and Docker server packaging
+have been removed; multiplayer runtime code remains. Expect bugs and incomplete
+functionality.
 
 ## Requirements
 

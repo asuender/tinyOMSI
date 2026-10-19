@@ -28,6 +28,9 @@ there.
 
 ## Build
 
+The inherited Docker server packaging has been removed from tinyOMSI. The native
+server build listed below still exists pending multiplayer removal.
+
 | Platform | Command | Result |
 | --- | --- | --- |
 | macOS | `scripts/build-macos.sh` | `dist/macos/openOMSI.app` |

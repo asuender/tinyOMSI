@@ -1,5 +1,10 @@
 # Dedicated server
 
+This is inherited upstream documentation. tinyOMSI has removed the Docker server
+packaging and its container-based bus-sync test helper. Native server code, build
+scripts and release jobs remain pending multiplayer removal; their presence does
+not establish a tinyOMSI server release or support commitment.
+
 ```
 openomsi --root /path/to/OMSI2 --server /opt/openomsi-server/server.cfg
 ```
