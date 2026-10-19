@@ -2,7 +2,7 @@
 <!-- Describe what players will notice. One or two sentences are enough. -->
 
 ## How to test
-<!-- What testers should do with the test build (linked in a comment below once it is built): the map, the bus, the steps, and what should happen. -->
+<!-- List checks actually run, checks skipped, and reproduction steps: map, bus, settings and expected behavior. -->
 
 ## Screenshots
 <!-- Required when something changes on screen, in the launcher or in the game: before and after, same place and same settings. Drag the images here; do not commit them. Write "No visible change" otherwise. -->
@@ -15,7 +15,7 @@
 
 ## Checklist
 <!-- Tick what applies; strike through (~~like this~~) what does not apply to this change. -->
-- [ ] `cargo test --workspace` and `cargo build --release` pass
+- [ ] Appropriate checks from CONTRIBUTING.md ran; skipped checks are listed
 - [ ] The pull request contains a single change
 - [ ] Before/after screenshots are in the description if anything changes on screen
 - [ ] New or changed interface texts are in `crates/omsi-app/locales/app.yml`, in every language I can

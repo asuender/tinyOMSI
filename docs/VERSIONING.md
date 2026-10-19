@@ -137,11 +137,6 @@ and never offered again.
 
 ## The website
 
-[`.github/workflows/pages.yml`](../.github/workflows/pages.yml) publishes `site/` together with
-the Markdown files of `docs/` to GitHub Pages
-(https://openomsi.org/) whenever they change on `main`. The site renders
-the Markdown in the browser, so a documentation change is one edit in `docs/`.
-The Download page offers the latest stable release. Beta downloads have a separate page
-with the same platform cards and installation instructions; when no beta is newer than
-stable, it links back to stable instead of offering an older build. The release history
-has separate Stable and Betas lists. Auxiliary asset packs are kept out of both lists.
+The inherited website and its GitHub Pages workflow have been removed from tinyOMSI.
+Documentation remains in `docs/`. The release instructions above describe inherited
+upstream tooling, not a verified tinyOMSI release process.

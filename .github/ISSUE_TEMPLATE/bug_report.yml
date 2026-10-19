@@ -7,10 +7,10 @@ body:
       value: |
         Thanks for taking the time to report a bug! A few things make it much quicker to fix:
 
-        * **Write in English.** Issues in other languages are closed until they are translated - a translator such as DeepL or Google Translate is fine.
+        * **Write in English** so reports are easy to search.
         * **One problem per issue.** Several problems in one report get lost; open one issue for each.
-        * **Use the latest release.** The launcher updates itself; many problems are already fixed in a newer build.
-        * **The game stopped on an error?** Use *Report on GitHub* in the launcher's error message - it fills in the error and the end of the log for you.
+        * **Identify your tinyOMSI build or commit.** The inherited updater is not verified for this fork.
+        * **Include relevant logs.** Review them for personal information and submit fork-specific reports here, not through inherited upstream report links.
 
   - type: checkboxes
     id: checks
@@ -19,9 +19,9 @@ body:
       options:
         - label: I wrote this report in English.
           required: true
-        - label: I searched the [open and closed issues](https://github.com/openOMSI-org/openOMSI/issues?q=is%3Aissue) and this is not a duplicate.
+        - label: I searched the [open and closed issues](https://github.com/asuender/tinyOMSI/issues?q=is%3Aissue) and this is not a duplicate.
           required: true
-        - label: It still happens on the latest release.
+        - label: I included the tinyOMSI build version or commit.
           required: true
 
   - type: dropdown

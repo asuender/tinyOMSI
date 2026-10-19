@@ -64,6 +64,7 @@ Report fork-specific issues in
 ## Credits and license
 
 tinyOMSI builds on the work of the openOMSI authors and contributors.
+The original openOMSI codebase was created by usonskyyyy.
 The original project is maintained at
 [openOMSI-org/openOMSI](https://github.com/openOMSI-org/openOMSI).
 Upstream also acknowledges contributions and public work from

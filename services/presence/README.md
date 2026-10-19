@@ -1,5 +1,10 @@
 # Presence: "playing now"
 
+This is inherited upstream service documentation. tinyOMSI has removed the
+website and README badge, but the runtime presence client remains unchanged.
+The deployment details below describe upstream infrastructure, not a verified
+fork deployment.
+
 A Cloudflare Worker that counts the openOMSI games being played right now. A running game
 posts `/ping` every ten minutes and `/bye` when it ends (`crates/omsi-app/src/presence.rs`,
 setting `presence`, on by default; after a 429 it waits half an hour); a session counts for
@@ -27,5 +32,5 @@ It runs on Cloudflare's free plan (a Worker and one Durable Object, which keeps 
 requests a day, each ping one. That holds about 650 players at once around the clock (more
 in practice: nobody plays all day); over it Cloudflare answers everything with error 1027
 until midnight UTC. Workers Paid (5 USD a month, 10 million requests) lifts the limit. The address
-`wrangler deploy` prints goes into `SERVICE` in `crates/omsi-app/src/presence.rs`, the badge in
-`README.md` and `PRESENCE` in `site/app.js`.
+`wrangler deploy` prints goes into `SERVICE` in `crates/omsi-platform/src/presence.rs`.
+Deleting website files does not change that runtime endpoint.
