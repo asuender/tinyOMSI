@@ -63,15 +63,16 @@ Release → Run workflow** from `main` (or `gh workflow run release.yml --ref ma
 ### Stable: promoting a tested beta
 
 Only betas of `main` are published (a workflow run on another branch builds without
-publishing). When a beta has been tested and nothing blocks it (about once a week, sooner for an urgent
-fix), a maintainer runs **Actions → Promote a beta → Run workflow** from `main` with its version
-([`.github/workflows/promote.yml`](../.github/workflows/promote.yml)). The beta becomes the
-stable release as it is: the same tag, the same files, the same SHA-256 - nothing is built
-again. Its notes are rewritten to list every change since the previous stable release (the
-sections of `CHANGELOG.md` in between). Only a published beta of `main`, newer than the current
-stable release, with the files of every platform and not listed in `release/health.json`,
-can be promoted. The workflow runs from `main` only and reads `release/health.json` and
-`CHANGELOG.md` as they are on `main` at that moment, whatever branch it is started from.
+publishing). tinyOMSI has no promotion workflow. A tested beta becomes the stable release
+by hand, as it is: the same tag, the same files, the same SHA-256, nothing built again.
+Before promoting, check that it is a published beta of `main`, newer than the current stable
+release, has the files of every platform and is not listed in `release/health.json`. Then
+rewrite its notes to cover every change since the previous stable release:
+
+```sh
+sh scripts/release-notes.sh <version> <previous-stable> > notes.md
+gh release edit v<version> --prerelease=false --latest --notes-file notes.md
+```
 
 ### A published release never changes
 
@@ -92,9 +93,8 @@ The launcher's updater checks each archive against the SHA-256 that GitHub's API
 it before installing it (when the API cannot be reached and the updater falls back to
 github.com, it relies on the HTTPS connection alone).
 
-Pull requests build Windows x64, macOS for Apple silicon, Linux x64 without
-publishing anything; every push to `main` builds all the platforms above, also without
-publishing. Build output never goes into the repository (`target/` and `dist/` are ignored).
+Pull requests and pushes to `main` build Windows x64, macOS for Apple silicon and Linux
+x64 without publishing anything; only a manual release run builds every platform above. Build output never goes into the repository (`target/` and `dist/` are ignored).
 
 ### Test builds of a pull request
 
@@ -103,10 +103,7 @@ A pull request's builds are test builds for anyone who wants to try the change:
 * their version names the pull request, `<version>-pr<number>` (e.g. `0.1.1313-pr1192`),
   in the launcher's side bar, `game.log` and crash reports;
 * the updater never offers them a release, so a test build stays until it is deleted;
-* [`.github/workflows/pr_builds.yml`](../.github/workflows/pr_builds.yml) comments on the
-  pull request with a download link per platform (through [nightly.link](https://nightly.link),
-  no GitHub account needed) once they are built, and updates that comment on every push.
-  The files are kept for 14 days.
+* the builds are artifacts of the pull request's Release run, kept for 14 days.
 
 The version badge at the top of the README always shows the newest stable release.
 

@@ -1,21 +1,19 @@
 # Builds openOMSI for Windows and Linux (x64, ARM64), macOS (Apple silicon, Intel)
 # (plus the dedicated server for Linux and Windows) when a maintainer runs it from main
 # (Actions -> Release -> Run workflow) and publishes them as the beta (pre-release)
-# v<MAJOR.MINOR.PATCH>; promote.yml makes a tested beta the stable release. A push to main
-# builds every platform and publishes nothing. See docs/VERSIONING.md.
-# Pull requests build Windows x64, macOS (Apple silicon), Linux x64, without publishing;
-# the label ci:all-platforms builds all seven (from the next push or run).
+# v<MAJOR.MINOR.PATCH>. Pull requests and pushes to main build Windows x64, macOS (Apple
+# silicon) and Linux x64 without publishing. See docs/VERSIONING.md.
 name: Release
 
 on:
   pull_request:
-    paths-ignore: ["docs/**", "site/**", "*.md"]
+    paths-ignore: ["docs/**", "*.md"]
   push:
     branches: [main]
-    paths-ignore: ["docs/**", "site/**", "*.md"]
+    paths-ignore: ["docs/**", "*.md"]
   workflow_dispatch:
     # (a beta of one platform alone, to test a fix only that platform needs; a published
-    # release keeps its files, so the others never join it, and it cannot be promoted)
+    # release keeps its files, so the others never join it)
     inputs:
       only:
         description: Platform to build and release alone
@@ -63,7 +61,7 @@ jobs:
       fail-fast: false
       matrix:
         # ARM64 (Snapdragon laptops): built on the x64 runner with its ARM64 tools
-        arch: ${{ fromJSON(github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ci:all-platforms') && '["x64"]' || '["x64", "arm64"]') }}
+        arch: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["x64", "arm64"]' || '["x64"]') }}
     env:
       OPENOMSI_VERSION: ${{ needs.version.outputs.version }}
       TARGET: ${{ matrix.arch == 'arm64' && 'aarch64-pc-windows-msvc' || 'x86_64-pc-windows-msvc' }}
@@ -220,7 +218,7 @@ jobs:
       fail-fast: false
       matrix:
         # Intel Macs: built on the Apple silicon runner for x86_64
-        arch: ${{ fromJSON(github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ci:all-platforms') && '["arm64"]' || '["arm64", "x64"]') }}
+        arch: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["arm64", "x64"]' || '["arm64"]') }}
     env:
       OPENOMSI_VERSION: ${{ needs.version.outputs.version }}
       OPENOMSI_TARGET: ${{ matrix.arch == 'x64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
@@ -260,7 +258,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: ${{ fromJSON(github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ci:all-platforms') && '["x64"]' || '["x64", "arm64"]') }}
+        arch: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["x64", "arm64"]' || '["x64"]') }}
     timeout-minutes: 90
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
     env:

@@ -41,7 +41,7 @@ fn box_mesh(c: Vec3, h: Vec3) -> MeshData {
 }
 
 #[test]
-#[ignore = "needs a GPU adapter (rt_check.yml)"]
+#[ignore = "needs a GPU adapter"]
 fn ray_traced_frames_raise_no_device_error() {
     let _ = env_logger::builder()
         .is_test(false)
@@ -173,7 +173,7 @@ fn ray_traced_frames_raise_no_device_error() {
 /// structure holds), hundreds of textures, cut-out and blended slots, a mesh of many slots,
 /// multisampling, a moving camera, a mesh whose vertices change.
 #[test]
-#[ignore = "needs a GPU adapter (rt_check.yml)"]
+#[ignore = "needs a GPU adapter"]
 fn a_map_sized_scene_traces_without_device_errors() {
     let _ = env_logger::builder()
         .is_test(false)

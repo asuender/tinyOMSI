@@ -39,6 +39,10 @@ fallback hook have been removed; interface texts come only from the translation 
 Old `machine_translation` settings are ignored and dropped on save.
 Build, security, crate dependency-boundary and locale checks remain. Source
 line-count limits and the size-budget script have been removed.
+The CodeQL, ray tracing check, PR test build comment and beta promotion workflows have
+been removed; a beta is promoted by hand (see `docs/VERSIONING.md`). Pull requests and
+pushes to `main` build only Windows x64, macOS arm64 and Linux x64; ARM64 Windows/Linux
+and Intel macOS are built only by a manual release run.
 
 Read `docs/ARCHITECTURE.md` before changing subsystem boundaries and
 `docs/BUILDING.md` before changing build tooling.
