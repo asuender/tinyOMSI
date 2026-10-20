@@ -38,6 +38,8 @@ server build listed below still exists pending multiplayer removal.
 | Dedicated server | `scripts/build-server.sh [folder]` | `dist/server/` with `start.sh` |
 | 32-bit plugin host | `scripts/build-plugin-host.sh` | `dist/omsi-plugin-host32.exe` (see [PLUGINS.md](PLUGINS.md)) |
 
+Steamworks runtime libraries are no longer required or bundled.
+
 Plain cargo works too: `cargo build --release -p omsi-app` builds `target/release/openomsi`.
 
 ## The programs

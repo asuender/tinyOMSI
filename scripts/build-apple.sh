@@ -90,24 +90,21 @@ rust_for_xcode() {
     esac
 }
 
-# Called by Xcode after the Mac app is linked: the game program and the Steam library go
-# beside the launcher in Contents/MacOS, signed as the app is.
+# Called by Xcode after the Mac app is linked: embed and sign the game and CLI launcher.
 embed_game() {
     dir="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH"
     src="$target_dir/universal-apple-darwin/$profile"
     cp "$src/openomsi" "$dir/openomsi"
     cp "$src/openomsi-launcher" "$dir/openomsi-launcher"
-    cp "$root/assets/steam_redist/libsteam_api.dylib" "$dir/"
     identity="${EXPANDED_CODE_SIGN_IDENTITY:-}"
     if [ -n "$identity" ] && [ "$identity" != "-" ]; then
         ent="$apple/macOS/openOMSI.entitlements"
         [ "${OPENOMSI_STORE:-}" = 1 ] && ent="$apple/macOS/openomsi-game-AppStore.entitlements"
-        codesign --force --options runtime --timestamp --sign "$identity" "$dir/libsteam_api.dylib"
         for b in openomsi openomsi-launcher; do
             codesign --force --options runtime --timestamp --entitlements "$ent" --sign "$identity" "$dir/$b"
         done
     else
-        codesign --force --sign - "$dir/libsteam_api.dylib" "$dir/openomsi" "$dir/openomsi-launcher" 2>/dev/null || true
+        codesign --force --sign - "$dir/openomsi" "$dir/openomsi-launcher" 2>/dev/null || true
     fi
 }
 
@@ -222,11 +219,10 @@ shots() {
     cp "$apple/Tools/LauncherShots.swift" "$target_dir/launcher-shots-src/main.swift"
     xcrun swiftc -O -target "$(uname -m)-apple-macos15.0" -import-objc-header "$apple/Shared/Bridge/openomsi.h" \
         "$apple"/Shared/*/*.swift "$apple/macOS/Platform.swift" "$target_dir/launcher-shots-src/main.swift" \
-        -L "$src" -lopenomsi_game -L "$root/assets/steam_redist" -lsteam_api -lc++ -liconv \
+        -L "$src" -lopenomsi_game -lc++ -liconv \
         -framework Accelerate -framework AudioUnit -framework CoreAudio -framework QuartzCore -framework Metal \
         -framework ApplicationServices -framework CoreGraphics -framework CoreVideo -framework Carbon -framework AppKit \
         -framework GameController -framework IOKit -o "$bin"
-    cp "$root/assets/steam_redist/libsteam_api.dylib" "$target_dir/"
     OPENOMSI_FONTS="$apple/Resources/Fonts" OMSI_BACKGROUND=1 OMSI_NO_UPDATE=1 "$bin" "$out" "$size" 12 "$@"
 }
 

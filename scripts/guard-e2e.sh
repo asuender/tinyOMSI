@@ -8,9 +8,9 @@
 #   scripts/guard-e2e.sh list
 #
 # <old> and <new> are release builds of the same commit with different versions
-# (OPENOMSI_VERSION=0.9.1 / 0.9.2 cargo build --release -p omsi-app), each with
-# libsteam_api.dylib beside it on macOS. Nothing is shown on the screen (hidden launcher
-# windows, the guard's messages written to a file), nothing touches the real installation or
+# (OPENOMSI_VERSION=0.9.1 / 0.9.2 cargo build --release -p omsi-app).
+# Nothing is shown on the screen (hidden launcher windows, the guard's messages written
+# to a file), nothing touches the real installation or
 # ~/.openomsi (a fresh HOME per scenario), and no update is fetched from GitHub. Needs bash,
 # python3 and zip. Exits 0 when every scenario passed. GUARD_E2E_BUNDLE=1 (macOS) lays every
 # installation and release out as an openOMSI.app bundle, as players have it.
@@ -49,7 +49,7 @@ FAIL=0
 BUNDLE="${GUARD_E2E_BUNDLE:-}"
 # the program of an installation, and the top-level items a release holds
 prog() { if [ -n "$BUNDLE" ]; then echo "$1/openOMSI.app/Contents/MacOS/openomsi"; else echo "$1/openomsi"; fi; }
-if [ -n "$BUNDLE" ]; then ITEMS='openOMSI.app\n'; else ITEMS='openomsi\nlibsteam_api.dylib\n'; fi
+if [ -n "$BUNDLE" ]; then ITEMS='openOMSI.app\n'; else ITEMS='openomsi\n'; fi
 
 # copy a build's program files into a folder (an openOMSI.app in it with GUARD_E2E_BUNDLE)
 put_build() { # <bin> <dir>
@@ -60,8 +60,6 @@ put_build() { # <bin> <dir>
   fi
   mkdir -p "$to"
   cp "$1" "$to/openomsi"
-  local lib; lib="$(dirname "$1")/libsteam_api.dylib"
-  [ -f "$lib" ] && cp "$lib" "$to/"
   return 0
 }
 
@@ -95,7 +93,7 @@ updated_install() { # <dir> <new bin> [name=content ...]
   local dir="$1" bin="$2"; shift 2
   put_build "$OLD_BIN" "$dir"
   printf "$ITEMS" > "$dir/.openomsi-files"
-  for f in openomsi libsteam_api.dylib openOMSI.app .openomsi-files; do [ -e "$dir/$f" ] && mv "$dir/$f" "$dir/$f.old-update"; done
+  for f in openomsi openOMSI.app .openomsi-files; do [ -e "$dir/$f" ] && mv "$dir/$f" "$dir/$f.old-update"; done
   put_build "$bin" "$dir"
   local list="$ITEMS" kv
   for kv in "$@"; do printf '%s\n' "${kv#*=}" > "$dir/${kv%%=*}"; list="$list${kv%%=*}\n"; done

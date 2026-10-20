@@ -265,7 +265,6 @@ struct SettingsPage: View {
             }
             if !phone {
                 SettingToggle(label: "The launcher rests while a game runs", key: "launcher_rest", fallback: true)
-                SettingToggle(label: "Discord Rich Presence", key: "discord_status", fallback: true)
             }
             SettingSlider(label: "Game interface size", key: "ui_scale", range: 0.5 ... 2, step: 0.05, fallback: 1) { "\(Int($0 * 100))%" }
             SettingSlider(label: "Interface opacity", key: "ui_opacity", range: 0.2 ... 1, step: 0.05, fallback: 0.85) { "\(Int($0 * 100))%" }

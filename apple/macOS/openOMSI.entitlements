@@ -2,8 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- signed for distribution outside the App Store (Developer ID, notarised): the hardened
-	     runtime, and the Steam library beside the game, which Valve signs -->
+	<!-- Native plugins may be signed independently of the game. -->
 	<key>com.apple.security.cs.disable-library-validation</key>
 	<true/>
 </dict>

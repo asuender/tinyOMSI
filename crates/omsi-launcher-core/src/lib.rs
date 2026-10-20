@@ -2828,8 +2828,13 @@ const SETTING_ALIASES: &[(&str, &str)] = &[
 /// OMSI's `texmemlimit=`, its alias) was the textures' budget, which `video_memory=` - all
 /// the game holds on the card - replaced; kept, a 401 or a 1000 meant for the textures would
 /// be taken for something else by whoever reads it next. `presence` counted sessions on
-/// the upstream website; that service integration has been removed.
-const RETIRED_SETTINGS: &[&str] = &["texture_memory", "presence"];
+/// the upstream website. Discord activity settings are retired too.
+const RETIRED_SETTINGS: &[&str] = &[
+    "texture_memory",
+    "presence",
+    "discord_status",
+    "discord_app_id",
+];
 
 /// A window size as the settings keep it: "WxH" in pixels (each 320..16384), else "auto".
 pub fn resolution_text(v: &str) -> String {
@@ -3039,11 +3044,9 @@ pub fn settings_from_text_on(text: Option<&str>, phone: bool) -> Value {
     v["mirror_refresh"] = json!("full");
     v["mirror_quality"] = json!("standard");
     v["vr_desktop_mirror"] = json!(true);
-    v["discord_status"] = json!(true);
     // iPhone, iPad, Mac: the cross-platform launcher (this one, drawn by the game) instead of the
     // system's own (SwiftUI); elsewhere there is only this one
     v["cross_platform_launcher"] = json!(false);
-    v["discord_app_id"] = json!("");
     // positional voice through GreenTeaSpeak's openOMSI plugin in multiplayer
     v["voice_chat"] = json!(true);
     // the launcher gives the graphics card up while a game runs (off: it stays drawn)
@@ -3419,7 +3422,6 @@ pub fn settings_from_text_on(text: Option<&str>, phone: bool) -> Value {
                     .collect::<String>()
                     .to_ascii_uppercase())
             }
-            "discord_app_id" => v[&k] = json!(val),
             "resolution" | "window_size" => v["resolution"] = json!(resolution_text(val)),
             "graphics_api" => {
                 v[&k] = json!(match val.to_ascii_lowercase().as_str() {
@@ -3521,7 +3523,6 @@ pub fn settings_from_text_on(text: Option<&str>, phone: bool) -> Value {
             | "head_tracking_invert_x"
             | "head_tracking_invert_y"
             | "head_tracking_invert_z"
-            | "discord_status"
             | "voice_chat"
             | "launcher_rest"
             | "cross_platform_launcher" => v[&k] = json!(b(val)),
@@ -4155,7 +4156,7 @@ pub fn settings_to_text(v: &Value, old: Option<&str>) -> String {
         .filter(|x| x.is_finite())
         .unwrap_or(16.0)
         .clamp(-1.0, 360.0);
-    let text = format!("{text}vr={}\nvr_scale={vr_scale}\nvr_head_smoothing_ms={vr_head_smoothing_ms}\nvr_mirror_rate={vr_mirror_rate}\nvr_desktop_mirror={}\ndiscord_status={}\nvoice_chat={}\nlauncher_rest={}\ncross_platform_launcher={}\n", b("vr", false), b("vr_desktop_mirror", true), b("discord_status", true), b("voice_chat", true), b("launcher_rest", true), b("cross_platform_launcher", false));
+    let text = format!("{text}vr={}\nvr_scale={vr_scale}\nvr_head_smoothing_ms={vr_head_smoothing_ms}\nvr_mirror_rate={vr_mirror_rate}\nvr_desktop_mirror={}\nvoice_chat={}\nlauncher_rest={}\ncross_platform_launcher={}\n", b("vr", false), b("vr_desktop_mirror", true), b("voice_chat", true), b("launcher_rest", true), b("cross_platform_launcher", false));
     // what the page does not manage (keys of newer games, hand-written ones) stays as it
     // was in the file; other spellings of the keys just written go
     let mut text = text;

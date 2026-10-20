@@ -382,7 +382,6 @@ const general = {
         // (texts nobody has translated: translated on this machine)
         { type: 'toggle', key: 'machine_translation', label: 'Translate the remaining texts automatically (offline, downloads 620 MB once)' },
         { type: 'toggle', key: 'launcher_rest', label: 'The launcher rests while a game runs (gives the graphics card to the game)' },
-        { type: 'toggle', key: 'discord_status', label: 'Discord Rich Presence', help: 'Shows the launcher or your map, bus, line and multiplayer status in Discord.' },
         { type: 'toggle', key: 'voice_chat', label: 'Voice chat through GreenTeaSpeak (multiplayer)', help: 'Players near you are heard from where they stand, when GreenTeaSpeak runs with the openOMSI plugin and the server names a voice server.' },
         // (larger for those who find the texts hard to read, smaller for more of the picture)
         { type: 'slider', key: 'ui_scale', label: 'Game interface size', min: 0.5, max: 2, step: 0.05, def: 1, format: pct, store: r2 },

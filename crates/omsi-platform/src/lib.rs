@@ -1,5 +1,5 @@
 //! openOMSI's platform services: what the game and the launcher do with the world outside
-//! the simulation - the updates from GitHub (`updater`), Discord's rich presence (`discord`),
+//! the simulation - the updates from GitHub (`updater`),
 //! what the start guard needs to heal a broken release (`recovery`) - and the version stamp
 //! of the build.
 //!
@@ -7,7 +7,6 @@
 //! version) and shows what comes back.
 
 pub mod avatars;
-pub mod discord;
 pub mod memory;
 pub mod proxy;
 pub mod quit;

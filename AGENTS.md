@@ -30,8 +30,10 @@ also been removed. iOS/iPadOS, macOS and desktop touch controls remain. Keep leg
 Android signing keys and build output ignored. Shared phone settings remain for iOS;
 no settings keys or settings paths were changed by the Android removal.
 The upstream player-count heartbeat, its Cloudflare Worker and count-me settings have
-been removed. Old `presence` settings are ignored and dropped on save. Discord/Steam
-rich presence and multiplayer heartbeats are separate and remain.
+been removed. Discord activity sharing and Steamworks integration (including the overlay)
+have also been removed. Old `presence`, `discord_status` and `discord_app_id` settings are
+ignored and dropped on save. Steam installation discovery, Steam Deck support and
+multiplayer heartbeats remain.
 Build, security, crate dependency-boundary and locale checks remain. Source
 line-count limits and the size-budget script have been removed.
 

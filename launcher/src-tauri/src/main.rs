@@ -11,7 +11,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod commands;
-mod discord;
 mod protocol;
 mod service;
 
@@ -175,9 +174,6 @@ fn main() {
             }
             remember_screen(&window.as_ref().window());
             commands::start_watch(app.handle().clone());
-            if !selftest() {
-                discord::start();
-            }
             Ok(())
         })
         .on_window_event(|window, event| {

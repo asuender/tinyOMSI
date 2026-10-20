@@ -300,9 +300,6 @@ The menu on the left groups the pages: **Play** (Drive, Multiplayer, Running gam
   the clock and the weather sync), *General* (the launcher's look and layout, language, the
   game's interface size, chat, photo mode, the navigator, updates, resetting every setting)
   and *Content test* (not on phones and tablets).
-  **Discord Rich Presence** (Settings → General, on by default) shows the launcher or your
-  map, bus, line and multiplayer status in Discord; Discord must be running on the same
-  computer.
   **Voice chat through GreenTeaSpeak** (on by default): in multiplayer, the other players
   are heard from where they are, when GreenTeaSpeak 2 runs with the openOMSI plugin and the
   server names a voice server (see [SERVER.md](SERVER.md) and

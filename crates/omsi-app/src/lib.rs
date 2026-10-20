@@ -12,12 +12,9 @@
 
 mod admin;
 mod admin_panel;
-use omsi_platform::discord;
-use omsi_scene::check;
-#[cfg(steam)]
-mod steam;
 use omsi_input::headtrack;
 use omsi_lan::voice;
+use omsi_scene::check;
 pub(crate) use omsi_scene::head_idle;
 #[cfg(windows)]
 use omsi_xr::openxr;
@@ -632,21 +629,12 @@ fn assemble_app(args: Args, settings: settings::Settings) -> App {
     let clock_note = args.clock_moved.clone();
     // (as the last session left it, #1164)
     let info_bar = settings.info_bar;
-    let is_server = args.server.is_some();
     let sky = crate::weather_setup::SkyState {
         look: args.session_settings,
         ..Default::default()
     };
     // What loads, starts or reads the clock, made one after the other in a fixed order before
     // the App and its groups are put together (their logs and threads come in this order).
-    // Steam must be initialized before the graphics instance and window so its overlay can
-    // hook the rendering process before the first surface is created.
-    #[cfg(steam)]
-    let steam = if is_server {
-        None
-    } else {
-        crate::steam::Steam::start()
-    };
     let instance = graphics_instance();
     let vr_nav_profiles =
         crate::vr_navigator::Profiles::load(crate::vr_navigator::profiles_path().as_deref());
@@ -911,10 +899,6 @@ fn assemble_app(args: Args, settings: settings::Settings) -> App {
             plugin_seen: Default::default(),
             plugin_command: false,
             plugin_panels: Default::default(),
-            discord: None,
-            discord_t: 0.0,
-            #[cfg(steam)]
-            steam,
             update_watch,
             plugins: None,
         },

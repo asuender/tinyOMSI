@@ -67,7 +67,7 @@ pub(crate) enum Group {
     Duty,
     /// `App::net`: the LAN session and the other players (a dedicated server's administration).
     Net,
-    /// `App::integrations`: the plugins, Discord, Steam.
+    /// `App::integrations`: the plugins and update checks.
     Integrations,
     /// `App::sound`.
     Sound,

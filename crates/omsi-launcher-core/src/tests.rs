@@ -40,7 +40,6 @@ fn the_games_options_survive_a_save() {
     let mut v = settings_from_text(None);
     for (k, x) in [
         ("steer_look", json!(true)),
-        ("discord_status", json!(false)),
         ("voice_chat", json!(false)),
         ("launcher_rest", json!(false)),
         ("camera_collision", json!(false)),
@@ -84,7 +83,6 @@ fn the_games_options_survive_a_save() {
     assert_eq!(resolution_text("huge"), "auto");
     for k in [
         "steer_look",
-        "discord_status",
         "voice_chat",
         "launcher_rest",
         "camera_collision",
@@ -108,34 +106,8 @@ fn the_games_options_survive_a_save() {
     ] {
         assert_eq!(back[k], v[k], "{k}");
     }
-    assert!(settings_from_text(None)["discord_status"]
-        .as_bool()
-        .unwrap());
     assert!(settings_from_text(None)["launcher_rest"].as_bool().unwrap());
     assert!(settings_from_text(None)["voice_chat"].as_bool().unwrap());
-    let prior = settings_from_text(Some("discord_status=1\ndiscord_status=0\n"));
-    assert!(!prior["discord_status"].as_bool().unwrap());
-    let mut enabled = prior;
-    enabled["discord_status"] = json!(true);
-    let saved = settings_to_text(&enabled, Some("discord_status=0\ndiscord_status=0\n"));
-    assert_eq!(
-        saved
-            .lines()
-            .filter(|line| line.starts_with("discord_status="))
-            .count(),
-        1
-    );
-    assert!(settings_from_text(Some(&saved))["discord_status"]
-        .as_bool()
-        .unwrap());
-    let custom_id = "discord_app_id=123456\n";
-    let values = settings_from_text(Some(custom_id));
-    assert_eq!(values["discord_app_id"], json!("123456"));
-    let saved = settings_to_text(&values, Some(custom_id));
-    assert_eq!(
-        settings_from_text(Some(&saved))["discord_app_id"],
-        json!("123456")
-    );
 }
 
 #[test]
@@ -532,7 +504,7 @@ fn the_wheels_tremble_settings_round_trip() {
 fn settings_keep_what_the_page_does_not_manage() {
     // the user's file: a key of a newer game, a hand-written one, and the game's other
     // spellings of keys the page writes
-    let old = "# mine\nversion=2\nmsaa=1\nview_distance=1500\nlang=de\ntexmemlimit=401.0\npresence=0\n PrEsEnCe = 1\nfuture_switch=7\nOMSI_Thing = on\nfractal=0\n";
+    let old = "# mine\nversion=2\nmsaa=1\nview_distance=1500\nlang=de\ntexmemlimit=401.0\npresence=0\n PrEsEnCe = 1\ndiscord_status=1\n DiScOrD_App_Id = 123456\nfuture_switch=7\nOMSI_Thing = on\nfractal=0\n";
     let v = settings_from_text(Some(old));
     assert_eq!(v["msaa"], 1);
     assert_eq!(v["view_distance"], "1500");
@@ -542,6 +514,10 @@ fn settings_keep_what_the_page_does_not_manage() {
     assert!(v.get("texture_memory").is_none());
     assert!(settings_from_text(None).get("presence").is_none());
     assert!(v.get("presence").is_none());
+    for key in ["discord_status", "discord_app_id"] {
+        assert!(settings_from_text(None).get(key).is_none());
+        assert!(v.get(key).is_none());
+    }
     assert_eq!(v["texture_compression"], true);
     assert_eq!(v["detail_textures"], false);
     // the page changes a few things (its selects give strings) and saves
@@ -549,6 +525,8 @@ fn settings_keep_what_the_page_does_not_manage() {
     page["view_distance"] = json!("2000");
     page["language"] = json!("FRA");
     page["video_memory"] = json!("3000");
+    page["discord_status"] = json!(true);
+    page["discord_app_id"] = json!("123456");
     page["texture_compression"] = json!(false);
     let text = settings_to_text(&page, Some(old));
     for line in [
@@ -569,6 +547,9 @@ fn settings_keep_what_the_page_does_not_manage() {
         "texture_memory=",
         "presence=",
         "PrEsEnCe",
+        "discord_status",
+        "discord_app_id",
+        "DiScOrD_App_Id",
         "fractal=",
         "view_distance=1500",
     ] {

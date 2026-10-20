@@ -502,17 +502,6 @@ fn interface_size_is_read_within_its_range() {
 }
 
 #[test]
-fn discord_settings_round_trip_and_default_enabled() {
-    assert!(Settings::default().discord_status);
-    let settings = Settings {
-        discord_status: false,
-        discord_app_id: "123456".into(),
-        ..Default::default()
-    };
-    assert_eq!(Settings::from_text(&settings.to_text()), settings);
-}
-
-#[test]
 fn voice_chat_round_trips_and_is_on_by_default() {
     assert!(Settings::default().voice_chat);
     let s = Settings {

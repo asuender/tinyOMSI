@@ -1,58 +1,10 @@
-//! Discord, Steam, the Lua plugins and the personnel file's counts in the window's frame.
+//! The Lua plugins and the personnel file's counts in the window's frame.
 
 use super::*;
 
 impl App {
-    /// Discord's status, Steam's callbacks, the plugins' frame (and what they asked the game
-    /// to do), `OMSI_WATCH_VARS`, and the people's counts for the personnel file.
+    /// The plugins' frame (and what they asked the game to do), `OMSI_WATCH_VARS`, and the people's counts for the personnel file.
     pub(super) fn frame_integrations(&mut self, event_loop: &ActiveEventLoop, dt: f32) {
-        // Discord's status: the map, the bus, the line (every few seconds)
-        #[cfg(not(target_os = "ios"))]
-        {
-            self.integrations.discord_t -= dt;
-            if self.integrations.discord_t <= 0.0 {
-                self.integrations.discord_t = 5.0;
-                if self.args.server.is_none()
-                    && self.integrations.discord.is_none()
-                    && self.settings.discord_status
-                {
-                    self.integrations.discord =
-                        crate::discord::Discord::start(&self.settings.discord_app_id);
-                }
-                if let Some(d) = self.integrations.discord.as_ref() {
-                    let bus = self.player.as_ref().map(|p| {
-                        let definition = &p.vehicle.ty.def;
-                        let short = omsi_launcher_lib::vehicle_type_label(
-                            &definition.type_name,
-                            &definition.path,
-                        );
-                        let full = omsi_launcher_lib::display_bus_name(&format!(
-                            "{} {short}",
-                            definition.manufacturer
-                        ));
-                        (short, full)
-                    });
-                    let duty = self
-                        .session
-                        .duty
-                        .as_ref()
-                        .map(|d| (d.line.as_str(), d.tour.as_str()));
-                    d.set(crate::discord::Presence::for_game(
-                        self.world.as_ref().map(|w| w.global.name.as_str()),
-                        bus.as_ref()
-                            .map(|(short, full)| (short.as_str(), full.as_str())),
-                        duty,
-                        self.net.lan.is_some(),
-                    ));
-                }
-            }
-        }
-
-        // Steam's callbacks (rich presence)
-        #[cfg(steam)]
-        if let Some(steam) = self.integrations.steam.as_ref() {
-            steam.client.run_callbacks();
-        }
         // the plugins' frame, with the bus's scripts done
         let mut plugins = self
             .integrations

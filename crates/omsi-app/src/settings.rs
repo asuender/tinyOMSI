@@ -437,9 +437,6 @@ pub struct Settings {
     pub head_tracking_invert_x: bool,
     pub head_tracking_invert_y: bool,
     pub head_tracking_invert_z: bool,
-    /// Discord's "Playing" status (Rich Presence) and the Discord application it shows as.
-    pub discord_status: bool,
-    pub discord_app_id: String,
     /// Positional voice in multiplayer through GreenTeaSpeak's openOMSI plugin (`voice`).
     pub voice_chat: bool,
 }
@@ -655,8 +652,6 @@ impl Settings {
             head_tracking_invert_x: false,
             head_tracking_invert_y: false,
             head_tracking_invert_z: false,
-            discord_status: true,
-            discord_app_id: String::new(),
             voice_chat: true,
             info_bar: false,
         }
@@ -1387,8 +1382,6 @@ impl Settings {
                 "head_tracking_invert_x" => s.head_tracking_invert_x = b(v),
                 "head_tracking_invert_y" => s.head_tracking_invert_y = b(v),
                 "head_tracking_invert_z" => s.head_tracking_invert_z = b(v),
-                "discord_status" => s.discord_status = b(v),
-                "discord_app_id" => s.discord_app_id = v.trim().to_string(),
                 "voice_chat" => s.voice_chat = b(v),
                 "head_tracking_port" => {
                     s.head_tracking_port = v
@@ -1582,10 +1575,6 @@ impl Settings {
         text.push_str(&format!("steer_look={}\nsteer_look_angle={}\nsteer_look_response={}\nhead_idle={}\nhead_idle_pace={}\nlook_sens={}\nlook_smoothing_ms={}\nblinker_cancel={}\n", self.steer_look as u8, self.steer_look_angle, self.steer_look_response, self.head_idle, self.head_idle_pace, self.look_sens, self.look_smoothing_ms, self.blinker_cancel as u8));
         text.push_str(&format!("seat_pitch_deg={}\n", self.seat_pitch_deg));
         text.push_str(&format!("head_tracking_yaw_sens={}\nhead_tracking_pitch_sens={}\nhead_tracking_roll_sens={}\nhead_tracking_x_sens={}\nhead_tracking_y_sens={}\nhead_tracking_z_sens={}\nhead_tracking_invert_yaw={}\nhead_tracking_invert_pitch={}\nhead_tracking_invert_roll={}\nhead_tracking_invert_x={}\nhead_tracking_invert_y={}\nhead_tracking_invert_z={}\n", self.head_tracking_yaw_sens, self.head_tracking_pitch_sens, self.head_tracking_roll_sens, self.head_tracking_x_sens, self.head_tracking_y_sens, self.head_tracking_z_sens, self.head_tracking_invert_yaw as u8, self.head_tracking_invert_pitch as u8, self.head_tracking_invert_roll as u8, self.head_tracking_invert_x as u8, self.head_tracking_invert_y as u8, self.head_tracking_invert_z as u8));
-        text.push_str(&format!(
-            "discord_status={}\ndiscord_app_id={}\n",
-            self.discord_status as u8, self.discord_app_id
-        ));
         text.push_str(&format!("auto_shift={}\n", self.auto_shift as u8));
         text.push_str(&format!("sim_thread={}\n", self.sim_thread as u8));
         text.push_str(&format!("touch_door_mode={}\n", self.touch_door_mode));

@@ -17,7 +17,5 @@ cp target/release/openomsi target/release/openomsi-launcher "$out/"
 TAURI_CONFIG="{\"version\":\"${OPENOMSI_VERSION%%-*}\"}" cargo build --locked --release --manifest-path launcher/src-tauri/Cargo.toml
 cp launcher/src-tauri/target/release/openomsi-launcher-app "$out/"
 cp assets/icons/app/openomsi-256.png "$out/openomsi.png"
-# (Steam's library, x86-64 only: an ARM build has no Steam, see crates/omsi-app/build.rs)
-[ "$(uname -m)" = x86_64 ] && cp assets/steam_redist/libsteam_api.so "$out/"
 cp scripts/linux/openomsi.desktop "$out/"
 printf '\nopenOMSI %s built in %s\n' "$OPENOMSI_VERSION" "$out"

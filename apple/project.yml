@@ -69,9 +69,9 @@ targets:
         EXECUTABLE_NAME: openOMSI-Mac
         CODE_SIGN_ENTITLEMENTS: macOS/openOMSI.entitlements
         ENABLE_HARDENED_RUNTIME: YES
-        LIBRARY_SEARCH_PATHS: '"$(OPENOMSI_RUST_TARGET)/universal-apple-darwin/$(OPENOMSI_RUST_PROFILE)" "$(SRCROOT)/../assets/steam_redist"'
+        LIBRARY_SEARCH_PATHS: '"$(OPENOMSI_RUST_TARGET)/universal-apple-darwin/$(OPENOMSI_RUST_PROFILE)"'
         LD_RUNPATH_SEARCH_PATHS: "@executable_path @executable_path/../Frameworks"
-        OTHER_LDFLAGS: -lopenomsi_game -lsteam_api -lc++ -liconv -framework Accelerate -framework AudioUnit -framework CoreAudio -framework QuartzCore -framework Metal -framework ApplicationServices -framework CoreGraphics -framework CoreVideo -framework Carbon -framework AppKit -framework GameController -framework IOKit
+        OTHER_LDFLAGS: -lopenomsi_game -lc++ -liconv -framework Accelerate -framework AudioUnit -framework CoreAudio -framework QuartzCore -framework Metal -framework ApplicationServices -framework CoreGraphics -framework CoreVideo -framework Carbon -framework AppKit -framework GameController -framework IOKit
     preBuildScripts:
       - name: Game library (Rust)
         script: '"$SRCROOT/../scripts/build-apple.sh" rust-for-xcode'

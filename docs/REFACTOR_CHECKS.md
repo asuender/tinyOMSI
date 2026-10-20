@@ -23,7 +23,7 @@ its allowance, below). `render <bin> <dir> <scene> ...` renders only the named s
 `compare` then compares only the scenes that are there. Each run writes `<scene>.log` beside
 the picture; the first line names the build.
 
-The binary needs `libsteam_api.dylib` (macOS) beside it: copy both out of `target/release`.
+Copy the binary out of `target/release`; no Steam runtime library is required.
 The pictures are made from licensed content: keep the output directories outside the
 repository (the script refuses a directory inside it) and never commit them.
 
