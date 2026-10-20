@@ -142,15 +142,6 @@ Some need add-on content the stock install does not have (the AA-FR bus bundle, 
 Wright family, the MB O530 Facelift): their `ignore` reason names it. An ignored test that is
 run and finds its content missing fails, naming the file.
 
-## Size budget
-
-`scripts/size-budget.sh` (in the pull request checks) fails when a Rust file or function
-grows more than 5 % past its size in `scripts/size-budget.txt`, or a new one passes 1500
-(file) or 300 (function) lines. Functions are recorded by crate and name, so one moved to
-another file of its crate keeps its allowance. After a split, `scripts/size-budget.sh
---update` lowers the recorded sizes; it never raises them. `--list` shows every file with
-its longest function.
-
 ## Crate layers
 
 `scripts/arch-guard.sh` (run by the pull request checks) keeps the crates in their layers:
@@ -159,6 +150,4 @@ the app's subsystems, and `omsi-app` on top as the glue. `scripts/arch-rules.txt
 must not depend on what (`forbid omsi-sim omsi-render`: the simulation never knows how it is
 drawn) and the edges that still break a rule and are to be removed (`allow ...`); once such an
 edge is gone, the check asks for its `allow` line to be deleted, so it cannot come back.
-The same file caps the lines of Rust in `crates/omsi-app` (`app-lines`, plus 2 %): a new
-subsystem gets a crate of its own instead of growing the app. `--update` lowers the cap after
-code has moved out; `--graph` prints the dependency graph.
+`--graph` prints the dependency graph. Source line-count limits are not enforced.

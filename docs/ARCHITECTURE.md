@@ -33,7 +33,7 @@ change behaviour is checked is in [REFACTOR_CHECKS.md](REFACTOR_CHECKS.md).
 ## Crates
 
 The workspace is layered; `scripts/arch-guard.sh` (rules in `scripts/arch-rules.txt`, run on
-every pull request) keeps each crate off the layers above it, and `omsi-app` may only shrink.
+every pull request) keeps each crate off the layers above it.
 Bottom up:
 
 | Layer | Crates | What they hold |
@@ -431,6 +431,5 @@ checked against it.
   (`World::settings`, a `scene::host::SceneSettings`); the traffic's volume, the rain's
   quality and the lamps' cone weather (`lights::ConeWeather`) as arguments of the calls
   that use them.
-* **Very long functions and files.** `scripts/size-budget.sh` (run on every pull request)
-  keeps them from growing; `scripts/size-budget.txt` lists those over the limits
-  (1500 lines a file, 300 a function) with their recorded sizes. The baseline only goes down.
+* **Very long functions and files.** Review changes for clear responsibilities and
+  manageable complexity. Physical line counts are not enforced.

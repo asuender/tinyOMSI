@@ -29,7 +29,8 @@ Android runtime support, packaging, launcher web-view integration and CI builds 
 also been removed. iOS/iPadOS, macOS and desktop touch controls remain. Keep legacy
 Android signing keys and build output ignored. Shared phone settings remain for iOS;
 no settings keys or settings paths were changed by the Android removal.
-Build, security, architecture, size and locale checks remain.
+Build, security, crate dependency-boundary and locale checks remain. Source
+line-count limits and the size-budget script have been removed.
 
 Read `docs/ARCHITECTURE.md` before changing subsystem boundaries and
 `docs/BUILDING.md` before changing build tooling.
@@ -108,6 +109,7 @@ Check launcher changes separately; root workspace checks do not cover the
 excluded Tauri launcher. For gameplay or rendering changes, include a manual
 driving check when a local installation is available.
 
-Preserve the architecture and size checks under `scripts/`.
+Preserve the crate dependency-boundary checks in `scripts/arch-guard.sh` and
+`scripts/arch-rules.txt`. Do not reintroduce physical line-count limits.
 Documentation must distinguish current behavior from planned removals. If new
 information comes along, update `README.md` and `AGENTS.md`.

@@ -24,6 +24,9 @@ functionality.
 Android support has been removed. iOS/iPadOS and desktop touch controls remain; broader
 mobile removal is still planned. Existing settings files are unchanged.
 
+Crate dependency-boundary checks remain; formatting-sensitive source line-count
+limits have been removed.
+
 ## Requirements
 
 An installed copy of **OMSI 2** is required. tinyOMSI contains no original game
