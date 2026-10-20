@@ -54,8 +54,6 @@
 	<true/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.simulation-games</string>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<!-- UIKit's scene life cycle: the launcher's window (SceneDelegate.swift) -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>

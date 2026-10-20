@@ -52,10 +52,9 @@ const RELEASE_PAGES: u32 = 5;
 const NEWEST_API: &str = "https://api.github.com/repos/openOMSI-org/openOMSI/releases?per_page=10";
 pub const FIRST_SELF_TESTED: &str = "0.2.32";
 
-/// A build the App Store delivers (every iPhone and iPad build, and a Mac build made with
-/// `OPENOMSI_STORE=1`): the store installs its updates, and a store app may not fetch and run
-/// a program of its own, so no release is ever looked for or offered.
-pub const STORE_BUILD: bool = cfg!(target_os = "ios") || option_env!("OPENOMSI_STORE").is_some();
+/// An iPhone or iPad build: an iOS app may not fetch and run a program of its own, so no
+/// release is ever looked for or offered.
+pub const STORE_BUILD: bool = cfg!(target_os = "ios");
 
 /// A release newer than this build, with the file for this platform.
 #[derive(Clone, Debug, PartialEq)]
@@ -916,7 +915,10 @@ fn download_and_install(r: &Release, status: &Mutex<Status>) -> anyhow::Result<(
     #[cfg(target_os = "ios")]
     {
         let _ = file;
-        anyhow::bail!("openOMSI {} comes from the App Store", r.version)
+        anyhow::bail!(
+            "openOMSI {} cannot be installed by the app on iOS",
+            r.version
+        )
     }
 }
 

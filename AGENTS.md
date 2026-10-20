@@ -43,6 +43,10 @@ The CodeQL, ray tracing check, PR test build comment and beta promotion workflow
 been removed; a beta is promoted by hand (see `docs/VERSIONING.md`). Pull requests and
 pushes to `main` build only Windows x64, macOS arm64 and Linux x64; ARM64 Windows/Linux
 and Intel macOS are built only by a manual release run.
+App Store distribution has been removed: the Apple workflow, the `ipa` and `mac-store`
+modes of `scripts/build-apple.sh`, the Mac App Store entitlements and the `OPENOMSI_STORE`
+build switch. iOS/iPadOS builds, the Simulator and the Developer ID Mac app remain; iOS
+builds still never self-update. iOS has no CI coverage.
 
 Read `docs/ARCHITECTURE.md` before changing subsystem boundaries and
 `docs/BUILDING.md` before changing build tooling.

@@ -34,7 +34,7 @@ server build listed below still exists pending multiplayer removal.
 | Windows | `scripts\build-windows.cmd` (ARM64: `scripts\build-windows.cmd aarch64-pc-windows-msvc`) | `dist\windows\openomsi.exe`, `openomsi-launcher-app.exe`, `openomsi-launcher.exe` |
 | Windows, from a Mac or Linux | `scripts/build-windows-cross.sh` (needs `mingw-w64` and the `x86_64-pc-windows-gnu` target) | `dist/windows/openomsi.exe`, `openomsi-launcher.exe` (no desktop launcher) |
 | Linux | `scripts/build-linux.sh` | `dist/linux/openomsi`, `openomsi-launcher-app`, `openomsi-launcher`, `.desktop` file |
-| iPhone, iPad, Mac app | `scripts/build-apple.sh project\|sim\|mac\|ipa\|mac-store` | `apple/openOMSI.xcodeproj`, `dist/apple/` |
+| iPhone, iPad, Mac app | `scripts/build-apple.sh project\|sim\|mac` | `apple/openOMSI.xcodeproj`, `dist/apple/` |
 | Dedicated server | `scripts/build-server.sh [folder]` | `dist/server/` with `start.sh` |
 | 32-bit plugin host | `scripts/build-plugin-host.sh` | `dist/omsi-plugin-host32.exe` (see [PLUGINS.md](PLUGINS.md)) |
 

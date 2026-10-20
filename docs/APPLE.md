@@ -56,33 +56,27 @@ Needs Xcode 26 (with the iOS platform), Rust and XcodeGen (`brew install xcodege
 scripts/build-apple.sh sim                 # iOS Simulator: build, install, start
 scripts/build-apple.sh mac                 # dist/apple/openOMSI.app
 scripts/build-apple.sh project             # apple/openOMSI.xcodeproj to work in Xcode
-OPENOMSI_TEAM_ID=XXXXXXXXXX scripts/build-apple.sh ipa        # App Store .ipa
-OPENOMSI_TEAM_ID=XXXXXXXXXX scripts/build-apple.sh mac-store  # Mac App Store
 scripts/build-apple.sh shots <dir> 1440x880 drive settings    # the launcher's pages as PNG
 ```
 
 The Xcode project builds the Rust library itself before the Swift sources (a build phase
 calling `scripts/build-apple.sh rust-for-xcode`).
 
-## Releasing (to do once)
+## Signing
 
-1. Apple Developer: an App ID `io.github.turbo-devv.openomsi` (one for iPhone, iPad and Mac:
-   one purchase), with the capabilities *Increased Memory Limit* and *Extended Virtual
-   Addressing*; for LAN sessions found by broadcast also *Multicast Networking* (Apple grants
-   it on request).
-2. App Store Connect: the app record (iOS and macOS), and an API key (Users and Access →
-   Integrations, role App Manager) for the CI.
-3. GitHub secrets `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64`; then
-   the *Apple* workflow (`.github/workflows/apple.yml`, started by hand) builds the .ipa, the
-   notarised Mac app and the Mac App Store package, and uploads them with `upload`.
+tinyOMSI is not distributed through the App Store and has no Apple CI workflow.
 
-App Store builds never look for or install updates (`updater::STORE_BUILD`): the store does.
+- Devices: an App ID `io.github.turbo-devv.openomsi` with the capabilities *Increased Memory
+  Limit* and *Extended Virtual Addressing*; for LAN sessions found by broadcast also
+  *Multicast Networking* (Apple grants it on request). Set `OPENOMSI_TEAM_ID` or sign in Xcode.
+- Mac: with `OPENOMSI_TEAM_ID`, `scripts/build-apple.sh mac` exports a Developer ID app; with an
+  App Store Connect API key (`OPENOMSI_ASC_KEY_ID`, `OPENOMSI_ASC_ISSUER`, `OPENOMSI_ASC_KEY`)
+  it is also notarised.
+
+iPhone and iPad builds never look for or install updates (`updater::STORE_BUILD`).
 
 ## Open points
 
-- The Mac App Store build runs in the sandbox: the game program inherits it
-  (`openomsi-game-AppStore.entitlements`); the OMSI 2 folder chosen in the launcher must be
-  passed on to it (a bookmark it resolves itself) - not done yet.
 - The Swift launcher has no key-binding editor (the Cross-Platform Launcher's Controls page
   edits the same file) and no update dialog for the Developer ID Mac build yet.
 - The Swift launcher's texts are English; the game launcher's translations

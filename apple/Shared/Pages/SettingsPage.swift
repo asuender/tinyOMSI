@@ -3,7 +3,7 @@ import SwiftUI
 /// The Settings page: the game's settings file (`settings.cfg`), every change saved at once,
 /// in the tabs and with the choices of the game's launcher (`launcher/pages.rs`). What a
 /// system cannot have is left out there (a window size on an iPhone, VR on a Mac, the
-/// updater of an App Store build).
+/// updater on an iPhone or iPad).
 struct SettingsPage: View {
     @Environment(LauncherStore.self) private var store
     @State private var tab = "graphics"

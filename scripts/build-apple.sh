@@ -7,12 +7,10 @@
 #   scripts/build-apple.sh rust ios|ios-sim|macos  the game library (and on a Mac the game program)
 #   scripts/build-apple.sh sim [device]            build for the iOS Simulator, install, start
 #   scripts/build-apple.sh mac                     dist/apple/openOMSI.app (signed when a team is set)
-#   scripts/build-apple.sh ipa                     dist/apple/openOMSI.ipa (an App Store build)
-#   scripts/build-apple.sh mac-store               dist/apple/openOMSI.pkg (the Mac App Store)
 #   scripts/build-apple.sh shots <out> WxH [pages] the Swift launcher's pages as PNG files
 #
-# Signing: OPENOMSI_TEAM_ID (the Apple Developer team), and for the App Store / notarising
-# an App Store Connect API key: OPENOMSI_ASC_KEY_ID, OPENOMSI_ASC_ISSUER, OPENOMSI_ASC_KEY
+# Signing: OPENOMSI_TEAM_ID (the Apple Developer team), and for notarising the Mac app an
+# App Store Connect API key: OPENOMSI_ASC_KEY_ID, OPENOMSI_ASC_ISSUER, OPENOMSI_ASC_KEY
 # (the .p8 file). Without a team the apps are built unsigned (the Simulator needs none).
 # OPENOMSI_RUST_TARGET is cargo's target folder (default: target); OPENOMSI_MAC_ARCHS the
 # Mac's architectures ("arm64 x86_64" for a release; the Mac's own by default).
@@ -24,8 +22,8 @@ export CARGO_TARGET_DIR="$target_dir"
 profile="${OPENOMSI_RUST_PROFILE:-release}"
 version="${OPENOMSI_VERSION:-$(sh "$root/scripts/version.sh" 2>/dev/null || echo 0.0.0)}"
 export OPENOMSI_VERSION="$version"
-# the store wants numbers only (a test build's -pr<number> left out); the build number is the
-# commit count, as every upload needs a higher one
+# Apple's bundle version is numbers only (a test build's -pr<number> left out); the build
+# number is the commit count, so every build has a higher one
 marketing="${version%%-*}"
 build_number="$(git -C "$root" rev-list --count HEAD 2>/dev/null || echo 1)"
 team="${OPENOMSI_TEAM_ID:-}"
@@ -99,7 +97,6 @@ embed_game() {
     identity="${EXPANDED_CODE_SIGN_IDENTITY:-}"
     if [ -n "$identity" ] && [ "$identity" != "-" ]; then
         ent="$apple/macOS/openOMSI.entitlements"
-        [ "${OPENOMSI_STORE:-}" = 1 ] && ent="$apple/macOS/openomsi-game-AppStore.entitlements"
         for b in openomsi openomsi-launcher; do
             codesign --force --options runtime --timestamp --entitlements "$ent" --sign "$identity" "$dir/$b"
         done
@@ -162,52 +159,11 @@ EOF
 }
 
 # The App Store Connect API key, for xcodebuild's automatic signing on a machine that is
-# signed in to no Apple account (the CI).
+# signed in to no Apple account.
 asc_auth() {
     if [ -n "${OPENOMSI_ASC_KEY_ID:-}" ]; then
         echo "-allowProvisioningUpdates -authenticationKeyPath $OPENOMSI_ASC_KEY -authenticationKeyID $OPENOMSI_ASC_KEY_ID -authenticationKeyIssuerID $OPENOMSI_ASC_ISSUER"
     fi
-}
-
-ipa() {
-    [ -n "$team" ] || { echo "An App Store build needs OPENOMSI_TEAM_ID" >&2; exit 1; }
-    rust ios
-    project
-    mkdir -p "$dist"
-    xcb -scheme openOMSI-iOS -configuration Release -destination "generic/platform=iOS" -archivePath "$dist/openOMSI-iOS.xcarchive" OPENOMSI_SKIP_RUST=1 $(asc_auth) archive
-    cat > "$dist/export-ios.plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>method</key><string>app-store-connect</string>
-<key>teamID</key><string>$team</string>
-<key>signingStyle</key><string>automatic</string>
-<key>destination</key><string>export</string>
-</dict></plist>
-EOF
-    xcb -exportArchive -archivePath "$dist/openOMSI-iOS.xcarchive" -exportPath "$dist" -exportOptionsPlist "$dist/export-ios.plist" $(asc_auth)
-    printf '\nopenOMSI %s for iPhone and iPad: %s\n' "$version" "$dist/openOMSI.ipa"
-}
-
-mac_store() {
-    [ -n "$team" ] || { echo "A Mac App Store build needs OPENOMSI_TEAM_ID" >&2; exit 1; }
-    export OPENOMSI_STORE=1
-    rust macos
-    project
-    mkdir -p "$dist"
-    xcb -scheme openOMSI-macOS -configuration Release -archivePath "$dist/openOMSI-macOS-store.xcarchive" OPENOMSI_SKIP_RUST=1 OPENOMSI_STORE=1 \
-        CODE_SIGN_ENTITLEMENTS=macOS/openOMSI-AppStore.entitlements $(asc_auth) archive
-    cat > "$dist/export-mac-store.plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>method</key><string>app-store-connect</string>
-<key>teamID</key><string>$team</string>
-<key>signingStyle</key><string>automatic</string>
-<key>destination</key><string>export</string>
-</dict></plist>
-EOF
-    xcb -exportArchive -archivePath "$dist/openOMSI-macOS-store.xcarchive" -exportPath "$dist/store" -exportOptionsPlist "$dist/export-mac-store.plist" $(asc_auth)
 }
 
 shots() {
@@ -235,11 +191,9 @@ rust-for-xcode) rust_for_xcode ;;
 embed-game) embed_game ;;
 sim) sim "$@" ;;
 mac) mac ;;
-ipa) ipa ;;
-mac-store) mac_store ;;
 shots) shots "$@" ;;
 *)
-    sed -n '2,20p' "$0"
+    sed -n '2,16p' "$0"
     exit 2
     ;;
 esac
