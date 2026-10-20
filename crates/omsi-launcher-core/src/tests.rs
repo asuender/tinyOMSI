@@ -532,7 +532,7 @@ fn the_wheels_tremble_settings_round_trip() {
 fn settings_keep_what_the_page_does_not_manage() {
     // the user's file: a key of a newer game, a hand-written one, and the game's other
     // spellings of keys the page writes
-    let old = "# mine\nversion=2\nmsaa=1\nview_distance=1500\nlang=de\ntexmemlimit=401.0\nfuture_switch=7\nOMSI_Thing = on\nfractal=0\n";
+    let old = "# mine\nversion=2\nmsaa=1\nview_distance=1500\nlang=de\ntexmemlimit=401.0\npresence=0\n PrEsEnCe = 1\nfuture_switch=7\nOMSI_Thing = on\nfractal=0\n";
     let v = settings_from_text(Some(old));
     assert_eq!(v["msaa"], 1);
     assert_eq!(v["view_distance"], "1500");
@@ -540,6 +540,8 @@ fn settings_keep_what_the_page_does_not_manage() {
     // (OMSI's texture budget is not the video memory: Automatic)
     assert_eq!(v["video_memory"], 0);
     assert!(v.get("texture_memory").is_none());
+    assert!(settings_from_text(None).get("presence").is_none());
+    assert!(v.get("presence").is_none());
     assert_eq!(v["texture_compression"], true);
     assert_eq!(v["detail_textures"], false);
     // the page changes a few things (its selects give strings) and saves
@@ -565,6 +567,8 @@ fn settings_keep_what_the_page_does_not_manage() {
         "lang=",
         "texmemlimit=",
         "texture_memory=",
+        "presence=",
+        "PrEsEnCe",
         "fractal=",
         "view_distance=1500",
     ] {

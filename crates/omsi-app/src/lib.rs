@@ -34,7 +34,6 @@ mod units;
 use omsi_mt as mt;
 use omsi_platform::updater;
 mod update_watch;
-use omsi_platform::presence;
 use omsi_soundscape::ambience;
 mod soundscape;
 use omsi_career::career;
@@ -671,12 +670,6 @@ fn assemble_app(args: Args, settings: settings::Settings) -> App {
         crate::startup::own_bindings(&args_root_for_keys, omsi_content::input::KEY_SHIFT);
     let fps_t = Instant::now();
     let update_watch = crate::update_watch::UpdateWatch::new();
-    // (a server counts its players by their own games, not itself)
-    let presence = if is_server || cfg!(test) {
-        None
-    } else {
-        crate::presence::Presence::start()
-    };
     let touch = touch::Touch::new();
     App {
         args,
@@ -923,7 +916,6 @@ fn assemble_app(args: Args, settings: settings::Settings) -> App {
             #[cfg(steam)]
             steam,
             update_watch,
-            presence,
             plugins: None,
         },
         net: NetState::default(),

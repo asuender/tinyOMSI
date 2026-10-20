@@ -29,6 +29,9 @@ Android runtime support, packaging, launcher web-view integration and CI builds 
 also been removed. iOS/iPadOS, macOS and desktop touch controls remain. Keep legacy
 Android signing keys and build output ignored. Shared phone settings remain for iOS;
 no settings keys or settings paths were changed by the Android removal.
+The upstream player-count heartbeat, its Cloudflare Worker and count-me settings have
+been removed. Old `presence` settings are ignored and dropped on save. Discord/Steam
+rich presence and multiplayer heartbeats are separate and remain.
 Build, security, crate dependency-boundary and locale checks remain. Source
 line-count limits and the size-budget script have been removed.
 

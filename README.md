@@ -24,6 +24,10 @@ functionality.
 Android support has been removed. iOS/iPadOS and desktop touch controls remain; broader
 mobile removal is still planned. Existing settings files are unchanged.
 
+The upstream player-count heartbeat and its Cloudflare Worker have been removed. Old
+`presence` settings are ignored and dropped when settings are saved. Discord and Steam
+rich presence remain separate features.
+
 Crate dependency-boundary checks remain; formatting-sensitive source line-count
 limits have been removed.
 
