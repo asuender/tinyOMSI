@@ -71,7 +71,12 @@ fn state(c: &mut Ctx<'_>) -> Value {
         r.push(("km_today", session.into()));
     }
     if let Some([t, b, cl, s]) = io.bus_controls() {
-        r.extend([("throttle", Value::from(t as f64)), ("brake", Value::from(b)), ("clutch", Value::from(cl)), ("steering", Value::from(s))]);
+        r.extend([
+            ("throttle", Value::from(t as f64)),
+            ("brake", Value::from(b)),
+            ("clutch", Value::from(cl)),
+            ("steering", Value::from(s)),
+        ]);
     }
     r.push(("fuel", first_var(c, FUEL).map(Value::from).into()));
     r.push(("handbrake", flag(c, HANDBRAKE)));

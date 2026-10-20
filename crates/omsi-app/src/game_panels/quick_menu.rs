@@ -15,7 +15,13 @@ const ACCENT: Rgba = Rgba([232, 160, 48, 255]);
 const COLUMNS: usize = 6;
 
 fn tile(id: &str, label: &str, icon: &str) -> Element {
-    el(Some(id), Kind::Tile { text: tr(label).into_owned(), icon: icon.to_string() })
+    el(
+        Some(id),
+        Kind::Tile {
+            text: tr(label).into_owned(),
+            icon: icon.to_string(),
+        },
+    )
 }
 
 /// The tiles: id, label, icon - in OMSI's order, six to a row.
@@ -46,12 +52,30 @@ impl QuickMenu {
         let mut children: Vec<Element> = TILES
             .chunks(COLUMNS)
             .map(|line| {
-                let tiles = line.iter().map(|(id, label, icon)| Element { grow: true, color: (*id == "arrows" && arrows).then_some(ACCENT), ..tile(id, label, icon) }).collect();
-                el(None, Kind::Row { children: tiles, gap: 6.0, align: RowAlign::Start })
+                let tiles = line
+                    .iter()
+                    .map(|(id, label, icon)| Element {
+                        grow: true,
+                        color: (*id == "arrows" && arrows).then_some(ACCENT),
+                        ..tile(id, label, icon)
+                    })
+                    .collect();
+                el(
+                    None,
+                    Kind::Row {
+                        children: tiles,
+                        gap: 6.0,
+                        align: RowAlign::Start,
+                    },
+                )
             })
             .collect();
         children.push(note(&tr("Alt or Esc closes the menu; the game goes on.")));
-        Panel { padding: 10.0, gap: 6.0, ..card(Anchor::BottomRight, 32.0, 32.0, 560.0, 150, children) }
+        Panel {
+            padding: 10.0,
+            gap: 6.0,
+            ..card(Anchor::BottomRight, 32.0, 32.0, 560.0, 150, children)
+        }
     }
 }
 
@@ -116,7 +140,10 @@ mod tests {
             toggle(&mut app);
             click(&mut app, tile);
             assert!(app.menus.chooser.is_some(), "{tile}: no list");
-            assert!(app.menus.game_menu.is_some(), "{tile}: the list gets no input");
+            assert!(
+                app.menus.game_menu.is_some(),
+                "{tile}: the list gets no input"
+            );
             app.close_list();
             app.close_game_menu();
         }

@@ -7,14 +7,30 @@ use super::*;
 /// second, up to 250 (the SD202's way); `pump`: whether it has the pump at all.
 fn bus(pump: bool) -> VehicleInstance {
     static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-    let dir = std::env::temp_dir().join(format!("omsi_fuel_{}_{}", std::process::id(), NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+    let dir = std::env::temp_dir().join(format!(
+        "omsi_fuel_{}_{}",
+        std::process::id(),
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
     std::fs::create_dir_all(&dir).unwrap();
     let script = dir.join("engine.osc");
-    let trigger = if pump { "{trigger:veh_tank}\n(L.L.engine_tank_content) 3 (L.S.Timegap) * + 250 min (S.L.engine_tank_content)\n{end}\n" } else { "" };
-    std::fs::write(&script, format!("{{init}}\n37.5 (S.L.engine_tank_content)\n{{end}}\n{trigger}")).unwrap();
+    let trigger = if pump {
+        "{trigger:veh_tank}\n(L.L.engine_tank_content) 3 (L.S.Timegap) * + 250 min (S.L.engine_tank_content)\n{end}\n"
+    } else {
+        ""
+    };
+    std::fs::write(
+        &script,
+        format!("{{init}}\n37.5 (S.L.engine_tank_content)\n{{end}}\n{trigger}"),
+    )
+    .unwrap();
     let vars = dir.join("vars.txt");
     std::fs::write(&vars, "engine_tank_content\n").unwrap();
-    let program = omsi_script::compile(&omsi_script::CompileInput { scripts: vec![script], varlists: vec![vars], ..Default::default() });
+    let program = omsi_script::compile(&omsi_script::CompileInput {
+        scripts: vec![script],
+        varlists: vec![vars],
+        ..Default::default()
+    });
     assert!(program.errors.is_empty(), "{:?}", program.errors);
     let ty = Arc::new(VehicleType {
         def: Default::default(),

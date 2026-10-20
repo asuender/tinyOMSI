@@ -21,7 +21,10 @@ pub struct Store {
 
 impl Store {
     fn load(dir: &Path) -> Store {
-        let values = match std::fs::read_to_string(dir.join(STORE_FILE)).ok().map(|t| json::decode(&t, false)) {
+        let values = match std::fs::read_to_string(dir.join(STORE_FILE))
+            .ok()
+            .map(|t| json::decode(&t, false))
+        {
             Some(Ok(Value::Map(m))) => m,
             Some(Err(e)) => {
                 log::warn!("{}: {e}; starting empty", dir.join(STORE_FILE).display());
@@ -29,7 +32,10 @@ impl Store {
             }
             _ => Vec::new(),
         };
-        Store { values, dirty: false }
+        Store {
+            values,
+            dirty: false,
+        }
     }
 }
 
@@ -43,7 +49,9 @@ fn store(s: &mut PluginState) -> &mut Store {
 
 /// Write the storage when it changed (the plugin stops, `storage.save`).
 pub fn flush(s: &mut PluginState) {
-    let Some(st) = s.storage.as_mut().filter(|st| st.dirty) else { return };
+    let Some(st) = s.storage.as_mut().filter(|st| st.dirty) else {
+        return;
+    };
     st.dirty = false;
     let text = json::encode_pretty(&Value::Map(st.values.clone()));
     let r = std::fs::create_dir_all(&s.data_dir).and_then(|_| {
@@ -72,12 +80,16 @@ fn data_path(c: &mut Ctx<'_>, rel: &str) -> Result<PathBuf, String> {
 }
 
 fn dir_size(d: &Path) -> u64 {
-    let Ok(rd) = std::fs::read_dir(d) else { return 0 };
-    rd.flatten().map(|e| match e.metadata() {
-        Ok(m) if m.is_dir() => dir_size(&e.path()),
-        Ok(m) => m.len(),
-        Err(_) => 0,
-    }).sum()
+    let Ok(rd) = std::fs::read_dir(d) else {
+        return 0;
+    };
+    rd.flatten()
+        .map(|e| match e.metadata() {
+            Ok(m) if m.is_dir() => dir_size(&e.path()),
+            Ok(m) => m.len(),
+            Err(_) => 0,
+        })
+        .sum()
 }
 
 /// Write (or add to) a file of the data folder, within the limits.
@@ -88,14 +100,21 @@ fn write(c: &mut Ctx<'_>, rel: &str, data: &[u8], append: bool) -> Result<(), St
     }
     let dir = c.state().data_dir.clone();
     if dir_size(&dir) + data.len() as u64 > MAX_TOTAL {
-        return Err(format!("a plugin's data folder holds at most {} MB", MAX_TOTAL >> 20));
+        return Err(format!(
+            "a plugin's data folder holds at most {} MB",
+            MAX_TOTAL >> 20
+        ));
     }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     if append {
         use std::io::Write;
-        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path).map_err(|e| e.to_string())?;
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(|e| e.to_string())?;
         f.write_all(data).map_err(|e| e.to_string())
     } else {
         std::fs::write(&path, data).map_err(|e| e.to_string())
@@ -106,7 +125,10 @@ fn write(c: &mut Ctx<'_>, rel: &str, data: &[u8], append: bool) -> Result<(), St
 fn bytes(v: &Value) -> Result<Vec<u8>, ApiError> {
     match v {
         Value::Bytes(b) => Ok(b.clone()),
-        v => v.to_text().map(String::into_bytes).ok_or_else(|| ApiError("the data is a string".into())),
+        v => v
+            .to_text()
+            .map(String::into_bytes)
+            .ok_or_else(|| ApiError("the data is a string".into())),
     }
 }
 
@@ -121,12 +143,29 @@ fn or_reason(r: Result<Value, String>) -> Value {
 /// A folder's entries: `{name, dir, size}` sorted by name.
 pub(crate) fn list_dir(d: &Path) -> Result<Value, String> {
     let rd = std::fs::read_dir(d).map_err(|e| e.to_string())?;
-    let mut out: Vec<(String, bool, u64)> = rd.flatten().filter_map(|e| {
-        let m = e.metadata().ok()?;
-        Some((e.file_name().to_string_lossy().into_owned(), m.is_dir(), m.len()))
-    }).collect();
+    let mut out: Vec<(String, bool, u64)> = rd
+        .flatten()
+        .filter_map(|e| {
+            let m = e.metadata().ok()?;
+            Some((
+                e.file_name().to_string_lossy().into_owned(),
+                m.is_dir(),
+                m.len(),
+            ))
+        })
+        .collect();
     out.sort();
-    Ok(Value::List(out.into_iter().map(|(n, d, s)| rec(vec![("name", n.into()), ("dir", d.into()), ("size", Value::Int(if d { 0 } else { s as i64 }))])).collect()))
+    Ok(Value::List(
+        out.into_iter()
+            .map(|(n, d, s)| {
+                rec(vec![
+                    ("name", n.into()),
+                    ("dir", d.into()),
+                    ("size", Value::Int(if d { 0 } else { s as i64 })),
+                ])
+            })
+            .collect(),
+    ))
 }
 
 pub static FNS: &[ApiFn] = &[

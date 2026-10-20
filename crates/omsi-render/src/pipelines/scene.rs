@@ -18,7 +18,8 @@ pub(crate) struct SceneBase {
     bias: i32,
 }
 
-const VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2];
+const VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 3] =
+    wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2];
 
 impl SceneBase {
     /// `omit_enhanced`: the camera group without the enhanced path's textures (see
@@ -27,12 +28,16 @@ impl SceneBase {
         // One module for both paths: the enhanced fragment shader shares the vertex shader,
         // which the depth prepass relies on to the last bit (see `VsOut::clip`).
         log::info!("renderer: compiling the scene shaders");
-        let shader = compile_shader(device, wgpu::ShaderModuleDescriptor {
-            label: Some("omsi"),
-            source: wgpu::ShaderSource::Wgsl(
-                scene_shader_source(GL_BACKEND.load(std::sync::atomic::Ordering::Relaxed)).into(),
-            ),
-        });
+        let shader = compile_shader(
+            device,
+            wgpu::ShaderModuleDescriptor {
+                label: Some("omsi"),
+                source: wgpu::ShaderSource::Wgsl(
+                    scene_shader_source(GL_BACKEND.load(std::sync::atomic::Ordering::Relaxed))
+                        .into(),
+                ),
+            },
+        );
         let shadow_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("shadow camera"),
             entries: &[
@@ -49,7 +54,11 @@ impl SceneBase {
         });
         let lm_atlas = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("light map atlas"),
-            size: wgpu::Extent3d { width: LM_ATLAS_TILES * LM_TILE_PX, height: LM_ATLAS_TILES * LM_TILE_PX, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: LM_ATLAS_TILES * LM_TILE_PX,
+                height: LM_ATLAS_TILES * LM_TILE_PX,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -77,9 +86,19 @@ impl SceneBase {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &VERTEX_ATTRIBUTES,
         };
-        let bias: i32 = omsi_cfg::flags::OMSI_SURFACE_BIAS.parse()
-            .unwrap_or(-24);
-        SceneBase { shader, shadow_layout, camera_layout, lm_atlas, lm_uniform, material_layout, corona_layout, layout, vertex_layout, bias }
+        let bias: i32 = omsi_cfg::flags::OMSI_SURFACE_BIAS.parse().unwrap_or(-24);
+        SceneBase {
+            shader,
+            shadow_layout,
+            camera_layout,
+            lm_atlas,
+            lm_uniform,
+            material_layout,
+            corona_layout,
+            layout,
+            vertex_layout,
+            bias,
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -97,75 +116,89 @@ impl SceneBase {
         samples: u32,
     ) -> wgpu::RenderPipeline {
         let use_alpha_to_coverage = alpha_to_coverage && samples > 1;
-        compile_pipeline(device, &wgpu::RenderPipelineDescriptor {
-            label: Some("omsi"),
-            layout: Some(&self.layout),
-            vertex: wgpu::VertexState {
-                module: &self.shader,
-                entry_point: Some("vs_main"),
-                buffers: &[self.vertex_layout.clone()],
-                compilation_options: Default::default(),
-            },
-            primitive: one_sided_primitive(cull),
-            // Reversed Z: the near plane is 1 and the far plane 0, so nearer means
-            // greater. The depth bias keeps its meaning (negative = towards the viewer)
-            // only if its sign is turned around with the axis.
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DEPTH_FORMAT,
-                depth_write_enabled: Some(depth_write),
-                depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
-                stencil: Default::default(),
-                bias: wgpu::DepthBiasState {
-                    constant: -bias,
-                    slope_scale: if bias != 0 {
-                        -bias.signum() as f32 * 2.0
-                    } else {
-                        0.0
+        compile_pipeline(
+            device,
+            &wgpu::RenderPipelineDescriptor {
+                label: Some("omsi"),
+                layout: Some(&self.layout),
+                vertex: wgpu::VertexState {
+                    module: &self.shader,
+                    entry_point: Some("vs_main"),
+                    buffers: &[self.vertex_layout.clone()],
+                    compilation_options: Default::default(),
+                },
+                primitive: one_sided_primitive(cull),
+                // Reversed Z: the near plane is 1 and the far plane 0, so nearer means
+                // greater. The depth bias keeps its meaning (negative = towards the viewer)
+                // only if its sign is turned around with the axis.
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DEPTH_FORMAT,
+                    depth_write_enabled: Some(depth_write),
+                    depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
+                    stencil: Default::default(),
+                    bias: wgpu::DepthBiasState {
+                        constant: -bias,
+                        slope_scale: if bias != 0 {
+                            -bias.signum() as f32 * 2.0
+                        } else {
+                            0.0
+                        },
+                        clamp: 0.0,
                     },
-                    clamp: 0.0,
+                }),
+                multisample: wgpu::MultisampleState {
+                    count: samples,
+                    mask: !0,
+                    alpha_to_coverage_enabled: use_alpha_to_coverage,
                 },
-            }),
-            multisample: wgpu::MultisampleState {
-                count: samples,
-                mask: !0,
-                alpha_to_coverage_enabled: use_alpha_to_coverage,
+                fragment: Some(wgpu::FragmentState {
+                    module: &self.shader,
+                    entry_point: Some(fs),
+                    targets: &color_targets(
+                        format,
+                        blend,
+                        if fs == "fs_surface_depth" {
+                            wgpu::ColorWrites::empty()
+                        } else {
+                            wgpu::ColorWrites::ALL
+                        },
+                        fs != "fs_surface_depth",
+                        fs == "fs_enhanced",
+                    ),
+                    // Only cutouts and painted terrain keep their discard; opaque and blended
+                    // materials retain early depth testing. (A blend that writes depth writes it
+                    // where it is invisible too: Omsi.exe draws `[matl_alpha] 2` with the alpha
+                    // test off, and content hides things under invisible covers, #2059.)
+                    compilation_options: wgpu::PipelineCompilationOptions {
+                        constants: &[
+                            ("ALPHA_TEST", if alpha_to_coverage { 1.0 } else { 0.0 }),
+                            (
+                                "ALPHA_TO_COVERAGE",
+                                if use_alpha_to_coverage { 1.0 } else { 0.0 },
+                            ),
+                            ("TERRAIN_PAINT", if terrain_paint { 1.0 } else { 0.0 }),
+                        ],
+                        ..Default::default()
+                    },
+                }),
+                multiview_mask: None,
+                cache: crate::pipeline_cache::get(device).as_ref(),
             },
-            fragment: Some(wgpu::FragmentState {
-                module: &self.shader,
-                entry_point: Some(fs),
-                targets: &color_targets(
-                    format,
-                    blend,
-                    if fs == "fs_surface_depth" { wgpu::ColorWrites::empty() } else { wgpu::ColorWrites::ALL },
-                    fs != "fs_surface_depth",
-                    fs == "fs_enhanced",
-                ),
-                // Only cutouts and painted terrain keep their discard; opaque and blended
-                // materials retain early depth testing. (A blend that writes depth writes it
-                // where it is invisible too: Omsi.exe draws `[matl_alpha] 2` with the alpha
-                // test off, and content hides things under invisible covers, #2059.)
-                compilation_options: wgpu::PipelineCompilationOptions {
-                    constants: &[
-                        ("ALPHA_TEST", if alpha_to_coverage { 1.0 } else { 0.0 }),
-                        (
-                            "ALPHA_TO_COVERAGE",
-                            if use_alpha_to_coverage { 1.0 } else { 0.0 },
-                        ),
-                        ("TERRAIN_PAINT", if terrain_paint { 1.0 } else { 0.0 }),
-                    ],
-                    ..Default::default()
-                },
-            }),
-            multiview_mask: None,
-            cache: crate::pipeline_cache::get(device).as_ref(),
-        })
+        )
     }
 
     pub(crate) const PIPELINES: usize = PIPE_KINDS as usize * 4;
 
     /// The pipeline at `index` of the ones per `pipe_code` (kind, then culled, then surface
     /// bias): the kind decides blending and the depth write.
-    pub(crate) fn pipeline_at(&self, device: &wgpu::Device, f: wgpu::TextureFormat, fs: &str, samples: u32, index: usize) -> wgpu::RenderPipeline {
+    pub(crate) fn pipeline_at(
+        &self,
+        device: &wgpu::Device,
+        f: wgpu::TextureFormat,
+        fs: &str,
+        samples: u32,
+        index: usize,
+    ) -> wgpu::RenderPipeline {
         let kind = (index / 4) as u8;
         let (cull, surface) = (index & 2 != 0, index & 1 != 0);
         let blend = matches!(kind, PIPE_BLEND | PIPE_BLEND_NO_WRITE | PIPE_TERRAIN_PAINT)
@@ -174,7 +207,11 @@ impl SceneBase {
         self.pipeline(
             device,
             f,
-            if kind == PIPE_SURFACE_DEPTH { "fs_surface_depth" } else { fs },
+            if kind == PIPE_SURFACE_DEPTH {
+                "fs_surface_depth"
+            } else {
+                fs
+            },
             blend,
             depth_write,
             cull,
@@ -193,7 +230,12 @@ pub(crate) struct Prepass {
     pub msaa_pipelines: Option<[wgpu::RenderPipeline; 6]>,
 }
 
-pub(crate) fn prepass(device: &wgpu::Device, scene: &SceneBase, msaa: u32, enhanced: bool) -> Prepass {
+pub(crate) fn prepass(
+    device: &wgpu::Device,
+    scene: &SceneBase,
+    msaa: u32,
+    enhanced: bool,
+) -> Prepass {
     let prepass_pl = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("prepass"),
         bind_group_layouts: &[Some(&scene.camera_layout), Some(&scene.material_layout)],
@@ -211,34 +253,44 @@ pub(crate) fn prepass(device: &wgpu::Device, scene: &SceneBase, msaa: u32, enhan
             2 => "fs_depth_transmap",
             _ => unreachable!(),
         };
-        compile_pipeline(device, &wgpu::RenderPipelineDescriptor {
-            label: Some("depth prepass"),
-            layout: Some(&prepass_pl),
-            vertex: wgpu::VertexState {
-                module: &scene.shader,
-                // (the place and the cut-out's coverage only: see `vs_depth`)
-                entry_point: Some("vs_depth"),
-                buffers: &[scene.vertex_layout.clone()],
-                compilation_options: Default::default(),
+        compile_pipeline(
+            device,
+            &wgpu::RenderPipelineDescriptor {
+                label: Some("depth prepass"),
+                layout: Some(&prepass_pl),
+                vertex: wgpu::VertexState {
+                    module: &scene.shader,
+                    // (the place and the cut-out's coverage only: see `vs_depth`)
+                    entry_point: Some("vs_depth"),
+                    buffers: &[scene.vertex_layout.clone()],
+                    compilation_options: Default::default(),
+                },
+                primitive: one_sided_primitive(cull),
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DEPTH_FORMAT,
+                    depth_write_enabled: Some(true),
+                    depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: wgpu::MultisampleState {
+                    count: samples,
+                    ..Default::default()
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &scene.shader,
+                    entry_point: Some(fragment),
+                    targets: &if in_main {
+                        color_targets(HDR_FORMAT, None, wgpu::ColorWrites::empty(), false, false)
+                    } else {
+                        Vec::new()
+                    },
+                    compilation_options: Default::default(),
+                }),
+                multiview_mask: None,
+                cache: crate::pipeline_cache::get(device).as_ref(),
             },
-            primitive: one_sided_primitive(cull),
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DEPTH_FORMAT,
-                depth_write_enabled: Some(true),
-                depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: wgpu::MultisampleState { count: samples, ..Default::default() },
-            fragment: Some(wgpu::FragmentState {
-                module: &scene.shader,
-                entry_point: Some(fragment),
-                targets: &if in_main { color_targets(HDR_FORMAT, None, wgpu::ColorWrites::empty(), false, false) } else { Vec::new() },
-                compilation_options: Default::default(),
-            }),
-            multiview_mask: None,
-            cache: crate::pipeline_cache::get(device).as_ref(),
-        })
+        )
     };
     let make_prepass = |kind: u8, cull: bool| make_prepass_samples(kind, cull, 1, false);
     let pipelines = [
@@ -256,8 +308,18 @@ pub(crate) fn prepass(device: &wgpu::Device, scene: &SceneBase, msaa: u32, enhan
     // Excavations need a depth refill even at 1x, after their floors and covers.
     // The depth-only pass's pipelines cannot bind the main pass's colour targets.
     let msaa_pipelines = (msaa > 1 || enhanced).then(|| {
-        [(0, false), (0, true), (1, false), (1, true), (2, false), (2, true)]
-            .map(|(kind, cull)| make_prepass_samples(kind, cull, msaa, true))
+        [
+            (0, false),
+            (0, true),
+            (1, false),
+            (1, true),
+            (2, false),
+            (2, true),
+        ]
+        .map(|(kind, cull)| make_prepass_samples(kind, cull, msaa, true))
     });
-    Prepass { pipelines, msaa_pipelines }
+    Prepass {
+        pipelines,
+        msaa_pipelines,
+    }
 }

@@ -40,7 +40,9 @@ impl Player {
     /// forwards or backwards, by `IBIS_busstop` / `ibox_busstop` (its keys only count up, so
     /// the typist cannot do this). Without a route in the IBIS there is nothing to move.
     pub(crate) fn ibis_to_stop(&mut self, trip: &schedule::PlannedTrip, stop: usize) {
-        let Some(hof) = self.vehicle.host.hof.clone() else { return };
+        let Some(hof) = self.vehicle.host.hof.clone() else {
+            return;
+        };
         let Some(route) = self
             .vehicle
             .var("IBIS_RouteIndex")
@@ -49,10 +51,13 @@ impl Player {
         else {
             return;
         };
-        if self.vehicle.var("IBIS_busstop").is_none() && self.vehicle.var("ibox_busstop").is_none() {
+        if self.vehicle.var("IBIS_busstop").is_none() && self.vehicle.var("ibox_busstop").is_none()
+        {
             return;
         }
-        let Some(name) = trip.stops.get(stop).map(|s| s.name.clone()) else { return };
+        let Some(name) = trip.stops.get(stop).map(|s| s.name.clone()) else {
+            return;
+        };
         if let Some(i) = schedule::ibis_stop_index(&hof, route.round() as usize, &name, stop) {
             for var in ["IBIS_busstop", "ibox_busstop"] {
                 if self.vehicle.var(var).is_some() {
@@ -147,7 +152,9 @@ impl Player {
         if requests.is_empty() {
             return;
         }
-        let (stops, requests): (Vec<_>, Vec<_>) = requests.into_iter().partition(|r| matches!(r, omsi_sim::htmltex::HtmlRequest::SetNextStop(_)));
+        let (stops, requests): (Vec<_>, Vec<_>) = requests
+            .into_iter()
+            .partition(|r| matches!(r, omsi_sim::htmltex::HtmlRequest::SetNextStop(_)));
         if let Some(omsi_sim::htmltex::HtmlRequest::SetNextStop(i)) = stops.last() {
             log::info!("HTML page: setNextStop({i}) received");
             self.html_next_stop = Some(*i);
@@ -164,15 +171,22 @@ impl Player {
                 omsi_sim::htmltex::HtmlRequest::SetRoute(i) => self.set_route_from_page(&hof, i),
                 omsi_sim::htmltex::HtmlRequest::SetLine(line) => {
                     let wanted = line.trim();
-                    let digits: String = wanted.chars().take_while(|c| c.is_ascii_digit()).collect();
+                    let digits: String =
+                        wanted.chars().take_while(|c| c.is_ascii_digit()).collect();
                     let found = hof
                         .info_trips
                         .iter()
                         .position(|t| route_line(t).eq_ignore_ascii_case(wanted))
-                        .or_else(|| hof.info_trips.iter().position(|t| !digits.is_empty() && route_line(t) == digits));
+                        .or_else(|| {
+                            hof.info_trips
+                                .iter()
+                                .position(|t| !digits.is_empty() && route_line(t) == digits)
+                        });
                     match found {
                         Some(i) => self.set_route_from_page(&hof, i),
-                        None => log::info!("HTML page: depot file {} has no line '{wanted}'", hof.name),
+                        None => {
+                            log::info!("HTML page: depot file {} has no line '{wanted}'", hof.name)
+                        }
                     }
                 }
                 omsi_sim::htmltex::HtmlRequest::SetNextStop(_) => {}
@@ -206,11 +220,19 @@ impl Player {
                             if !c.is_empty() {
                                 c
                             } else {
-                                self.vehicle.var("IBIS_LinieKurs").filter(|n| *n > 0.5).map(|n| format!("{}", n.round() as i64)).unwrap_or_default()
+                                self.vehicle
+                                    .var("IBIS_LinieKurs")
+                                    .filter(|n| *n > 0.5)
+                                    .map(|n| format!("{}", n.round() as i64))
+                                    .unwrap_or_default()
                             }
                         }
                     };
-                    let wanted = if term.texture_id.trim().is_empty() { term.strings.first().cloned().unwrap_or_default() } else { term.texture_id.clone() };
+                    let wanted = if term.texture_id.trim().is_empty() {
+                        term.strings.first().cloned().unwrap_or_default()
+                    } else {
+                        term.texture_id.clone()
+                    };
                     log::info!("HTML page: destination {ti} '{wanted}' on line '{line}'");
                     if let Some((mut old, ..)) = self.ibis_typist.take() {
                         old.abandon(&mut self.vehicle);
@@ -224,11 +246,24 @@ impl Player {
     /// Row `ti` of the depot file on the destination display, set by hand (the destination
     /// list, a bus page): on the IBIS now, on a roller blind once it can be turned
     /// (`schedule::turn_roller_blind`).
-    pub(crate) fn set_destination_by_hand(&mut self, hof: &omsi_vehicle::hof::Hof, line: &str, ti: usize) {
-        self.blind_pick = schedule::set_player_destination_at(&mut self.vehicle, hof, line, ti, &[]);
-        schedule::turn_roller_blind(&mut self.vehicle, &mut self.blind_pick, self.startup.is_some());
+    pub(crate) fn set_destination_by_hand(
+        &mut self,
+        hof: &omsi_vehicle::hof::Hof,
+        line: &str,
+        ti: usize,
+    ) {
+        self.blind_pick =
+            schedule::set_player_destination_at(&mut self.vehicle, hof, line, ti, &[]);
+        schedule::turn_roller_blind(
+            &mut self.vehicle,
+            &mut self.blind_pick,
+            self.startup.is_some(),
+        );
         if let Some(p) = &self.blind_pick {
-            log::info!("roller blind: destination {} kept until the bus is switched on", p.row);
+            log::info!(
+                "roller blind: destination {} kept until the bus is switched on",
+                p.row
+            );
         }
     }
 
@@ -245,11 +280,23 @@ impl Player {
         };
         // (the route's own stops, so that this route is typed and not another of the line to
         // the same terminus)
-        let stops: Vec<String> = hof.info_busstop_lists.get(i).map(|l| l.iter().map(|s| s.trim().to_string()).collect()).unwrap_or_default();
+        let stops: Vec<String> = hof
+            .info_busstop_lists
+            .get(i)
+            .map(|l| l.iter().map(|s| s.trim().to_string()).collect())
+            .unwrap_or_default();
         let name = stops.first().cloned().unwrap_or_default();
-        let wanted = if term.texture_id.trim().is_empty() { term.strings.first().cloned().unwrap_or_default() } else { term.texture_id.clone() };
+        let wanted = if term.texture_id.trim().is_empty() {
+            term.strings.first().cloned().unwrap_or_default()
+        } else {
+            term.texture_id.clone()
+        };
         let line = route_line(t);
-        log::info!("HTML page: route {i} '{}' (line '{line}' (file: '{}') to '{wanted}')", t.name.trim(), t.line.trim());
+        log::info!(
+            "HTML page: route {i} '{}' (line '{line}' (file: '{}') to '{wanted}')",
+            t.name.trim(),
+            t.line.trim()
+        );
         self.type_destination(&line, &wanted, &stops, (0, &name));
     }
 }

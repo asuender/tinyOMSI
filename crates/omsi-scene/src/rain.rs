@@ -77,7 +77,11 @@ pub fn vehicle_boxes(v: &omsi_sim::VehicleInstance) -> Vec<(DVec3, f64, [f32; 6]
     let front = v.ty.def.bounding_box.map(|bb| (v.position, v.heading, bb));
     let parts = v.trailers.iter().filter_map(|t| {
         // a part coupled the other way round stands turned about its own origin
-        let heading = if t.reversed { t.heading + 180.0 } else { t.heading };
+        let heading = if t.reversed {
+            t.heading + 180.0
+        } else {
+            t.heading
+        };
         t.ty.def.bounding_box.map(|bb| (t.position, heading, bb))
     });
     front.into_iter().chain(parts).collect()
@@ -85,7 +89,15 @@ pub fn vehicle_boxes(v: &omsi_sim::VehicleInstance) -> Vec<(DVec3, f64, [f32; 6]
 
 impl Rain {
     pub fn new() -> Rain {
-        Rain { kind: 0, rate: 0.0, quality: 2, drop_mm: 2.0, eye: Vec3::ZERO, temp: 10.0, cover: None }
+        Rain {
+            kind: 0,
+            rate: 0.0,
+            quality: 2,
+            drop_mm: 2.0,
+            eye: Vec3::ZERO,
+            temp: 10.0,
+            cover: None,
+        }
     }
 
     /// `kind`: 0 none, 1 rain, 2 snow; `rate` 0..1; `quality` the rain's (see [`quality_of`]).
@@ -237,11 +249,16 @@ mod tests {
             &instance,
             None,
             Some(wgpu::TextureFormat::Rgba8UnormSrgb),
-            omsi_render::RenderOptions { msaa: 1, shadow_size: 1024, ..Default::default() },
+            omsi_render::RenderOptions {
+                msaa: 1,
+                shadow_size: 1024,
+                ..Default::default()
+            },
         ))
         .expect("noop renderer");
         let mut scene = renderer.new_scene();
-        let id = super::add_snow_on_glass(&renderer, &mut scene, std::path::Path::new("/nonexistent"));
+        let id =
+            super::add_snow_on_glass(&renderer, &mut scene, std::path::Path::new("/nonexistent"));
         assert_eq!(renderer.texture_levels(&scene, id), Some((512, 512, 10)));
     }
 
@@ -257,7 +274,11 @@ mod tests {
             &instance,
             None,
             Some(wgpu::TextureFormat::Rgba8UnormSrgb),
-            omsi_render::RenderOptions { msaa: 1, shadow_size: 1024, ..Default::default() },
+            omsi_render::RenderOptions {
+                msaa: 1,
+                shadow_size: 1024,
+                ..Default::default()
+            },
         ))
         .expect("noop renderer");
         let mut scene = renderer.new_scene();
@@ -268,7 +289,11 @@ mod tests {
         }
         let r = scene.rainfall;
         assert_eq!(r.rate, 1.0);
-        assert!((r.eye_velocity - Vec3::X * 10.0).length() < 0.1, "{:?}", r.eye_velocity);
+        assert!(
+            (r.eye_velocity - Vec3::X * 10.0).length() < 0.1,
+            "{:?}",
+            r.eye_velocity
+        );
         assert_eq!(r.wind, Vec3::X * 3.0);
         rain.set(2, 1.0, 2);
         rain.tick(0.05, Vec3::ZERO, Vec3::ZERO, &mut scene);
@@ -300,7 +325,10 @@ mod tests {
     fn the_snow_cover_builds_up_and_thaws() {
         let heavy = snow_cover(2, 1.0, -3.0, 600.0, 0.0);
         let light = snow_cover(2, 0.1, -3.0, 600.0, 0.0);
-        assert!(heavy > 0.6 && heavy < 0.8 && light < heavy / 3.0, "{heavy} {light}");
+        assert!(
+            heavy > 0.6 && heavy < 0.8 && light < heavy / 3.0,
+            "{heavy} {light}"
+        );
         assert_eq!(snow_cover(2, 1.0, -3.0, 2000.0, 0.0), 1.0);
         assert_eq!(snow_cover(2, 1.0, 5.0, 600.0, 0.0), 0.0);
         assert_eq!(snow_cover(0, 0.0, -5.0, 3600.0, 0.8), 0.8);

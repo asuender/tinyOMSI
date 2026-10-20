@@ -1,5 +1,5 @@
 //! Script texture identity and compatibility for peer subscriptions.
-use crate::sync::{VarTable, var_table};
+use crate::sync::{var_table, VarTable};
 
 /// Bus path and declared surfaces must agree; the seed is the owner's variable table.
 pub fn script_texture_table(

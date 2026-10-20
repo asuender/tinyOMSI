@@ -29,7 +29,8 @@ static RELEASED: Mutex<Option<Instant>> = Mutex::new(None);
 
 fn start() -> Result<Running, String> {
     let game = omsi_launcher_lib::game_binary().ok_or("the game program was not found")?;
-    let log = std::fs::File::create(omsi_launcher_lib::data_dir().join("launcher-service.log")).map_err(|e| e.to_string())?;
+    let log = std::fs::File::create(omsi_launcher_lib::data_dir().join("launcher-service.log"))
+        .map_err(|e| e.to_string())?;
     let mut child = Command::new(&game)
         .arg("--launcher-service")
         .env("RUST_LOG", "info")
@@ -52,8 +53,11 @@ fn start() -> Result<Running, String> {
                 if r.read_line(&mut line).unwrap_or(0) == 0 {
                     break;
                 }
-                let Ok(head) = serde_json::from_str::<Value>(line.trim()) else { continue };
-                let mut body = vec![0u8; head.get("len").and_then(Value::as_u64).unwrap_or(0) as usize];
+                let Ok(head) = serde_json::from_str::<Value>(line.trim()) else {
+                    continue;
+                };
+                let mut body =
+                    vec![0u8; head.get("len").and_then(Value::as_u64).unwrap_or(0) as usize];
                 if r.read_exact(&mut body).is_err() {
                     break;
                 }
@@ -67,13 +71,20 @@ fn start() -> Result<Running, String> {
         })
         .map_err(|e| e.to_string())?;
     omsi_launcher_lib::log_to_file(&format!("launcher service started: {}", game.display()));
-    Ok(Running { child, stdin, pending })
+    Ok(Running {
+        child,
+        stdin,
+        pending,
+    })
 }
 
 /// Ask the service; its answer and the bytes after it.
 pub fn ask(mut req: Value, wait: Duration) -> Result<(Value, Vec<u8>), String> {
     let look = req.get("cmd").and_then(Value::as_str) == Some("look");
-    let drawing = matches!(req.get("cmd").and_then(Value::as_str), Some("look" | "warm" | "frame"));
+    let drawing = matches!(
+        req.get("cmd").and_then(Value::as_str),
+        Some("look" | "warm" | "frame")
+    );
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
     req["id"] = json!(id);
     let (tx, rx) = channel();
@@ -83,9 +94,14 @@ pub fn ask(mut req: Value, wait: Duration) -> Result<(Value, Vec<u8>), String> {
             if look {
                 *LOOK.lock().unwrap_or_else(|e| e.into_inner()) = Some(req);
             }
-            return Ok((json!({ "ok": true, "busy": false, "failed": false, "moving": false, "picture": true }), Vec::new()));
+            return Ok((
+                json!({ "ok": true, "busy": false, "failed": false, "moving": false, "picture": true }),
+                Vec::new(),
+            ));
         }
-        if s.as_mut().is_some_and(|r| r.child.try_wait().ok().flatten().is_some()) {
+        if s.as_mut()
+            .is_some_and(|r| r.child.try_wait().ok().flatten().is_some())
+        {
             *s = None;
         }
         if s.is_none() {
@@ -99,15 +115,27 @@ pub fn ask(mut req: Value, wait: Duration) -> Result<(Value, Vec<u8>), String> {
             *LOOK.lock().unwrap_or_else(|e| e.into_inner()) = Some(req.clone());
         }
         let r = s.as_mut().unwrap();
-        r.pending.lock().unwrap_or_else(|e| e.into_inner()).insert(id, tx);
-        if writeln!(r.stdin, "{req}").and_then(|_| r.stdin.flush()).is_err() {
+        r.pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(id, tx);
+        if writeln!(r.stdin, "{req}")
+            .and_then(|_| r.stdin.flush())
+            .is_err()
+        {
             *s = None;
             return Err("the preview helper ended".into());
         }
     }
-    let (head, body) = rx.recv_timeout(wait).map_err(|_| "the preview helper did not answer".to_string())?;
+    let (head, body) = rx
+        .recv_timeout(wait)
+        .map_err(|_| "the preview helper did not answer".to_string())?;
     if head.get("ok").and_then(Value::as_bool) == Some(false) {
-        return Err(head.get("error").and_then(Value::as_str).unwrap_or("the preview helper failed").to_string());
+        return Err(head
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or("the preview helper failed")
+            .to_string());
     }
     Ok((head, body))
 }
@@ -134,13 +162,20 @@ fn end(child: &mut Child) {
     if matches!(child.try_wait(), Ok(None)) {
         let _ = child.kill();
         let _ = child.wait();
-        let _ = std::fs::remove_file(omsi_launcher_lib::data_dir().join(format!("showroom-placing-{}.txt", omsi_platform::VERSION)));
+        let _ = std::fs::remove_file(
+            omsi_launcher_lib::data_dir()
+                .join(format!("showroom-placing-{}.txt", omsi_platform::VERSION)),
+        );
     }
 }
 
 pub fn no_game_since(asked: Instant) {
     let _s = SERVICE.lock().unwrap_or_else(|e| e.into_inner());
-    if RELEASED.lock().unwrap_or_else(|e| e.into_inner()).is_none_or(|t| t < asked) {
+    if RELEASED
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_none_or(|t| t < asked)
+    {
         PLAYING.store(false, Ordering::Relaxed);
     }
 }
@@ -153,7 +188,13 @@ pub fn release() {
     drop(s);
     std::thread::spawn(move || {
         let t = Instant::now();
-        while t.elapsed() < Duration::from_secs(10) && !r.pending.lock().unwrap_or_else(|e| e.into_inner()).is_empty() {
+        while t.elapsed() < Duration::from_secs(10)
+            && !r
+                .pending
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .is_empty()
+        {
             std::thread::sleep(Duration::from_millis(50));
         }
         let _ = writeln!(r.stdin, "{}", json!({ "cmd": "quit" }));

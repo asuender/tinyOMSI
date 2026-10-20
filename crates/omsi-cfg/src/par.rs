@@ -103,7 +103,10 @@ mod tests {
         for helpers in [0, 1, 3, 16] {
             let mut v: Vec<u64> = (0..1000).collect();
             frame_each(&mut v, helpers, |x| *x = *x * 2 + 1);
-            assert!(v.iter().enumerate().all(|(i, &x)| x == i as u64 * 2 + 1), "helpers {helpers}");
+            assert!(
+                v.iter().enumerate().all(|(i, &x)| x == i as u64 * 2 + 1),
+                "helpers {helpers}"
+            );
         }
         let mut empty: Vec<u8> = Vec::new();
         frame_each(&mut empty, 4, |_| unreachable!());

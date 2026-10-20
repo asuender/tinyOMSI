@@ -81,7 +81,22 @@ impl Shell {
         // (the desktop launcher's calm look: graphite surfaces, no edges)
         let mut ui = Ui::new();
         ui.flat = true;
-        Shell { ui, gpu: None, shot_gpu: None, drawn: None, actions: Vec::new(), picture: None, picture_tex: None, logo_tex: None, shot_logo: None, scale: 1.0, over_ui: false, last_sel: None, dd_anchor: None, opaque: false }
+        Shell {
+            ui,
+            gpu: None,
+            shot_gpu: None,
+            drawn: None,
+            actions: Vec::new(),
+            picture: None,
+            picture_tex: None,
+            logo_tex: None,
+            shot_logo: None,
+            scale: 1.0,
+            over_ui: false,
+            last_sel: None,
+            dd_anchor: None,
+            opaque: false,
+        }
     }
 
     /// A frame of the screens begins: the window's size in physical pixels and how many of
@@ -89,14 +104,22 @@ impl Shell {
     pub(crate) fn begin(&mut self, width: f32, height: f32, scale: f32, dt: f32) {
         self.scale = scale.max(0.25);
         self.ui.input.touch = crate::platform::touch_controls();
-        self.ui.begin(Vec2::new(width / self.scale, height / self.scale), self.scale, dt);
+        self.ui.begin(
+            Vec2::new(width / self.scale, height / self.scale),
+            self.scale,
+            dt,
+        );
     }
 
     /// The frame of the screens is drawn: its layers kept for `render`.
     pub(crate) fn finish(&mut self) {
         self.over_ui = self.ui.over_ui;
         let (layers, verts, ranges) = self.ui.finish();
-        self.drawn = Some(Drawn { layers, verts, ranges });
+        self.drawn = Some(Drawn {
+            layers,
+            verts,
+            ranges,
+        });
     }
 
     /// Nothing of the screens shows this frame.
@@ -130,7 +153,10 @@ impl Shell {
     }
 
     pub(crate) fn onto_slider(&self, start: Vec2, p: Vec2) -> Option<Vec2> {
-        self.ui.onto_slider(start / self.scale, p / self.scale).filter(|_| self.showing() && self.dd_anchor.is_none()).map(|q| q * self.scale)
+        self.ui
+            .onto_slider(start / self.scale, p / self.scale)
+            .filter(|_| self.showing() && self.dd_anchor.is_none())
+            .map(|q| q * self.scale)
     }
 
     pub(crate) fn button(&mut self, pressed: bool) {
@@ -166,9 +192,12 @@ impl Shell {
             self.picture_tex = None;
             self.logo_tex = None;
         }
-        let Some((gpu, _)) = self.gpu.as_mut() else { return };
+        let Some((gpu, _)) = self.gpu.as_mut() else {
+            return;
+        };
         if self.logo_tex.is_none() {
-            self.logo_tex = logo_pixels().map(|px| gpu.add_image(&r.device, &r.queue, LOGO_PX, LOGO_PX, &px));
+            self.logo_tex =
+                logo_pixels().map(|px| gpu.add_image(&r.device, &r.queue, LOGO_PX, LOGO_PX, &px));
         }
         if let Some((pw, ph, px)) = self.picture.take() {
             match self.picture_tex {
@@ -177,9 +206,32 @@ impl Shell {
             }
         }
         Self::upload(gpu, r, &mut self.ui, d);
-        let draws: Vec<Draw> = d.ranges.iter().enumerate().map(|(k, (range, tex))| Draw { buffer: 0, range: range.clone(), layer: k, texture: *tex }).collect();
-        let mut enc = r.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("game screens") });
-        gpu.render(&r.device, &r.queue, &mut enc, view, (w, h), self.opaque.then_some(wgpu::Color::BLACK), &d.layers, &draws);
+        let draws: Vec<Draw> = d
+            .ranges
+            .iter()
+            .enumerate()
+            .map(|(k, (range, tex))| Draw {
+                buffer: 0,
+                range: range.clone(),
+                layer: k,
+                texture: *tex,
+            })
+            .collect();
+        let mut enc = r
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("game screens"),
+            });
+        gpu.render(
+            &r.device,
+            &r.queue,
+            &mut enc,
+            view,
+            (w, h),
+            self.opaque.then_some(wgpu::Color::BLACK),
+            &d.layers,
+            &draws,
+        );
         r.queue.submit([enc.finish()]);
     }
 
@@ -191,7 +243,8 @@ impl Shell {
         let size = self.ui.atlas.size;
         if self.shot_gpu.is_none() {
             let mut g = Gpu::new(&r.device, format, 1, size);
-            self.shot_logo = logo_pixels().map(|px| g.add_image(&r.device, &r.queue, LOGO_PX, LOGO_PX, &px));
+            self.shot_logo =
+                logo_pixels().map(|px| g.add_image(&r.device, &r.queue, LOGO_PX, LOGO_PX, &px));
             self.shot_gpu = Some(g);
         }
         let gpu = self.shot_gpu.as_mut().unwrap();
@@ -200,14 +253,52 @@ impl Shell {
         self.ui.atlas.mark_all_dirty();
         // (the logo as well, from the shot's own copy of it)
         let (logo, shot_logo) = (self.logo_tex, self.shot_logo);
-        let draws: Vec<Draw> = d.ranges.iter().enumerate().filter_map(|(k, (range, tex))| {
-            let texture = if *tex == 0 { 0 } else if Some(*tex) == logo { shot_logo? } else { return None };
-            Some(Draw { buffer: 0, range: range.clone(), layer: k, texture })
-        }).collect();
-        let tex = r.device.create_texture(&wgpu::TextureDescriptor { label: Some("screens shot"), size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC, view_formats: &[] });
+        let draws: Vec<Draw> = d
+            .ranges
+            .iter()
+            .enumerate()
+            .filter_map(|(k, (range, tex))| {
+                let texture = if *tex == 0 {
+                    0
+                } else if Some(*tex) == logo {
+                    shot_logo?
+                } else {
+                    return None;
+                };
+                Some(Draw {
+                    buffer: 0,
+                    range: range.clone(),
+                    layer: k,
+                    texture,
+                })
+            })
+            .collect();
+        let tex = r.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("screens shot"),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
         let view = tex.create_view(&Default::default());
         let mut enc = r.device.create_command_encoder(&Default::default());
-        gpu.render(&r.device, &r.queue, &mut enc, &view, (w, h), Some(wgpu::Color::TRANSPARENT), &d.layers, &draws);
+        gpu.render(
+            &r.device,
+            &r.queue,
+            &mut enc,
+            &view,
+            (w, h),
+            Some(wgpu::Color::TRANSPARENT),
+            &d.layers,
+            &draws,
+        );
         Some(read_back(r, enc, &tex, w, h))
     }
 }
@@ -223,10 +314,36 @@ fn logo_pixels() -> Option<Vec<u8>> {
 }
 
 /// `tex` (RGBA8, `w` x `h`) copied out after the commands of `enc`.
-pub(crate) fn read_back(r: &Renderer, mut enc: wgpu::CommandEncoder, tex: &wgpu::Texture, w: u32, h: u32) -> Vec<u8> {
+pub(crate) fn read_back(
+    r: &Renderer,
+    mut enc: wgpu::CommandEncoder,
+    tex: &wgpu::Texture,
+    w: u32,
+    h: u32,
+) -> Vec<u8> {
     let stride = (w * 4).div_ceil(256) * 256;
-    let buf = r.device.create_buffer(&wgpu::BufferDescriptor { label: None, size: (stride * h) as u64, usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ, mapped_at_creation: false });
-    enc.copy_texture_to_buffer(tex.as_image_copy(), wgpu::TexelCopyBufferInfo { buffer: &buf, layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(stride), rows_per_image: None } }, wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 });
+    let buf = r.device.create_buffer(&wgpu::BufferDescriptor {
+        label: None,
+        size: (stride * h) as u64,
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+    enc.copy_texture_to_buffer(
+        tex.as_image_copy(),
+        wgpu::TexelCopyBufferInfo {
+            buffer: &buf,
+            layout: wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(stride),
+                rows_per_image: None,
+            },
+        },
+        wgpu::Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
+    );
     r.queue.submit([enc.finish()]);
     buf.slice(..).map_async(wgpu::MapMode::Read, |_| {});
     omsi_render::wait_gpu(&r.device, None).ok();

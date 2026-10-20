@@ -1,8 +1,8 @@
 //! Textures on the GPU: uploads (prepared off the main thread, or with their mips made on
 //! the GPU), render targets, replacing, shrinking and rebinding them.
 
-use crate::*;
 use crate::pipelines::mip::MipAverage;
+use crate::*;
 
 /// An RGBA picture borrowed for an upload.
 pub(crate) struct RgbaRef<'a> {
@@ -32,8 +32,18 @@ pub(crate) fn next_gen() -> u64 {
 impl GpuTexture {
     /// A slot showing `view` (a picture the renderer draws: the one behind the rain on the
     /// glass), with `texture` a small stand-in the slot's bookkeeping asks about.
-    pub(crate) fn showing(texture: wgpu::Texture, view: wgpu::TextureView, size: (u32, u32)) -> GpuTexture {
-        GpuTexture { texture, view, size, bytes: 0, gen: next_gen() }
+    pub(crate) fn showing(
+        texture: wgpu::Texture,
+        view: wgpu::TextureView,
+        size: (u32, u32),
+    ) -> GpuTexture {
+        GpuTexture {
+            texture,
+            view,
+            size,
+            bytes: 0,
+            gen: next_gen(),
+        }
     }
 
     pub(crate) fn new(texture: wgpu::Texture, size: (u32, u32), bytes: u64) -> GpuTexture {
@@ -51,7 +61,8 @@ impl GpuTexture {
 /// Set where a texture could not be made for want of graphics memory (see
 /// [`try_create_texture`]); read with the device's own out-of-memory flag by
 /// `Renderer::take_out_of_memory`.
-pub(crate) static TEXTURE_OUT_OF_MEMORY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub(crate) static TEXTURE_OUT_OF_MEMORY: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 /// `device.create_texture` where its failure can be seen: None when the card is out of
 /// memory (or refuses the texture). Made unchecked, such a texture was invalid, and so was
@@ -59,9 +70,16 @@ pub(crate) static TEXTURE_OUT_OF_MEMORY: std::sync::atomic::AtomicBool = std::sy
 /// main pass among them: a black picture for the rest of the session while the sounds and
 /// the menus went on (#2472). A texture that cannot be made is drawn as a plain stand-in
 /// instead, and when memory ran short the game keeps fewer textures from then on.
-pub(crate) fn try_create_texture(device: &wgpu::Device, desc: &wgpu::TextureDescriptor) -> Option<wgpu::Texture> {
+pub(crate) fn try_create_texture(
+    device: &wgpu::Device,
+    desc: &wgpu::TextureDescriptor,
+) -> Option<wgpu::Texture> {
     if desc.size.width == 0 || desc.size.height == 0 {
-        log::warn!("texture {}x{}: drawn plain instead", desc.size.width, desc.size.height);
+        log::warn!(
+            "texture {}x{}: drawn plain instead",
+            desc.size.width,
+            desc.size.height
+        );
         return None;
     }
     let memory = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
@@ -95,7 +113,11 @@ pub(crate) fn try_create_texture(device: &wgpu::Device, desc: &wgpu::TextureDesc
 pub(crate) fn stand_in_texture(device: &wgpu::Device, queue: &wgpu::Queue) -> GpuTexture {
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("stand-in"),
-        size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -104,10 +126,23 @@ pub(crate) fn stand_in_texture(device: &wgpu::Device, queue: &wgpu::Queue) -> Gp
         view_formats: &[],
     });
     queue.write_texture(
-        wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+        wgpu::TexelCopyTextureInfo {
+            texture: &texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
         &[128, 128, 128, 255],
-        wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(4), rows_per_image: Some(1) },
-        wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+        wgpu::TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(4),
+            rows_per_image: Some(1),
+        },
+        wgpu::Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
     );
     GpuTexture::new(texture, (1, 1), 0)
 }
@@ -176,18 +211,21 @@ pub fn prepare_texture(
         height: h,
         depth_or_array_layers: 1,
     };
-    let Some(texture) = try_create_texture(device, &wgpu::TextureDescriptor {
-        label: None,
-        size,
-        mip_level_count: levels,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format,
-        usage: wgpu::TextureUsages::TEXTURE_BINDING
-            | wgpu::TextureUsages::COPY_DST
-            | wgpu::TextureUsages::COPY_SRC,
-        view_formats: &[],
-    }) else {
+    let Some(texture) = try_create_texture(
+        device,
+        &wgpu::TextureDescriptor {
+            label: None,
+            size,
+            mip_level_count: levels,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        },
+    ) else {
         return Some(PreparedTexture(stand_in_texture(device, queue)));
     };
     let (bw, bh) = format.block_dimensions();
@@ -238,7 +276,13 @@ pub(crate) fn upload_texture(
     img: &omsi_texture::Image,
     mipmaps: bool,
 ) -> GpuTexture {
-    upload_texture_format(device, queue, img, mipmaps, wgpu::TextureFormat::Rgba8UnormSrgb)
+    upload_texture_format(
+        device,
+        queue,
+        img,
+        mipmaps,
+        wgpu::TextureFormat::Rgba8UnormSrgb,
+    )
 }
 
 pub(crate) fn upload_texture_format(
@@ -258,16 +302,19 @@ pub(crate) fn upload_texture_format(
         height: img.height,
         depth_or_array_layers: 1,
     };
-    let Some(texture) = try_create_texture(device, &wgpu::TextureDescriptor {
-        label: None,
-        size,
-        mip_level_count: mip_count,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format,
-        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        view_formats: &[],
-    }) else {
+    let Some(texture) = try_create_texture(
+        device,
+        &wgpu::TextureDescriptor {
+            label: None,
+            size,
+            mip_level_count: mip_count,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        },
+    ) else {
         return stand_in_texture(device, queue);
     };
     // CPU box-filter mip chain
@@ -330,12 +377,7 @@ pub(crate) fn upload_texture_format(
         texture,
         view,
         size: (img.width, img.height),
-        bytes: texture_bytes(
-            format,
-            img.width,
-            img.height,
-            mip_count,
-        ),
+        bytes: texture_bytes(format, img.width, img.height, mip_count),
         gen: next_gen(),
     }
 }
@@ -344,7 +386,10 @@ pub(crate) fn upload_texture_format(
 /// or 4096 on older ones) made to fit: its smaller levels when it has them, else the picture
 /// halved until it fits. None when it fits as it is. A too big texture used to be a device
 /// error, and the material that used it one too.
-pub fn fit_texture(data: &omsi_texture::TextureData, max: u32) -> Option<omsi_texture::TextureData> {
+pub fn fit_texture(
+    data: &omsi_texture::TextureData,
+    max: u32,
+) -> Option<omsi_texture::TextureData> {
     use omsi_texture::PixelFormat;
     let (w, h) = (data.width.max(1), data.height.max(1));
     if w <= max && h <= max {
@@ -355,7 +400,12 @@ pub fn fit_texture(data: &omsi_texture::TextureData, max: u32) -> Option<omsi_te
         k += 1;
     }
     if (k as usize) < data.levels.len() {
-        return Some(omsi_texture::TextureData { width: (w >> k).max(1), height: (h >> k).max(1), levels: data.levels[k as usize..].to_vec(), ..data.clone() });
+        return Some(omsi_texture::TextureData {
+            width: (w >> k).max(1),
+            height: (h >> k).max(1),
+            levels: data.levels[k as usize..].to_vec(),
+            ..data.clone()
+        });
     }
     // one level only: decode it and halve it
     let mut rgba = match data.levels.first() {
@@ -368,7 +418,14 @@ pub fn fit_texture(data: &omsi_texture::TextureData, max: u32) -> Option<omsi_te
         rgba = next;
         (cw, ch) = (nw, nh);
     }
-    Some(omsi_texture::TextureData { width: cw, height: ch, format: PixelFormat::Rgba8, levels: vec![rgba], has_alpha: data.has_alpha, gpu_mips: true })
+    Some(omsi_texture::TextureData {
+        width: cw,
+        height: ch,
+        format: PixelFormat::Rgba8,
+        levels: vec![rgba],
+        has_alpha: data.has_alpha,
+        gpu_mips: true,
+    })
 }
 
 /// A size halved (both sides, as `fit_texture` halves a picture) until neither passes `max`.
@@ -396,20 +453,37 @@ pub(crate) fn fit_image(img: &omsi_texture::Image, max: u32) -> Option<omsi_text
         gpu_mips: true,
     };
     let small = fit_texture(&data, max)?;
-    Some(omsi_texture::Image { width: small.width, height: small.height, rgba: small.levels.into_iter().next().unwrap_or_default(), has_alpha: img.has_alpha })
+    Some(omsi_texture::Image {
+        width: small.width,
+        height: small.height,
+        rgba: small.levels.into_iter().next().unwrap_or_default(),
+        has_alpha: img.has_alpha,
+    })
 }
 
 #[cfg(test)]
 pub(crate) mod fit_tests {
     #[test]
     fn a_big_picture_is_halved_until_it_fits() {
-        let data = omsi_texture::TextureData { width: 8, height: 4, format: omsi_texture::PixelFormat::Rgba8, levels: vec![vec![200; 8 * 4 * 4]], has_alpha: false, gpu_mips: true };
+        let data = omsi_texture::TextureData {
+            width: 8,
+            height: 4,
+            format: omsi_texture::PixelFormat::Rgba8,
+            levels: vec![vec![200; 8 * 4 * 4]],
+            has_alpha: false,
+            gpu_mips: true,
+        };
         let small = super::fit_texture(&data, 2).unwrap();
         assert_eq!((small.width, small.height), (2, 1));
         assert_eq!(small.levels[0].len(), 2 * 4);
         assert!(super::fit_texture(&data, 8).is_none());
         // a picture of the game's own, and a size, the same way
-        let img = omsi_texture::Image { width: 5000, height: 300, rgba: vec![9; 5000 * 300 * 4], has_alpha: true };
+        let img = omsi_texture::Image {
+            width: 5000,
+            height: 300,
+            rgba: vec![9; 5000 * 300 * 4],
+            has_alpha: true,
+        };
         let small = super::fit_image(&img, 2048).unwrap();
         assert_eq!((small.width, small.height), (1250, 75));
         assert_eq!(small.rgba.len(), 1250 * 75 * 4);
@@ -445,13 +519,23 @@ impl Renderer {
 
     /// Unconverted RGBA channels for dynamic masks and other data rather than colour.
     pub fn add_data_texture(&self, scene: &mut Scene, img: &omsi_texture::Image) -> TextureId {
-        let texture = upload_texture_format(&self.device, &self.queue, img, false, wgpu::TextureFormat::Rgba8Unorm);
+        let texture = upload_texture_format(
+            &self.device,
+            &self.queue,
+            img,
+            false,
+            wgpu::TextureFormat::Rgba8Unorm,
+        );
         scene.textures.push(texture);
         scene.textures.len() - 1
     }
 
     pub fn add_blank_texture(&self, scene: &mut Scene, width: u32, height: u32) -> TextureId {
-        let (width, height) = fit_size(width.max(1), height.max(1), self.device.limits().max_texture_dimension_2d);
+        let (width, height) = fit_size(
+            width.max(1),
+            height.max(1),
+            self.device.limits().max_texture_dimension_2d,
+        );
         // A newly allocated GPU texture has undefined contents. Script displays may be
         // sampled before their first `STUnlock`, so initialise them as transparent rather
         // than briefly showing arbitrary solid pixels on new or AI vehicles.
@@ -468,23 +552,44 @@ impl Renderer {
 
     /// The PBR set found beside diffuse texture `diffuse` (`omsi_texture::pbr`): its maps up
     /// (as data, not colours) and known to the materials made with that texture from now on.
-    pub fn add_pbr_maps(&self, scene: &mut Scene, diffuse: TextureId, set: &omsi_texture::pbr::PbrImages) {
+    pub fn add_pbr_maps(
+        &self,
+        scene: &mut Scene,
+        diffuse: TextureId,
+        set: &omsi_texture::pbr::PbrImages,
+    ) {
         // stored so that the sRGB textures give back the bytes as they are: a normal map's
         // 128 read as 0.22 through the sRGB curve bent every normal
         let lut: Vec<u8> = (0..256)
             .map(|v| {
                 let l = v as f32 / 255.0;
-                let s = if l <= 0.003_130_8 { l * 12.92 } else { 1.055 * l.powf(1.0 / 2.4) - 0.055 };
+                let s = if l <= 0.003_130_8 {
+                    l * 12.92
+                } else {
+                    1.055 * l.powf(1.0 / 2.4) - 0.055
+                };
                 (s * 255.0 + 0.5).clamp(0.0, 255.0) as u8
             })
             .collect();
         let mut up = |img: &omsi_texture::Image| {
-            let data = omsi_texture::Image { width: img.width, height: img.height, rgba: img.rgba.iter().map(|b| lut[*b as usize]).collect(), has_alpha: false };
+            let data = omsi_texture::Image {
+                width: img.width,
+                height: img.height,
+                rgba: img.rgba.iter().map(|b| lut[*b as usize]).collect(),
+                has_alpha: false,
+            };
             self.add_texture(scene, &data, true)
         };
         let normal = set.normal.as_ref().map(&mut up);
         let orm = set.orm.as_ref().map(&mut up);
-        scene.pbr_maps.insert(diffuse, PbrMaps { normal, orm, flags: set.flags });
+        scene.pbr_maps.insert(
+            diffuse,
+            PbrMaps {
+                normal,
+                orm,
+                flags: set.flags,
+            },
+        );
     }
 
     /// The device takes BC1-3 (DXT) textures.
@@ -560,7 +665,13 @@ impl Renderer {
         self.upload_rgba_mips_with(width, height, rgba, MipAverage::ByCoverage)
     }
 
-    fn upload_rgba_mips_with(&self, width: u32, height: u32, rgba: &[u8], average: MipAverage) -> GpuTexture {
+    fn upload_rgba_mips_with(
+        &self,
+        width: u32,
+        height: u32,
+        rgba: &[u8],
+        average: MipAverage,
+    ) -> GpuTexture {
         let img = RgbaRef {
             width,
             height,
@@ -572,19 +683,22 @@ impl Renderer {
             height: img.height,
             depth_or_array_layers: 1,
         };
-        let Some(texture) = try_create_texture(&self.device, &wgpu::TextureDescriptor {
-            label: None,
-            size,
-            mip_level_count: mip_count,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_DST
-                | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        }) else {
+        let Some(texture) = try_create_texture(
+            &self.device,
+            &wgpu::TextureDescriptor {
+                label: None,
+                size,
+                mip_level_count: mip_count,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_DST
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            },
+        ) else {
             return stand_in_texture(&self.device, &self.queue);
         };
         self.queue.write_texture(
@@ -621,8 +735,17 @@ impl Renderer {
     /// Build all lower levels of `texture` by rendering each level from the last. The
     /// texture has already received its level-zero pixels and was created with render-attach
     /// usage by [`upload_rgba_gpu_mips`].
-    pub(crate) fn generate_mip_chain(&self, texture: &wgpu::Texture, mip_count: u32, average: MipAverage) {
-        let pipeline = if average == MipAverage::Independent { &self.mip_text_pipeline } else { &self.mip_pipeline };
+    pub(crate) fn generate_mip_chain(
+        &self,
+        texture: &wgpu::Texture,
+        mip_count: u32,
+        average: MipAverage,
+    ) {
+        let pipeline = if average == MipAverage::Independent {
+            &self.mip_text_pipeline
+        } else {
+            &self.mip_pipeline
+        };
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -683,7 +806,11 @@ impl Renderer {
 
     pub fn upload_speed_mb_s(&self) -> f64 {
         let n = 1024u32;
-        let size = wgpu::Extent3d { width: n, height: n, depth_or_array_layers: 1 };
+        let size = wgpu::Extent3d {
+            width: n,
+            height: n,
+            depth_or_array_layers: 1,
+        };
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("upload check"),
             size,
@@ -699,9 +826,18 @@ impl Renderer {
         let t = std::time::Instant::now();
         for _ in 0..rounds {
             self.queue.write_texture(
-                wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+                wgpu::TexelCopyTextureInfo {
+                    texture: &texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
                 &data,
-                wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(n * 4), rows_per_image: Some(n) },
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(n * 4),
+                    rows_per_image: Some(n),
+                },
                 size,
             );
         }
@@ -713,7 +849,11 @@ impl Renderer {
 
     /// A texture the scene can be rendered into (`render_to_texture`), e.g. a rear-view mirror.
     pub fn add_render_texture(&self, scene: &mut Scene, width: u32, height: u32) -> TextureId {
-        let (width, height) = fit_size(width.max(1), height.max(1), self.device.limits().max_texture_dimension_2d);
+        let (width, height) = fit_size(
+            width.max(1),
+            height.max(1),
+            self.device.limits().max_texture_dimension_2d,
+        );
         let size = wgpu::Extent3d {
             width,
             height,
@@ -759,18 +899,34 @@ impl Renderer {
         let view = t.view.clone();
         let (w, h) = t.size;
         self.texture_aspect = Some(aspect);
-        self.render_inner(scene, &view, w, h, camera, lighting, false, Some(id), None, false);
+        self.render_inner(
+            scene,
+            &view,
+            w,
+            h,
+            camera,
+            lighting,
+            false,
+            Some(id),
+            None,
+            false,
+        );
         self.texture_aspect = None;
     }
 
     /// Replace the pixels of a texture (same size as when created, no mipmaps regenerated).
     pub fn update_texture(&self, scene: &Scene, id: TextureId, img: &omsi_texture::Image) {
-        let Some(gt) = scene.textures.get(id) else { return };
+        let Some(gt) = scene.textures.get(id) else {
+            return;
+        };
         // (a picture larger than the chip takes went up halved, see `fit_image`; one larger
         // than its texture is not written - a device error each frame)
         let fitted = fit_image(img, self.device.limits().max_texture_dimension_2d);
         let img = fitted.as_ref().unwrap_or(img);
-        if img.width > gt.size.0 || img.height > gt.size.1 || img.rgba.len() < (img.width * img.height * 4) as usize {
+        if img.width > gt.size.0
+            || img.height > gt.size.1
+            || img.rgba.len() < (img.width * img.height * 4) as usize
+        {
             return;
         }
         let t = &gt.texture;
@@ -795,9 +951,21 @@ impl Renderer {
         );
     }
 
-    pub fn update_texture_rect(&self, scene: &Scene, id: TextureId, img: &omsi_texture::Image, [x, y, w, h]: [u32; 4]) {
-        let Some(gt) = scene.textures.get(id) else { return };
-        if (img.width, img.height) != gt.size || x + w > img.width || y + h > img.height || img.rgba.len() < (img.width * img.height * 4) as usize {
+    pub fn update_texture_rect(
+        &self,
+        scene: &Scene,
+        id: TextureId,
+        img: &omsi_texture::Image,
+        [x, y, w, h]: [u32; 4],
+    ) {
+        let Some(gt) = scene.textures.get(id) else {
+            return;
+        };
+        if (img.width, img.height) != gt.size
+            || x + w > img.width
+            || y + h > img.height
+            || img.rgba.len() < (img.width * img.height * 4) as usize
+        {
             return;
         }
         self.queue.write_texture(
@@ -838,7 +1006,12 @@ impl Renderer {
         let img = fitted.as_ref().unwrap_or(img);
         let levels = (32 - img.width.max(img.height).leading_zeros()).max(1);
         if old.size != (img.width, img.height) || old.texture.mip_level_count() != levels {
-            scene.textures[id] = self.upload_rgba_mips_with(img.width, img.height, &img.rgba, MipAverage::Independent);
+            scene.textures[id] = self.upload_rgba_mips_with(
+                img.width,
+                img.height,
+                &img.rgba,
+                MipAverage::Independent,
+            );
             return true;
         }
         self.update_texture(scene, id, img);
@@ -884,13 +1057,22 @@ impl Renderer {
     /// [`Renderer::drop_top_levels_in`], [`Renderer::finish_level_drops`]): a submit of
     /// its own for each of the budget pass's up to 96 textures cost more than the copies.
     pub fn begin_level_drops(&self) -> LevelDrops {
-        LevelDrops { encoder: None, count: 0 }
+        LevelDrops {
+            encoder: None,
+            count: 0,
+        }
     }
 
     /// [`Renderer::drop_top_levels`], its copies recorded into `drops` (the slot takes the
     /// smaller texture at once; the copies run when the drops are finished, before anything
     /// drawn after them).
-    pub fn drop_top_levels_in(&self, drops: &mut LevelDrops, scene: &mut Scene, id: TextureId, n: u32) -> bool {
+    pub fn drop_top_levels_in(
+        &self,
+        drops: &mut LevelDrops,
+        scene: &mut Scene,
+        id: TextureId,
+        n: u32,
+    ) -> bool {
         let Some(t) = scene.textures.get(id) else {
             return false;
         };
@@ -907,22 +1089,25 @@ impl Renderer {
         }
         let new_levels = levels - n;
         // (no memory for the smaller copy: the texture stays as it is)
-        let Some(texture) = try_create_texture(&self.device, &wgpu::TextureDescriptor {
-            label: None,
-            size: wgpu::Extent3d {
-                width: nw,
-                height: nh,
-                depth_or_array_layers: 1,
+        let Some(texture) = try_create_texture(
+            &self.device,
+            &wgpu::TextureDescriptor {
+                label: None,
+                size: wgpu::Extent3d {
+                    width: nw,
+                    height: nh,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: new_levels,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_DST
+                    | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
             },
-            mip_level_count: new_levels,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_DST
-                | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        }) else {
+        ) else {
             return false;
         };
         let encoder = drops.encoder.get_or_insert_with(|| {

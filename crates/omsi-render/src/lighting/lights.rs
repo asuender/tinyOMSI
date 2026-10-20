@@ -133,7 +133,9 @@ pub(crate) fn smoke_sprite(p: &SmokeParticle, ro: DVec3) -> Option<GpuCorona> {
         return None;
     }
     // (drawn at 0.9 of its size, see `vs_main`)
-    if p.ground.is_some_and(|g| p.position.z + (p.size * 0.9) as f64 <= g) {
+    if p.ground
+        .is_some_and(|g| p.position.z + (p.size * 0.9) as f64 <= g)
+    {
         return None;
     }
     let (sin, cos) = p.spin.sin_cos();
@@ -143,7 +145,12 @@ pub(crate) fn smoke_sprite(p: &SmokeParticle, ro: DVec3) -> Option<GpuCorona> {
         size: p.size,
         color: [p.color[0], p.color[1], p.color[2], p.alpha.clamp(0.0, 1.0)],
         dir: [cos, sin, 0.0, 0.0],
-        up: [ground.map(|g| (g - ro.z) as f32).unwrap_or(0.0), if ground.is_some() { 1.0 } else { 0.0 }, p.z_offset.max(0.0), smoke_ground_fade(p.size)],
+        up: [
+            ground.map(|g| (g - ro.z) as f32).unwrap_or(0.0),
+            if ground.is_some() { 1.0 } else { 0.0 },
+            p.z_offset.max(0.0),
+            smoke_ground_fade(p.size),
+        ],
         extra: [-2.0, 0.0, 0.0, 3.0],
     })
 }
@@ -250,7 +257,8 @@ impl LampShadow {
         if let Some(look) = self.look {
             return self.headlamp_view_proj(look);
         }
-        let proj = Mat4::perspective_rh(LAMP_SHADOW_FOV.to_radians(), 1.0, 0.1, self.range.max(1.0));
+        let proj =
+            Mat4::perspective_rh(LAMP_SHADOW_FOV.to_radians(), 1.0, 0.1, self.range.max(1.0));
         let view = Mat4::look_to_rh(self.position, -Vec3::Z, Vec3::Y);
         proj * view
     }
@@ -268,7 +276,10 @@ pub(crate) const VANILLA_CELL_CAP: usize = 8;
 fn cell_strength(intensity: f32, color: [f32; 3], r: f32, d2: f32) -> f32 {
     let r0 = r * 0.125;
     let d = d2.sqrt();
-    intensity * (color[0] + color[1] + color[2]) * (r0 * r0 / d2.max(0.01)).min(1.0) * (1.0 - d / r.max(0.01)).max(0.0)
+    intensity
+        * (color[0] + color[1] + color[2])
+        * (r0 * r0 / d2.max(0.01)).min(1.0)
+        * (1.0 - d / r.max(0.01)).max(0.0)
 }
 
 /// Does this path draw the light? (See `Renderer::prepare_lights`.)
@@ -320,7 +331,14 @@ impl Renderer {
     /// by, whose radius it reads as 0, and the mirrors show no headlight pools. The three
     /// stand-in points stay out of it, or a street full of cars would fill the grid cells'
     /// sixteen places before the street lamps got theirs.
-    pub(crate) fn prepare_lights(&self, scene: &mut Scene, cam_rel: Vec3, enhanced: bool, lamp_shadows: bool, own: Option<&(DVec3, f64, [f32; 6])>) -> ([f32; 4], Vec<LampShadow>) {
+    pub(crate) fn prepare_lights(
+        &self,
+        scene: &mut Scene,
+        cam_rel: Vec3,
+        enhanced: bool,
+        lamp_shadows: bool,
+        own: Option<&(DVec3, f64, [f32; 6])>,
+    ) -> ([f32; 4], Vec<LampShadow>) {
         // the street lamps that get a shadow map: the few lighting the camera's
         // surroundings most (by their strength over the distance)
         let mut chosen: Vec<(f32, LampShadow, [i64; 3])> = Vec::new();
@@ -340,7 +358,9 @@ impl Renderer {
             gpu_lights.push(gpu_light(l, (l.position - ro).as_vec3()));
         }
         // (the player's headlamps, which share a map of their own: see `passes::headlamp_shadow`)
-        let own = own.filter(|_| lamp_shadows && enhanced).map(|b| passes::VehicleBox::new(b, ro));
+        let own = own
+            .filter(|_| lamp_shadows && enhanced)
+            .map(|b| passes::VehicleBox::new(b, ro));
         let mut own_lamps: Vec<(Vec3, Vec3, f32)> = Vec::new();
         self.lights.cookies.begin_frame();
         // The grid is made in a room kept all unused but for the cells the last one filled,
@@ -363,7 +383,11 @@ impl Renderer {
         counts.resize(cells, 0);
         let mut strength = std::mem::take(&mut scene.grid_strength);
         strength.resize(cells * LIGHT_CELL_CAP, 0.0);
-        let cap = if enhanced { LIGHT_CELL_CAP } else { VANILLA_CELL_CAP };
+        let cap = if enhanced {
+            LIGHT_CELL_CAP
+        } else {
+            VANILLA_CELL_CAP
+        };
         let squares = omsi_cfg::flags::OMSI_LIGHT_GRID_SQUARES.is_set();
         for l in &scene.lights {
             // Every light the grid reaches is in the list, the other path's too (a headlight
@@ -393,7 +417,11 @@ impl Renderer {
             // and 16 more for one of the player's headlamps, which read their shared map
             // (see `passes::headlamp_shadow`, enhanced.wgsl `light_marks`).
             let mut marks = 0.0;
-            if let Some(layer) = l.cookie.filter(|_| enhanced && l.mode == LightMode::Enhanced).and_then(|c| self.lights.cookies.layer(&c)) {
+            if let Some(layer) = l
+                .cookie
+                .filter(|_| enhanced && l.mode == LightMode::Enhanced)
+                .and_then(|c| self.lights.cookies.layer(&c))
+            {
                 marks += 1.0 + layer as f32;
             }
             if own.as_ref().is_some_and(|b| passes::own_headlamp(l, p, b)) {
@@ -408,7 +436,9 @@ impl Renderer {
             if lamp_shadows && enhanced && l.housed && l.intensity > 0.0 {
                 let d = (p - cam_rel).length();
                 if d < l.radius + LAMP_SHADOW_REACH {
-                    let mut score = l.intensity * (l.color[0] + l.color[1] + l.color[2]) * l.core * l.core / (d * d + 25.0);
+                    let mut score =
+                        l.intensity * (l.color[0] + l.color[1] + l.color[2]) * l.core * l.core
+                            / (d * d + 25.0);
                     // (a lamp that had a map keeps it until another is clearly stronger: the
                     // set changing with every metre the camera moved switched shadows on and
                     // off between lamps that light the view about alike, #1613)
@@ -416,7 +446,18 @@ impl Renderer {
                     if scene.lamp_shadow_last.contains(&key) {
                         score *= 1.6;
                     }
-                    chosen.push((score, LampShadow { index: idx, position: p, range: l.radius, owner: l.shadow_owner, look: None, own: None }, key));
+                    chosen.push((
+                        score,
+                        LampShadow {
+                            index: idx,
+                            position: p,
+                            range: l.radius,
+                            owner: l.shadow_owner,
+                            look: None,
+                            own: None,
+                        },
+                        key,
+                    ));
                 }
             }
             for y in (y0.max(0.0) as usize)..=(y1.min(side as f32 - 1.0) as usize) {
@@ -425,8 +466,14 @@ impl Renderer {
                     let n = counts[cell] as usize;
                     // (its light at the cell's middle, or at its nearest point when the
                     // light stands in the cell)
-                    let cx = (origin[0] + (x as f32 + 0.5) * LIGHT_CELL - p.x).abs().max(0.0) - LIGHT_CELL * 0.5;
-                    let cy = (origin[1] + (y as f32 + 0.5) * LIGHT_CELL - p.y).abs().max(0.0) - LIGHT_CELL * 0.5;
+                    let cx = (origin[0] + (x as f32 + 0.5) * LIGHT_CELL - p.x)
+                        .abs()
+                        .max(0.0)
+                        - LIGHT_CELL * 0.5;
+                    let cy = (origin[1] + (y as f32 + 0.5) * LIGHT_CELL - p.y)
+                        .abs()
+                        .max(0.0)
+                        - LIGHT_CELL * 0.5;
                     let d2 = cx.max(0.0).powi(2) + cy.max(0.0).powi(2);
                     if d2 >= l.radius * l.radius && !squares {
                         continue;
@@ -436,7 +483,17 @@ impl Renderer {
                     // a junction full of traffic would leave its street lamps out)
                     let base = cell * LIGHT_CELL_CAP;
                     let spot = l.direction.length_squared() > 1e-6;
-                    let s = if spot && strength[base..base + n].iter().filter(|&&x| x == f32::MAX).count() < cap / 2 { f32::MAX } else { cell_strength(l.intensity, l.color, l.radius, d2) };
+                    let s = if spot
+                        && strength[base..base + n]
+                            .iter()
+                            .filter(|&&x| x == f32::MAX)
+                            .count()
+                            < cap / 2
+                    {
+                        f32::MAX
+                    } else {
+                        cell_strength(l.intensity, l.color, l.radius, d2)
+                    };
                     if n < cap {
                         if n == 0 {
                             scene.grid_filled.push(cell as u32);
@@ -444,7 +501,10 @@ impl Renderer {
                         grid[base + n] = idx;
                         strength[base + n] = s;
                         counts[cell] += 1;
-                    } else if let Some(weakest) = (0..cap).min_by(|&a, &b| strength[base + a].total_cmp(&strength[base + b])).filter(|&k| strength[base + k] < s) {
+                    } else if let Some(weakest) = (0..cap)
+                        .min_by(|&a, &b| strength[base + a].total_cmp(&strength[base + b]))
+                        .filter(|&k| strength[base + k] < s)
+                    {
                         // a full cell keeps the lights that light it most, not the first ones
                         grid[base + weakest] = idx;
                         strength[base + weakest] = s;
@@ -473,10 +533,22 @@ impl Renderer {
                 // (only the lights from the first that changed to the last: most stand still)
                 let unit = std::mem::size_of::<GpuPointLight>();
                 let old = &scene.last_lights;
-                let first = (0..lbytes.len() / unit).find(|k| old.get(k * unit..(k + 1) * unit) != Some(&lbytes[k * unit..(k + 1) * unit]));
+                let first = (0..lbytes.len() / unit).find(|k| {
+                    old.get(k * unit..(k + 1) * unit) != Some(&lbytes[k * unit..(k + 1) * unit])
+                });
                 if let Some(first) = first {
-                    let last = (first..lbytes.len() / unit).rev().find(|k| old.get(k * unit..(k + 1) * unit) != Some(&lbytes[k * unit..(k + 1) * unit])).unwrap_or(first);
-                    b.write(&self.queue, (first * unit) as u64, &lbytes[first * unit..(last + 1) * unit]);
+                    let last = (first..lbytes.len() / unit)
+                        .rev()
+                        .find(|k| {
+                            old.get(k * unit..(k + 1) * unit)
+                                != Some(&lbytes[k * unit..(k + 1) * unit])
+                        })
+                        .unwrap_or(first);
+                    b.write(
+                        &self.queue,
+                        (first * unit) as u64,
+                        &lbytes[first * unit..(last + 1) * unit],
+                    );
                 }
             }
             _ => {
@@ -488,7 +560,13 @@ impl Renderer {
             }
         }
         if scene.grid_buf.is_none() || scene.last_grid.len() != grid.len() {
-            let b = GpuArray::new(&self.device, "light grid", (grid.len() * 4) as u64, 4, false);
+            let b = GpuArray::new(
+                &self.device,
+                "light grid",
+                (grid.len() * 4) as u64,
+                4,
+                false,
+            );
             b.write(&self.queue, 0, bytemuck::cast_slice(&grid));
             scene.grid_buf = Some(b);
             scene.last_grid.clone_from(&grid);
@@ -522,7 +600,11 @@ impl Renderer {
             }
             for (a, z) in runs {
                 let r = a * LIGHT_CELL_CAP..z * LIGHT_CELL_CAP;
-                b.write(&self.queue, (r.start * 4) as u64, bytemuck::cast_slice(&scene.last_grid[r]));
+                b.write(
+                    &self.queue,
+                    (r.start * 4) as u64,
+                    bytemuck::cast_slice(&scene.last_grid[r]),
+                );
             }
             scene.grid_marks = marks;
             scene.grid_sent.clone_from(&scene.grid_filled);
@@ -554,12 +636,9 @@ impl Renderer {
         // the same keys gives the same order)
         let (mut sprites, mut order, mut data) = std::mem::take(&mut scene.smoke_scratch);
         sprites.clear();
-        sprites.extend(
-            scene
-                .smoke
-                .iter()
-                .filter_map(|p| smoke_sprite(p, ro).map(|g| (-(p.position - eye).length_squared(), g))),
-        );
+        sprites.extend(scene.smoke.iter().filter_map(|p| {
+            smoke_sprite(p, ro).map(|g| (-(p.position - eye).length_squared(), g))
+        }));
         order.clear();
         order.extend(sprites.iter().enumerate().map(|(i, (d, _))| (*d, i as u32)));
         order.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -615,10 +694,27 @@ impl Renderer {
             }
         }
         self.queue.write_texture(
-            wgpu::TexelCopyTextureInfo { texture: &self.lights.lm_atlas, mip_level: 0, origin: wgpu::Origin3d { x: slot.0 * LM_TILE_PX, y: slot.1 * LM_TILE_PX, z: 0 }, aspect: wgpu::TextureAspect::All },
+            wgpu::TexelCopyTextureInfo {
+                texture: &self.lights.lm_atlas,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: slot.0 * LM_TILE_PX,
+                    y: slot.1 * LM_TILE_PX,
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
             &px,
-            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(LM_TILE_PX * 4), rows_per_image: None },
-            wgpu::Extent3d { width: LM_TILE_PX, height: LM_TILE_PX, depth_or_array_layers: 1 },
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(LM_TILE_PX * 4),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: LM_TILE_PX,
+                height: LM_TILE_PX,
+                depth_or_array_layers: 1,
+            },
         );
     }
 
@@ -635,8 +731,14 @@ impl Renderer {
             label: Some("corona picture"),
             layout: &self.lights.corona_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&t.view) },
-                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.lights.corona_sampler) },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&t.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.lights.corona_sampler),
+                },
             ],
         });
         let i = id as usize;
@@ -672,8 +774,14 @@ impl Renderer {
             label: Some("smoke"),
             layout: &self.lights.corona_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&t.view) },
-                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.lights.corona_sampler) },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&t.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.lights.corona_sampler),
+                },
             ],
         });
     }
@@ -681,7 +789,12 @@ impl Renderer {
     /// Upload this frame's coronas.
     /// `cab`: the box of the vehicle the camera is in, whose own flares Omsi.exe draws
     /// after the vehicle (0x6f0a2c -> 0x6f07bc), the others before it (0x6f0400/0x6f0418).
-    pub(crate) fn prepare_coronas(&self, scene: &mut Scene, night: f32, cab: Option<&(DVec3, f64, [f32; 6])>) {
+    pub(crate) fn prepare_coronas(
+        &self,
+        scene: &mut Scene,
+        night: f32,
+        cab: Option<&(DVec3, f64, [f32; 6])>,
+    ) {
         let ro = scene.render_origin;
         // (its lamps sit on the skin of its box: half a metre round it is the vehicle's)
         let cab = cab.map(|&(o, h, mut bb)| {
@@ -690,8 +803,16 @@ impl Renderer {
             }
             (o, h, bb)
         });
-        let late = |c: &Corona| cab.as_ref().is_some_and(|b| point_in_vehicle_box(c.position, b));
-        let mut order: Vec<(bool, &Corona)> = scene.coronas.iter().filter(|c| c.brightness > 0.001).map(|c| (late(c), c)).collect();
+        let late = |c: &Corona| {
+            cab.as_ref()
+                .is_some_and(|b| point_in_vehicle_box(c.position, b))
+        };
+        let mut order: Vec<(bool, &Corona)> = scene
+            .coronas
+            .iter()
+            .filter(|c| c.brightness > 0.001)
+            .map(|c| (late(c), c))
+            .collect();
         order.sort_by_key(|(l, c)| (*l, c.texture));
         let mut runs: Vec<(u16, u32, u32, bool)> = Vec::new();
         for (k, &(l, c)) in order.iter().enumerate() {
@@ -702,7 +823,13 @@ impl Renderer {
         }
         let order: Vec<&Corona> = order.into_iter().map(|(_, c)| c).collect();
         if omsi_cfg::flags::OMSI_DEBUG_CONES.is_set() {
-            log::info!("coronas: {} in {} runs {:?}, {} beams", order.len(), runs.len(), runs, order.iter().filter(|c| c.beam).count());
+            log::info!(
+                "coronas: {} in {} runs {:?}, {} beams",
+                order.len(),
+                runs.len(),
+                runs,
+                order.iter().filter(|c| c.beam).count()
+            );
         }
         scene.corona_runs = runs;
         let data: Vec<GpuCorona> = order
@@ -724,7 +851,22 @@ impl Renderer {
                     color: [c.color[0], c.color[1], c.color[2], b],
                     dir: [c.direction.x, c.direction.y, c.direction.z, c.cone_cos],
                     up: [c.up.x, c.up.y, c.up.z, c.rotating as f32],
-                    extra: [c.inner_cos, if c.beam || c.halo { c.beam_width } else { c.z_offset }, c.flags as f32, if c.beam { 1.0 } else if c.halo { 2.0 } else { 0.0 }],
+                    extra: [
+                        c.inner_cos,
+                        if c.beam || c.halo {
+                            c.beam_width
+                        } else {
+                            c.z_offset
+                        },
+                        c.flags as f32,
+                        if c.beam {
+                            1.0
+                        } else if c.halo {
+                            2.0
+                        } else {
+                            0.0
+                        },
+                    ],
                 }
             })
             .collect();

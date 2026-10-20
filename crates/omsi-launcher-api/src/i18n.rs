@@ -56,9 +56,13 @@ fn parse(text: &str) -> Tables {
             continue;
         }
         if let Some(rest) = line.strip_prefix("  ") {
-            let (Some(k), Some((lang, value))) = (&key, rest.split_once(": ")) else { continue };
+            let (Some(k), Some((lang, value))) = (&key, rest.split_once(": ")) else {
+                continue;
+            };
             if let Some(v) = unquote(value) {
-                out.entry(lang.trim().to_string()).or_default().insert(k.clone(), v);
+                out.entry(lang.trim().to_string())
+                    .or_default()
+                    .insert(k.clone(), v);
             }
         } else if let Some(k) = line.strip_suffix(':') {
             key = unquote(k);

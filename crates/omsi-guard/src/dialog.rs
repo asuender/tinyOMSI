@@ -10,7 +10,11 @@ pub enum Message {
     /// The version did not start; the one before it is back and starts now.
     WentBack { from: String, to: String },
     /// The project lists the version as broken; it was replaced (by `to`).
-    ReplacedBroken { from: String, to: String, why: String },
+    ReplacedBroken {
+        from: String,
+        to: String,
+        why: String,
+    },
     /// The version did not start; it starts once more in safe mode.
     SafeMode { version: String },
     /// Nothing helped: what the player can do.
@@ -21,7 +25,16 @@ pub enum Message {
 fn language() -> String {
     let guard = omsi_platform::recovery::guard_dir();
     let file = guard.parent().unwrap_or(&guard).join("settings.cfg");
-    std::fs::read_to_string(file).ok().and_then(|t| t.lines().find_map(|l| l.trim().strip_prefix("language=").map(|v| v.trim().to_ascii_uppercase()))).unwrap_or_else(|| "ENG".to_string())
+    std::fs::read_to_string(file)
+        .ok()
+        .and_then(|t| {
+            t.lines().find_map(|l| {
+                l.trim()
+                    .strip_prefix("language=")
+                    .map(|v| v.trim().to_ascii_uppercase())
+            })
+        })
+        .unwrap_or_else(|| "ENG".to_string())
 }
 
 const DOWNLOADS: &str = "https://github.com/openOMSI-org/openOMSI/releases/latest";
@@ -66,7 +79,11 @@ pub fn show(m: &Message) {
     crate::note(&format!("message: {}", text.replace('\n', " ")));
     if let Some(file) = omsi_cfg::flags::OMSI_GUARD_DIALOG_FILE.var() {
         use std::io::Write;
-        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(file) {
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(file)
+        {
             let _ = writeln!(f, "{}\n---", text);
         }
         return;
@@ -94,13 +111,34 @@ fn platform_show(text: &str, last: bool) {
 #[cfg(windows)]
 fn platform_show(text: &str, last: bool) {
     use windows::core::PCWSTR;
-    use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, IDYES, MB_ICONINFORMATION, MB_ICONWARNING, MB_OK, MB_SETFOREGROUND, MB_YESNO};
-    let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
-    let body = if last { format!("{text}\n\nOpen the download page now?") } else { text.to_string() };
+    use windows::Win32::UI::WindowsAndMessaging::{
+        MessageBoxW, IDYES, MB_ICONINFORMATION, MB_ICONWARNING, MB_OK, MB_SETFOREGROUND, MB_YESNO,
+    };
+    let wide = |s: &str| {
+        s.encode_utf16()
+            .chain(std::iter::once(0))
+            .collect::<Vec<u16>>()
+    };
+    let body = if last {
+        format!("{text}\n\nOpen the download page now?")
+    } else {
+        text.to_string()
+    };
     let (b, t) = (wide(&body), wide("openOMSI"));
-    let style = if last { MB_YESNO | MB_ICONWARNING } else { MB_OK | MB_ICONINFORMATION };
+    let style = if last {
+        MB_YESNO | MB_ICONWARNING
+    } else {
+        MB_OK | MB_ICONINFORMATION
+    };
     // SAFETY: two NUL-terminated wide strings that live through the call
-    let answer = unsafe { MessageBoxW(None, PCWSTR(b.as_ptr()), PCWSTR(t.as_ptr()), style | MB_SETFOREGROUND) };
+    let answer = unsafe {
+        MessageBoxW(
+            None,
+            PCWSTR(b.as_ptr()),
+            PCWSTR(t.as_ptr()),
+            style | MB_SETFOREGROUND,
+        )
+    };
     if last && answer == IDYES {
         omsi_platform::updater::open_url(DOWNLOADS);
     }
@@ -109,8 +147,21 @@ fn platform_show(text: &str, last: bool) {
 #[cfg(all(unix, not(target_os = "macos")))]
 fn platform_show(text: &str, last: bool) {
     let kind = if last { "--error" } else { "--info" };
-    let shown = std::process::Command::new("zenity").arg(kind).arg("--title=openOMSI").arg(format!("--text={text}")).status().map(|s| s.code().is_some()).unwrap_or(false)
-        || std::process::Command::new("kdialog").arg("--title").arg("openOMSI").arg(if last { "--error" } else { "--msgbox" }).arg(text).status().map(|s| s.code().is_some()).unwrap_or(false);
+    let shown = std::process::Command::new("zenity")
+        .arg(kind)
+        .arg("--title=openOMSI")
+        .arg(format!("--text={text}"))
+        .status()
+        .map(|s| s.code().is_some())
+        .unwrap_or(false)
+        || std::process::Command::new("kdialog")
+            .arg("--title")
+            .arg("openOMSI")
+            .arg(if last { "--error" } else { "--msgbox" })
+            .arg(text)
+            .status()
+            .map(|s| s.code().is_some())
+            .unwrap_or(false);
     if !shown {
         eprintln!("openOMSI: {text}");
     }
@@ -129,11 +180,26 @@ mod tests {
     #[test]
     fn every_message_names_the_versions_in_every_language() {
         let ms = [
-            Message::Updated { from: "0.2.31".into(), to: "0.2.32".into() },
-            Message::WentBack { from: "0.2.31".into(), to: "0.2.30".into() },
-            Message::ReplacedBroken { from: "0.2.31".into(), to: "0.2.30".into(), why: "saves".into() },
-            Message::SafeMode { version: "0.2.31".into() },
-            Message::GiveUp { version: "0.2.31".into(), log: "/x/guard.log".into() },
+            Message::Updated {
+                from: "0.2.31".into(),
+                to: "0.2.32".into(),
+            },
+            Message::WentBack {
+                from: "0.2.31".into(),
+                to: "0.2.30".into(),
+            },
+            Message::ReplacedBroken {
+                from: "0.2.31".into(),
+                to: "0.2.30".into(),
+                why: "saves".into(),
+            },
+            Message::SafeMode {
+                version: "0.2.31".into(),
+            },
+            Message::GiveUp {
+                version: "0.2.31".into(),
+                log: "/x/guard.log".into(),
+            },
         ];
         for lang in ["ENG", "DEU", "RUS", "FRA"] {
             for m in &ms {

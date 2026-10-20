@@ -22,27 +22,27 @@ mod cookies;
 pub use cookies::{Cookie, COOKIE_LAYERS};
 mod gpu_memory;
 pub use gpu_memory::{Ceiling, GpuMemory};
-mod passes;
 mod device_selection;
-use passes::{Encoders, FrameArgs, FrameEnv, PassTimers, StageClock};
+mod passes;
 use gpu_memory::adapter_vram_mb;
-pub mod pipeline_cache;
-mod pipelines;
-mod puddles;
-mod rt;
-mod rt_tex;
-mod shaders;
-mod srgb_encode;
-mod triple;
+use passes::{Encoders, FrameArgs, FrameEnv, PassTimers, StageClock};
 mod frame_plan;
 mod gpu;
 mod lighting;
+pub mod pipeline_cache;
+mod pipelines;
+mod puddles;
 mod render;
 mod resources;
+mod rt;
+mod rt_tex;
 mod scene;
+mod shaders;
 mod sky;
+mod srgb_encode;
 mod surface;
 mod targets;
+mod triple;
 mod uniforms;
 mod view;
 pub(crate) use frame_plan::*;
@@ -55,9 +55,9 @@ pub(crate) use shaders::*;
 pub use sky::*;
 pub use surface::*;
 pub(crate) use targets::*;
+pub use triple::{panel_width, ScreenView, TripleScreen};
 pub use uniforms::*;
 pub use view::*;
-pub use triple::{panel_width, ScreenView, TripleScreen};
 
 use anyhow::{anyhow, Context, Result};
 use glam::{DVec3, Mat4, Vec3, Vec4};
@@ -328,7 +328,11 @@ impl Default for RenderOptions {
 /// million pixels, a 4K screen showed a picture of 58 % its size, and the enhanced
 /// graphics looked like textures of low quality; the frame-rate governor still steps down
 /// on a card that cannot keep up.
-pub const AUTO_SCALE_PIXELS: f32 = if cfg!(any(target_os = "macos", target_os = "ios")) { 2_800_000.0 } else { 8_400_000.0 };
+pub const AUTO_SCALE_PIXELS: f32 = if cfg!(any(target_os = "macos", target_os = "ios")) {
+    2_800_000.0
+} else {
+    8_400_000.0
+};
 
 /// Interior lamps one mesh may be lit by (OMSI: four; a model may list more in its
 /// `[illumination_interior]`), and the step of the lamp code sent to the shaders (`first *
@@ -359,26 +363,64 @@ const HDR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 /// The colour targets of a pipeline drawing into `format`: Enhanced and classic puddle
 /// shading draw into `HDR_FORMAT` with the screen mask beside it,
 /// written by the scene's own shader only (`mask`), coverage-blended where the colour is.
-fn color_targets(format: wgpu::TextureFormat, blend: Option<wgpu::BlendState>, write: wgpu::ColorWrites, mask: bool, gbuf: bool) -> Vec<Option<wgpu::ColorTargetState>> {
-    let mut v = vec![Some(wgpu::ColorTargetState { format, blend, write_mask: write })];
+fn color_targets(
+    format: wgpu::TextureFormat,
+    blend: Option<wgpu::BlendState>,
+    write: wgpu::ColorWrites,
+    mask: bool,
+    gbuf: bool,
+) -> Vec<Option<wgpu::ColorTargetState>> {
+    let mut v = vec![Some(wgpu::ColorTargetState {
+        format,
+        blend,
+        write_mask: write,
+    })];
     if format == HDR_FORMAT {
         v.push(Some(wgpu::ColorTargetState {
             format: MASK_FORMAT,
             blend: blend.map(|_| wgpu::BlendState {
-                color: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::SrcAlpha, dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha, operation: wgpu::BlendOperation::Add },
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                    operation: wgpu::BlendOperation::Add,
+                },
                 alpha: wgpu::BlendComponent::REPLACE,
             }),
-            write_mask: if mask { wgpu::ColorWrites::ALL } else { wgpu::ColorWrites::empty() },
+            write_mask: if mask {
+                wgpu::ColorWrites::ALL
+            } else {
+                wgpu::ColorWrites::empty()
+            },
         }));
         if rt_gbuf() {
             // (premultiplied by the reflection's weight, the shader's alpha)
             let over = blend.map(|_| wgpu::BlendState {
-                color: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::One, dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha, operation: wgpu::BlendOperation::Add },
-                alpha: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::One, dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha, operation: wgpu::BlendOperation::Add },
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                    operation: wgpu::BlendOperation::Add,
+                },
             });
-            let write = if gbuf { wgpu::ColorWrites::ALL } else { wgpu::ColorWrites::empty() };
-            v.push(Some(wgpu::ColorTargetState { format: GBUF_FORMAT, blend: over, write_mask: write }));
-            v.push(Some(wgpu::ColorTargetState { format: AUX_FORMAT, blend: over, write_mask: write }));
+            let write = if gbuf {
+                wgpu::ColorWrites::ALL
+            } else {
+                wgpu::ColorWrites::empty()
+            };
+            v.push(Some(wgpu::ColorTargetState {
+                format: GBUF_FORMAT,
+                blend: over,
+                write_mask: write,
+            }));
+            v.push(Some(wgpu::ColorTargetState {
+                format: AUX_FORMAT,
+                blend: over,
+                write_mask: write,
+            }));
         }
     }
     v
@@ -398,11 +440,14 @@ pub const SHADOW_RANGE_CLOSE: f32 = 32.0;
 const SHADOW_CLOSE_MAX: u32 = 2048;
 
 impl Renderer {
-
     fn main_pass(&self, enhanced: bool, reflections: bool) -> &PassPipelines {
-        if enhanced { self.hdr_pass.as_ref().unwrap() }
-        else if reflections { self.reflection_pass.as_ref().unwrap() }
-        else { &self.pass }
+        if enhanced {
+            self.hdr_pass.as_ref().unwrap()
+        } else if reflections {
+            self.reflection_pass.as_ref().unwrap()
+        } else {
+            &self.pass
+        }
     }
 
     pub fn format(&self) -> wgpu::TextureFormat {
@@ -429,7 +474,10 @@ impl Renderer {
         // (1, 0.85, 0.7 or 0.55 - the last for a phone's chip that is still too slow: see
         // the game's governor)
         let s = s.clamp(0.55, 1.0);
-        let level = [1.0f32, 0.85, 0.7, 0.55].into_iter().min_by(|a, b| (a - s).abs().total_cmp(&(b - s).abs())).unwrap_or(1.0);
+        let level = [1.0f32, 0.85, 0.7, 0.55]
+            .into_iter()
+            .min_by(|a, b| (a - s).abs().total_cmp(&(b - s).abs()))
+            .unwrap_or(1.0);
         self.scale.dynamic_scale.set(level);
     }
 
@@ -472,7 +520,11 @@ fn scene_scale_for(requested: f32, width: u32, height: u32) -> f32 {
 }
 
 fn scene_scale_within(s: f32, max_scene: Option<(u32, u32)>, width: u32, height: u32) -> f32 {
-    max_scene.map_or(s, |(w, h)| s.min(w as f32 / width as f32).min(h as f32 / height as f32).max(0.5))
+    max_scene.map_or(s, |(w, h)| {
+        s.min(w as f32 / width as f32)
+            .min(h as f32 / height as f32)
+            .max(0.5)
+    })
 }
 
 /// Is `p` inside a vehicle's `[boundingbox]` (origin, heading in degrees, w l h cx cy cz)?
@@ -496,15 +548,23 @@ fn snap_rect(r: [f32; 4]) -> [f32; 4] {
     // and a rectangle across the left edge came out a pixel wider)
     let snap = |v: f32| (v + 0.5).floor();
     let (x0, y0) = (snap(r[0]), snap(r[1]));
-    let x1 = if r[2] > r[0] { snap(r[2]).max(x0 + 1.0) } else { snap(r[2]) };
-    let y1 = if r[3] > r[1] { snap(r[3]).max(y0 + 1.0) } else { snap(r[3]) };
+    let x1 = if r[2] > r[0] {
+        snap(r[2]).max(x0 + 1.0)
+    } else {
+        snap(r[2])
+    };
+    let y1 = if r[3] > r[1] {
+        snap(r[3]).max(y0 + 1.0)
+    } else {
+        snap(r[3])
+    };
     [x0, y0, x1, y1]
 }
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod stream_tests;
+#[cfg(test)]
+mod tests;
 
 /// Panics caught on purpose (a driver wgpu cannot use): see `omsi_cfg::panic_guard`.
 pub use omsi_cfg::panic_guard::{catch, catching};

@@ -54,57 +54,63 @@ pub(crate) fn build(device: &wgpu::Device, scene: &SceneBase, shadow_size: u32) 
         compare: Some(wgpu::CompareFunction::LessEqual),
         ..Default::default()
     });
-    let shadow_pipeline_layout =
-        device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("shadow"),
-            bind_group_layouts: &[Some(&scene.shadow_layout), Some(&scene.material_layout)],
-            immediate_size: 0,
-        });
+    let shadow_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("shadow"),
+        bind_group_layouts: &[Some(&scene.shadow_layout), Some(&scene.material_layout)],
+        immediate_size: 0,
+    });
     let make_shadow = |kind: u8, cascade: u8| {
-        compile_pipeline(device, &wgpu::RenderPipelineDescriptor {
-            label: Some("shadow"),
-            layout: Some(&shadow_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &scene.shader,
-                entry_point: Some(match cascade {
-                    0 => "vs_shadow",
-                    1 => "vs_shadow_far",
-                    2 => "vs_shadow_close",
-                    3 => "vs_shadow_lamp0",
-                    4 => "vs_shadow_lamp1",
-                    5 => "vs_shadow_lamp2",
-                    _ => "vs_shadow_lamp3",
-                }),
-                buffers: &[scene.vertex_layout.clone()],
-                compilation_options: Default::default(),
-            },
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                cull_mode: None,
-                front_face: wgpu::FrontFace::Cw,
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DEPTH_FORMAT,
-                depth_write_enabled: Some(true),
-                depth_compare: Some(wgpu::CompareFunction::LessEqual),
-                stencil: Default::default(),
-                bias: wgpu::DepthBiasState {
-                    constant: 4,
-                    slope_scale: 3.0,
-                    clamp: 0.0,
+        compile_pipeline(
+            device,
+            &wgpu::RenderPipelineDescriptor {
+                label: Some("shadow"),
+                layout: Some(&shadow_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &scene.shader,
+                    entry_point: Some(match cascade {
+                        0 => "vs_shadow",
+                        1 => "vs_shadow_far",
+                        2 => "vs_shadow_close",
+                        3 => "vs_shadow_lamp0",
+                        4 => "vs_shadow_lamp1",
+                        5 => "vs_shadow_lamp2",
+                        _ => "vs_shadow_lamp3",
+                    }),
+                    buffers: &[scene.vertex_layout.clone()],
+                    compilation_options: Default::default(),
                 },
-            }),
-            multisample: Default::default(),
-            fragment: Some(wgpu::FragmentState {
-                module: &scene.shader,
-                entry_point: Some(if kind == PIPE_ALPHA_TEST { "fs_shadow_test" } else { "fs_shadow" }),
-                targets: &[],
-                compilation_options: Default::default(),
-            }),
-            multiview_mask: None,
-            cache: crate::pipeline_cache::get(device).as_ref(),
-        })
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    cull_mode: None,
+                    front_face: wgpu::FrontFace::Cw,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DEPTH_FORMAT,
+                    depth_write_enabled: Some(true),
+                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                    stencil: Default::default(),
+                    bias: wgpu::DepthBiasState {
+                        constant: 4,
+                        slope_scale: 3.0,
+                        clamp: 0.0,
+                    },
+                }),
+                multisample: Default::default(),
+                fragment: Some(wgpu::FragmentState {
+                    module: &scene.shader,
+                    entry_point: Some(if kind == PIPE_ALPHA_TEST {
+                        "fs_shadow_test"
+                    } else {
+                        "fs_shadow"
+                    }),
+                    targets: &[],
+                    compilation_options: Default::default(),
+                }),
+                multiview_mask: None,
+                cache: crate::pipeline_cache::get(device).as_ref(),
+            },
+        )
     };
     let shadow_clear_pipeline = clear_pipeline(device);
     let mut shadow_pipelines = vec![
@@ -121,7 +127,14 @@ pub(crate) fn build(device: &wgpu::Device, scene: &SceneBase, shadow_size: u32) 
         // (left out alone where the driver fails on them: the lamps then cast no shadows,
         // `shadow_pipelines.len() > 6`)
         let lamps = optional_pipeline(device, "the street lamps' shadows", || {
-            (3..=6).flat_map(|cascade| [make_shadow(PIPE_OPAQUE, cascade), make_shadow(PIPE_ALPHA_TEST, cascade)]).collect::<Vec<_>>()
+            (3..=6)
+                .flat_map(|cascade| {
+                    [
+                        make_shadow(PIPE_OPAQUE, cascade),
+                        make_shadow(PIPE_ALPHA_TEST, cascade),
+                    ]
+                })
+                .collect::<Vec<_>>()
         });
         shadow_pipelines.extend(lamps.into_iter().flatten());
     }
@@ -136,42 +149,48 @@ pub(crate) fn build(device: &wgpu::Device, scene: &SceneBase, shadow_size: u32) 
 
 fn clear_pipeline(device: &wgpu::Device) -> wgpu::RenderPipeline {
     log::info!("renderer: compiling the shadow clear shader");
-    let module = compile_shader(device, wgpu::ShaderModuleDescriptor {
-        label: Some("shadow clear"),
-        source: wgpu::ShaderSource::Wgsl(
-            "@vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
+    let module = compile_shader(
+        device,
+        wgpu::ShaderModuleDescriptor {
+            label: Some("shadow clear"),
+            source: wgpu::ShaderSource::Wgsl(
+                "@vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
                         let x = f32(i32(i & 1u) * 4 - 1);
                         let y = f32(i32(i >> 1u) * 4 - 1);
                         return vec4<f32>(x, y, 1.0, 1.0);
                     }"
-            .into(),
-        ),
-    });
+                .into(),
+            ),
+        },
+    );
     let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("shadow clear"),
         bind_group_layouts: &[],
         immediate_size: 0,
     });
-    compile_pipeline(device, &wgpu::RenderPipelineDescriptor {
-        label: Some("shadow clear"),
-        layout: Some(&layout),
-        vertex: wgpu::VertexState {
-            module: &module,
-            entry_point: Some("vs"),
-            buffers: &[],
-            compilation_options: Default::default(),
+    compile_pipeline(
+        device,
+        &wgpu::RenderPipelineDescriptor {
+            label: Some("shadow clear"),
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &module,
+                entry_point: Some("vs"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH_FORMAT,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Always),
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: Default::default(),
+            fragment: None,
+            multiview_mask: None,
+            cache: crate::pipeline_cache::get(device).as_ref(),
         },
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: Some(wgpu::DepthStencilState {
-            format: DEPTH_FORMAT,
-            depth_write_enabled: Some(true),
-            depth_compare: Some(wgpu::CompareFunction::Always),
-            stencil: Default::default(),
-            bias: Default::default(),
-        }),
-        multisample: Default::default(),
-        fragment: None,
-        multiview_mask: None,
-        cache: crate::pipeline_cache::get(device).as_ref(),
-    })
+    )
 }

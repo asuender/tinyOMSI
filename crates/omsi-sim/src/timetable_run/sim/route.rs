@@ -163,7 +163,7 @@ impl ScheduleSim {
                 let gap = (b.start() - a.end()).truncate().length();
                 if gap > 2.0
                     || a.key.map(|k| (k.tile, k.id, k.path))
-                    == b.key.map(|k| (k.tile, k.id, k.path))
+                        == b.key.map(|k| (k.tile, k.id, k.path))
                 {
                     log::info!("route: step {k}: lane {} {:?} rev {} -> lane {} {:?} rev {}: gap {gap:.1} m, linked {}, lane change {}", w[0], a.key, a.reversed, w[1], b.key, b.reversed, a.next.contains(&w[1]), net.parallel(w[0], w[1]));
                 }
@@ -213,11 +213,23 @@ impl ScheduleSim {
     /// has every tile's lanes whether loaded or not - chosen as `slots` chooses them (of a
     /// two-way path the direction that joins the lanes before and after).
     pub fn trip_route_in(&self, net: &crate::traffic::Network, trip_name: &str) -> Vec<usize> {
-        let Some(trip) = self.data.trips.iter().find(|x| x.name.eq_ignore_ascii_case(trip_name)) else {
+        let Some(trip) = self
+            .data
+            .trips
+            .iter()
+            .find(|x| x.name.eq_ignore_ascii_case(trip_name))
+        else {
             return Vec::new();
         };
         let (steps, _) = self.steps_of(trip_name, &trip_stations(trip));
-        let cands: Vec<Option<&Vec<usize>>> = steps.iter().map(|st| st.key.and_then(|k| net.by_key.get(&k)).filter(|c| !c.is_empty())).collect();
+        let cands: Vec<Option<&Vec<usize>>> = steps
+            .iter()
+            .map(|st| {
+                st.key
+                    .and_then(|k| net.by_key.get(&k))
+                    .filter(|c| !c.is_empty())
+            })
+            .collect();
         let mut out: Vec<Slot> = Vec::with_capacity(steps.len());
         let mut last: Option<usize> = None;
         for (i, c) in cands.iter().enumerate() {
@@ -233,16 +245,25 @@ impl ScheduleSim {
                 }
                 if let Some(next) = next {
                     let end = net.lanes[l].end();
-                    s += next.iter().map(|&n| (net.lanes[n].start() - end).length()).fold(f64::MAX, f64::min);
+                    s += next
+                        .iter()
+                        .map(|&n| (net.lanes[n].start() - end).length())
+                        .fold(f64::MAX, f64::min);
                 }
                 s
             };
-            let best = c.iter().copied().min_by(|a, b| score(*a).total_cmp(&score(*b))).unwrap();
+            let best = c
+                .iter()
+                .copied()
+                .min_by(|a, b| score(*a).total_cmp(&score(*b)))
+                .unwrap();
             out.push(Slot::Lane(best));
             last = Some(best);
         }
         skip_detours(net, &mut out);
-        out.into_iter().filter_map(|s| if let Slot::Lane(l) = s { Some(l) } else { None }).collect()
+        out.into_iter()
+            .filter_map(|s| if let Slot::Lane(l) = s { Some(l) } else { None })
+            .collect()
     }
 
     /// `OMSI_CHECK_TRIPS=1`: build the route of every trip on the loaded lanes and say where
@@ -256,7 +277,13 @@ impl ScheduleSim {
             let lanes: Vec<usize> = self
                 .slots(world, traffic, &steps, None)
                 .iter()
-                .filter_map(|s| if let Slot::Lane(l) = s { Some(*l) } else { None })
+                .filter_map(|s| {
+                    if let Slot::Lane(l) = s {
+                        Some(*l)
+                    } else {
+                        None
+                    }
+                })
                 .collect();
             add_connectors(traffic, &lanes);
         }
@@ -287,7 +314,11 @@ impl ScheduleSim {
             }
             trips += 1;
             // `OMSI_CHECK_TRIPS=<trip name>`: every step of that trip
-            if omsi_cfg::flags::OMSI_CHECK_TRIPS.var().map(|v| v.eq_ignore_ascii_case(&trip.name)).unwrap_or(false) {
+            if omsi_cfg::flags::OMSI_CHECK_TRIPS
+                .var()
+                .map(|v| v.eq_ignore_ascii_case(&trip.name))
+                .unwrap_or(false)
+            {
                 for (k, (st, sl)) in steps.iter().zip(&slots).enumerate() {
                     let cands: Vec<String> = st
                         .key
@@ -296,12 +327,28 @@ impl ScheduleSim {
                             c.iter()
                                 .map(|&l| {
                                     let x = &net.lanes[l];
-                                    format!("{l}{} ({:.1},{:.1})->({:.1},{:.1}) {:.1} m", if x.reversed { "r" } else { "" }, x.start().x, x.start().y, x.end().x, x.end().y, x.length())
+                                    format!(
+                                        "{l}{} ({:.1},{:.1})->({:.1},{:.1}) {:.1} m",
+                                        if x.reversed { "r" } else { "" },
+                                        x.start().x,
+                                        x.start().y,
+                                        x.end().x,
+                                        x.end().y,
+                                        x.length()
+                                    )
                                 })
                                 .collect()
                         })
                         .unwrap_or_default();
-                    log::info!("check trips: {} step {k} leg {} {:?} ({:.1} m): {:?} of {:?}", trip.name, st.leg, st.key, st.length, sl, cands);
+                    log::info!(
+                        "check trips: {} step {k} leg {} {:?} ({:.1} m): {:?} of {:?}",
+                        trip.name,
+                        st.leg,
+                        st.key,
+                        st.length,
+                        sl,
+                        cands
+                    );
                 }
             }
             // the lane a step names should be as long as the file says its path is
@@ -321,7 +368,13 @@ impl ScheduleSim {
             }
             let lanes: Vec<usize> = slots
                 .iter()
-                .filter_map(|s| if let Slot::Lane(l) = s { Some(*l) } else { None })
+                .filter_map(|s| {
+                    if let Slot::Lane(l) = s {
+                        Some(*l)
+                    } else {
+                        None
+                    }
+                })
                 .collect();
             let lanes = bridge_gaps(net, &lanes).0;
             let mut shown = 0;

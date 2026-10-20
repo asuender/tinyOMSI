@@ -35,7 +35,17 @@ fn cell(s: &str) -> String {
 }
 
 fn signature(f: &ApiFn) -> String {
-    let params: Vec<String> = f.params.iter().map(|p| if p.optional { format!("[{}]", p.name) } else { p.name.to_string() }).collect();
+    let params: Vec<String> = f
+        .params
+        .iter()
+        .map(|p| {
+            if p.optional {
+                format!("[{}]", p.name)
+            } else {
+                p.name.to_string()
+            }
+        })
+        .collect();
     format!("`omsi.{}({})`", f.name, params.join(", "))
 }
 
@@ -51,15 +61,42 @@ pub fn markdown() -> String {
         }
         out.push_str(&format!("#### {title}\n\n| Function | Returns | What it does | Since |\n| --- | --- | --- | --- |\n"));
         for f in fns {
-            let perm = if f.perm == Perm::None { String::new() } else { format!(" *Permission: `{}`.*", f.perm.as_str()) };
-            out.push_str(&format!("| {} | {} | {}{} | {} |\n", signature(f), cell(f.returns), cell(f.doc), perm, f.since));
+            let perm = if f.perm == Perm::None {
+                String::new()
+            } else {
+                format!(" *Permission: `{}`.*", f.perm.as_str())
+            };
+            out.push_str(&format!(
+                "| {} | {} | {}{} | {} |\n",
+                signature(f),
+                cell(f.returns),
+                cell(f.doc),
+                perm,
+                f.since
+            ));
         }
         out.push('\n');
     }
-    out.push_str("#### Events\n\n| Event | Arguments | When | Since |\n| --- | --- | --- | --- |\n");
+    out.push_str(
+        "#### Events\n\n| Event | Arguments | When | Since |\n| --- | --- | --- | --- |\n",
+    );
     for e in events::EVENTS {
-        let args = if e.args.is_empty() { "-".to_string() } else { e.args.iter().map(|a| format!("`{a}`")).collect::<Vec<_>>().join(", ") };
-        out.push_str(&format!("| `{}` | {} | {} | {} |\n", e.name, args, cell(e.doc), e.since));
+        let args = if e.args.is_empty() {
+            "-".to_string()
+        } else {
+            e.args
+                .iter()
+                .map(|a| format!("`{a}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        out.push_str(&format!(
+            "| `{}` | {} | {} | {} |\n",
+            e.name,
+            args,
+            cell(e.doc),
+            e.since
+        ));
     }
     out.push('\n');
     out.push_str(END);

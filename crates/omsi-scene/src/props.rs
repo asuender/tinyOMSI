@@ -24,11 +24,17 @@ impl World {
     /// `on` is whether OMSI 2's route arrows are on (the `nav_arrows` setting). Nothing to
     /// do when that has not changed; the tiles placed later follow it.
     pub fn show_help_arrows(&self, renderer: &Renderer, scene: &mut Scene, on: bool) {
-        if self.help_arrows_shown.swap(on, std::sync::atomic::Ordering::Relaxed) == on {
+        if self
+            .help_arrows_shown
+            .swap(on, std::sync::atomic::Ordering::Relaxed)
+            == on
+        {
             return;
         }
         for inst in self.help_arrows.lock().values().flatten() {
-            let Some(i) = scene.instances.get(*inst) else { continue };
+            let Some(i) = scene.instances.get(*inst) else {
+                continue;
+            };
             let (alpha, uv) = (i.slot_alpha.clone(), i.slot_uv.clone());
             renderer.set_params(scene, *inst, &alpha, on, &uv);
         }
@@ -36,7 +42,12 @@ impl World {
 
     /// Parked car `key` drives off: it is hidden, its box leaves the obstacles, and its space
     /// stays empty for the rest of the run. What it was, for the car that takes its place.
-    pub fn depart_parked(&self, renderer: &Renderer, scene: &mut Scene, key: i64) -> Option<ParkedObject> {
+    pub fn depart_parked(
+        &self,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        key: i64,
+    ) -> Option<ParkedObject> {
         let p = self.take_departing_parked(key)?;
         show_parked_instances(renderer, scene, &p.instances, false);
         Some(p)
@@ -50,12 +61,24 @@ impl World {
         self.departed.lock().insert(key);
         let (mut obst, mut boxes) = (Vec::new(), Vec::new());
         if let Some(st) = self.tile_state.lock().get_mut(&p.tile) {
-            obst = st.obstacles.iter().filter(|b| b.id == key).cloned().collect();
-            boxes = st.parked_boxes.iter().filter(|b| b.id == key).cloned().collect();
+            obst = st
+                .obstacles
+                .iter()
+                .filter(|b| b.id == key)
+                .cloned()
+                .collect();
+            boxes = st
+                .parked_boxes
+                .iter()
+                .filter(|b| b.id == key)
+                .cloned()
+                .collect();
             st.obstacles.retain(|b| b.id != key);
             st.parked_boxes.retain(|b| b.id != key);
         }
-        self.departed_objects.lock().insert(key, (p.clone(), obst, boxes));
+        self.departed_objects
+            .lock()
+            .insert(key, (p.clone(), obst, boxes));
         self.refresh_tile_lists();
         Some(p)
     }
@@ -71,15 +94,29 @@ impl World {
     /// LAN client: the parked cars as the host has them - the spaces it lists empty, and
     /// (when the list is `complete`) every other one taken again. A space on a tile not
     /// loaded here yet is remembered: the tile comes up with it empty.
-    pub fn mirror_departed(&self, renderer: &Renderer, scene: &mut Scene, keys: &[i64], complete: bool) {
+    pub fn mirror_departed(
+        &self,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        keys: &[i64],
+        complete: bool,
+    ) {
         let before = self.departed.lock().len();
         for &k in keys {
-            if !self.departed.lock().contains(&k) && self.depart_parked(renderer, scene, k).is_none() {
+            if !self.departed.lock().contains(&k)
+                && self.depart_parked(renderer, scene, k).is_none()
+            {
                 self.departed.lock().insert(k);
             }
         }
         if complete {
-            let back: Vec<i64> = self.departed.lock().iter().copied().filter(|k| !keys.contains(k)).collect();
+            let back: Vec<i64> = self
+                .departed
+                .lock()
+                .iter()
+                .copied()
+                .filter(|k| !keys.contains(k))
+                .collect();
             for k in back {
                 if !self.return_parked(renderer, scene, k) {
                     self.departed.lock().remove(&k);
@@ -88,18 +125,31 @@ impl World {
         }
         let after = self.departed.lock().len();
         if after != before {
-            log::info!("LAN: parked cars as the host has them: {after} spaces empty (were {before})");
+            log::info!(
+                "LAN: parked cars as the host has them: {after} spaces empty (were {before})"
+            );
         }
     }
 
     /// Parked cars standing where `b` is (the player's bus just put down at a depot's entry
     /// point, over a parked bus): they go, as parked cars that drive off do.
-    pub fn clear_parked_under(&self, renderer: &Renderer, scene: &mut Scene, b: &omsi_sim::collision::Obb) -> usize {
+    pub fn clear_parked_under(
+        &self,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        b: &omsi_sim::collision::Obb,
+    ) -> usize {
         let keys: Vec<i64> = self
             .tile_state
             .lock()
             .values()
-            .flat_map(|st| st.parked_boxes.iter().filter(|p| p.overlaps_plan(b)).map(|p| p.id).collect::<Vec<_>>())
+            .flat_map(|st| {
+                st.parked_boxes
+                    .iter()
+                    .filter(|p| p.overlaps_plan(b))
+                    .map(|p| p.id)
+                    .collect::<Vec<_>>()
+            })
             .collect();
         let mut n = 0;
         for k in keys {
@@ -114,7 +164,12 @@ impl World {
     /// where the entry point is): objects no taller than a vehicle whose collision boxes lie
     /// for a third or more inside the bus's footprint are taken away, as the object editor
     /// takes one away. A shelter or a sign at the kerb that the bus only touches stays.
-    pub fn clear_props_under(&self, renderer: &Renderer, scene: &mut Scene, b: &omsi_sim::collision::Obb) -> usize {
+    pub fn clear_props_under(
+        &self,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        b: &omsi_sim::collision::Obb,
+    ) -> usize {
         let [ax, ay] = b.axes();
         let inside = |p: glam::DVec2| {
             let d = p - b.center;
@@ -123,14 +178,23 @@ impl World {
         let mut keys: Vec<i64> = Vec::new();
         for st in self.tile_state.lock().values() {
             for o in st.obstacles.iter() {
-                if o.id < 0 || o.mass > 0.0 || o.z1 - o.z0 > 5.0 || o.z1 < b.z0 || o.z0 > b.z1 || !o.overlaps_plan(b) || keys.contains(&o.id) {
+                if o.id < 0
+                    || o.mass > 0.0
+                    || o.z1 - o.z0 > 5.0
+                    || o.z1 < b.z0
+                    || o.z0 > b.z1
+                    || !o.overlaps_plan(b)
+                    || keys.contains(&o.id)
+                {
                     continue;
                 }
                 let [ox, oy] = o.axes();
                 let mut n = 0;
                 for i in 0..5 {
                     for j in 0..5 {
-                        let p = o.center + ox * o.half.x * (i as f64 / 2.0 - 1.0) + oy * o.half.y * (j as f64 / 2.0 - 1.0);
+                        let p = o.center
+                            + ox * o.half.x * (i as f64 / 2.0 - 1.0)
+                            + oy * o.half.y * (j as f64 / 2.0 - 1.0);
                         if inside(p) {
                             n += 1;
                         }
@@ -143,13 +207,21 @@ impl World {
         }
         // (a prop without a collision box - most static vehicles of mod maps have none: its
         // drawn meshes, a third of their points inside the bus's footprint)
-        let types: Vec<Arc<ObjectType>> = self.object_types.lock().values().flatten().cloned().collect();
+        let types: Vec<Arc<ObjectType>> = self
+            .object_types
+            .lock()
+            .values()
+            .flatten()
+            .cloned()
+            .collect();
         let mut by_mesh: Vec<i64> = Vec::new();
         for (id, eo) in self.edit_objects.lock().iter() {
             if keys.contains(&eo.key) || (eo.pos.truncate() - b.center).length() > 25.0 {
                 continue;
             }
-            let Some(ot) = types.iter().find(|t| t.sco.path == eo.sco) else { continue };
+            let Some(ot) = types.iter().find(|t| t.sco.path == eo.sco) else {
+                continue;
+            };
             if ot.sco.surface || ot.sco.render_type.is_ground_layer() {
                 continue;
             }
@@ -172,10 +244,27 @@ impl World {
         if keys.is_empty() && by_mesh.is_empty() {
             return 0;
         }
-        let ids: Vec<(i64, std::path::PathBuf)> = self.edit_objects.lock().iter().filter(|(id, eo)| keys.contains(&eo.key) || by_mesh.contains(id)).map(|(id, eo)| (*id, eo.sco.clone())).collect();
+        let ids: Vec<(i64, std::path::PathBuf)> = self
+            .edit_objects
+            .lock()
+            .iter()
+            .filter(|(id, eo)| keys.contains(&eo.key) || by_mesh.contains(id))
+            .map(|(id, eo)| (*id, eo.sco.clone()))
+            .collect();
         for (id, sco) in &ids {
-            log::info!("spawn: scenery object {id} ({}) stood where the bus is put: taken away", sco.display());
-            self.apply_object_edit(renderer, scene, *id, ObjectEdit { deleted: true, ..Default::default() });
+            log::info!(
+                "spawn: scenery object {id} ({}) stood where the bus is put: taken away",
+                sco.display()
+            );
+            self.apply_object_edit(
+                renderer,
+                scene,
+                *id,
+                ObjectEdit {
+                    deleted: true,
+                    ..Default::default()
+                },
+            );
         }
         ids.len()
     }
@@ -223,9 +312,21 @@ impl World {
 
     /// The object editor changed map object `id` (the whole edit so far, from where the
     /// tile put it): its instances and its collision boxes follow.
-    pub fn apply_object_edit(&self, renderer: &Renderer, scene: &mut Scene, id: i64, edit: ObjectEdit) {
-        let before = self.object_edits.lock().insert(id, edit).unwrap_or_default();
-        let Some(eo) = self.edit_objects.lock().get(&id).cloned() else { return };
+    pub fn apply_object_edit(
+        &self,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        id: i64,
+        edit: ObjectEdit,
+    ) {
+        let before = self
+            .object_edits
+            .lock()
+            .insert(id, edit)
+            .unwrap_or_default();
+        let Some(eo) = self.edit_objects.lock().get(&id).cloned() else {
+            return;
+        };
         show_edit(renderer, scene, &eo, edit);
         // the boxes: from the previous edit to this one, turned about the object's place
         if let Some(st) = self.tile_state.lock().get_mut(&eo.tile) {
@@ -282,10 +383,16 @@ impl World {
             self.drop_scripted(key, audio);
             return false;
         };
-        let _ = self.parked_live.try_update(std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed, |n| Some(n.saturating_sub(state.parked_count)));
+        let _ = self.parked_live.try_update(
+            std::sync::atomic::Ordering::Relaxed,
+            std::sync::atomic::Ordering::Relaxed,
+            |n| Some(n.saturating_sub(state.parked_count)),
+        );
         self.help_arrows.lock().remove(&key);
         self.parked_objects.lock().retain(|_, p| p.tile != key);
-            self.departed_objects.lock().retain(|_, (p, _, _)| p.tile != key);
+        self.departed_objects
+            .lock()
+            .retain(|_, (p, _, _)| p.tile != key);
         self.edit_objects.lock().retain(|_, o| o.tile != key);
         {
             // the posts' instances go back to the pool with the tile
@@ -308,7 +415,15 @@ impl World {
     /// any tile, its `[texttexture]` strings taken from `strings` - the game's own helpers,
     /// as OMSI puts the dynamic route arrows. Taken away again with
     /// `remove_helper_object`.
-    pub fn add_helper_object(&self, renderer: &Renderer, scene: &mut Scene, rel: &str, pos: DVec3, heading: f64, strings: &[String]) -> Option<TileGpu> {
+    pub fn add_helper_object(
+        &self,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        rel: &str,
+        pos: DVec3,
+        heading: f64,
+        strings: &[String],
+    ) -> Option<TileGpu> {
         let ot = self.object_type(rel)?;
         let mut guard = self.gpu.lock();
         let gpu = &mut *guard;
@@ -329,18 +444,38 @@ impl World {
             }
             let inst = gpu.instance(renderer, scene, new);
             tg.instances.push(inst);
-            let Some((_, o3d_mats, overrides)) = ot.meshes.get(mi) else { continue };
+            let Some((_, o3d_mats, overrides)) = ot.meshes.get(mi) else {
+                continue;
+            };
             for o in overrides.iter().filter(|o| o.use_text_texture.is_some()) {
                 let (Some(slot), Some(tt)) = (
                     omsi_sim::vehicle::override_slot(o3d_mats, o),
-                    ot.model.text_textures.get(o.use_text_texture.unwrap().max(0) as usize),
+                    ot.model
+                        .text_textures
+                        .get(o.use_text_texture.unwrap().max(0) as usize),
                 ) else {
                     continue;
                 };
-                let text = tt.variable.trim().parse::<usize>().ok().and_then(|k| strings.get(k)).cloned().unwrap_or_default();
+                let text = tt
+                    .variable
+                    .trim()
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|k| strings.get(k))
+                    .cloned()
+                    .unwrap_or_default();
                 let alpha = text_alpha(o3d_mats, slot, overrides);
-                let slot_ov: Vec<&MaterialDef> = overrides.iter().filter(|o| !o.item && omsi_sim::vehicle::override_slot(o3d_mats, o) == Some(slot)).collect();
-                let key = text_material_key(scenery_text_key(tt, &text, alpha), &slot_ov, o3d_mats.get(slot));
+                let slot_ov: Vec<&MaterialDef> = overrides
+                    .iter()
+                    .filter(|o| {
+                        !o.item && omsi_sim::vehicle::override_slot(o3d_mats, o) == Some(slot)
+                    })
+                    .collect();
+                let key = text_material_key(
+                    scenery_text_key(tt, &text, alpha),
+                    &slot_ov,
+                    o3d_mats.get(slot),
+                );
                 if let Some(e) = gpu.text_textures.get_mut(&key) {
                     e.2 += 1;
                     let mat = e.1;
@@ -348,8 +483,13 @@ impl World {
                     renderer.set_material(scene, inst, slot, mat);
                     continue;
                 }
-                let atlas = self.fonts.lock().get(&tt.font, &|p| omsi_texture::decode_file(p).ok().map(|i| (i.width, i.height, i.rgba)));
-                let image = helper_text_image(tt, atlas.as_deref(), &text).unwrap_or_else(|| scenery_text_image(tt, atlas, &text));
+                let atlas = self.fonts.lock().get(&tt.font, &|p| {
+                    omsi_texture::decode_file(p)
+                        .ok()
+                        .map(|i| (i.width, i.height, i.rgba))
+                });
+                let image = helper_text_image(tt, atlas.as_deref(), &text)
+                    .unwrap_or_else(|| scenery_text_image(tt, atlas, &text));
                 let tex = gpu.add_image(renderer, scene, &image, true);
                 let mat = text_material(renderer, scene, tex, alpha, &slot_ov, o3d_mats.get(slot));
                 let mat = gpu.material(renderer, scene, mat);
@@ -370,7 +510,8 @@ impl World {
     pub(super) fn drop_scripted(&self, key: (i32, i32), audio: Option<&omsi_audio::AudioEngine>) {
         self.particle_objects.lock().remove(&key);
         if self.light_maps.lock().remove(&key).is_some() {
-            self.light_maps_generation.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.light_maps_generation
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         self.scripted.lock().drop_tile(key, audio);
     }
@@ -463,7 +604,10 @@ impl World {
             night.extend(s.night_slots.iter().cloned());
             modes.extend(s.night_modes.iter().cloned());
         }
-        let generation = self.tiles_generation.load(std::sync::atomic::Ordering::Relaxed) + 1;
+        let generation = self
+            .tiles_generation
+            .load(std::sync::atomic::Ordering::Relaxed)
+            + 1;
         self.data.update(|d| {
             d.lists = Arc::new(omsi_sim::world_data::TileLists {
                 generation,
@@ -480,9 +624,14 @@ impl World {
         *self.light_objects.lock() = lamps;
         *self.night_slots.lock() = night;
         *self.night_modes.lock() = modes;
-        self.tiles_generation.store(generation, std::sync::atomic::Ordering::Relaxed);
+        self.tiles_generation
+            .store(generation, std::sync::atomic::Ordering::Relaxed);
         if omsi_cfg::flags::OMSI_PROFILE.is_set() {
-            log::info!("tile lists: {} tiles in {:.1} ms", states.len(), t0.elapsed().as_secs_f64() * 1000.0);
+            log::info!(
+                "tile lists: {} tiles in {:.1} ms",
+                states.len(),
+                t0.elapsed().as_secs_f64() * 1000.0
+            );
         }
     }
 
@@ -667,7 +816,10 @@ impl World {
                 .iter()
                 .map(|s| s.shape.heap_bytes())
                 .sum::<usize>()
-                + st.drive.iter().map(|d| d.0.heap_bytes() + d.2.as_ref().map_or(0, |s| s.heap_bytes())).sum::<usize>()
+                + st.drive
+                    .iter()
+                    .map(|d| d.0.heap_bytes() + d.2.as_ref().map_or(0, |s| s.heap_bytes()))
+                    .sum::<usize>()
                 + st.base_terrain.heights.capacity() * 4;
             staged_bytes += st
                 .meshes
@@ -749,7 +901,10 @@ impl World {
                         // (a texture over the budget comes back whatever it is, and so
                         // does one put up at half its size meanwhile: see
                         // `omsi_texture::gpu::halved_for_now`)
-                        if t.format.is_compressed() || restore || (t.width >= 256 && t.height >= 256) {
+                        if t.format.is_compressed()
+                            || restore
+                            || (t.width >= 256 && t.height >= 256)
+                        {
                             done.lock().push((path, Arc::new(t)));
                             return;
                         }
@@ -813,7 +968,11 @@ impl World {
         }
         memo.rebind.extend_from_slice(&swapped);
         // (without a deadline - a picture - at once)
-        let due = deadline.is_none() || memo.rebind.len() >= 64 || memo.rebind_since.is_some_and(|t| t.elapsed().as_secs_f32() >= 0.25);
+        let due = deadline.is_none()
+            || memo.rebind.len() >= 64
+            || memo
+                .rebind_since
+                .is_some_and(|t| t.elapsed().as_secs_f32() >= 0.25);
         if due && !memo.rebind.is_empty() {
             let ids = std::mem::take(&mut memo.rebind);
             drop(memo);
@@ -843,7 +1002,8 @@ impl World {
 
     /// The textures' budget now (bytes, 0 = none).
     pub fn texture_budget_bytes(&self) -> u64 {
-        self.texture_limit.load(std::sync::atomic::Ordering::Relaxed)
+        self.texture_limit
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Keep the textures within their budget, once a second (`force`: now, whatever was
@@ -866,14 +1026,28 @@ impl World {
         centers: &[DVec3],
         force: bool,
     ) -> usize {
-        self.texture_budget_pass(renderer, scene, centers, if force { BudgetPass::Now } else { BudgetPass::Timed })
+        self.texture_budget_pass(
+            renderer,
+            scene,
+            centers,
+            if force {
+                BudgetPass::Now
+            } else {
+                BudgetPass::Timed
+            },
+        )
     }
 
     /// The texture budget after a streaming frame that changed the tiles: uploads can take
     /// the textures over their budget before the next second's look, so the far ones are
     /// made smaller at once - but only when they are over it (a tenth of a second apart at
     /// most). This was a whole look at every texture in every such frame.
-    pub fn texture_budget_after_streaming(&self, renderer: &Renderer, scene: &mut Scene, centers: &[DVec3]) -> usize {
+    pub fn texture_budget_after_streaming(
+        &self,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        centers: &[DVec3],
+    ) -> usize {
         self.texture_budget_pass(renderer, scene, centers, BudgetPass::AfterStreaming)
     }
 
@@ -890,7 +1064,9 @@ impl World {
         let limit = self
             .texture_limit
             .load(std::sync::atomic::Ordering::Relaxed);
-        let video_limit = self.video_memory_limit.load(std::sync::atomic::Ordering::Relaxed);
+        let video_limit = self
+            .video_memory_limit
+            .load(std::sync::atomic::Ordering::Relaxed);
         if (limit == 0 && video_limit == 0) || centers.is_empty() {
             return 0;
         }
@@ -898,14 +1074,18 @@ impl World {
         let limit = if limit == 0 { u64::MAX / 4 } else { limit };
         let mut memo = self.budget_checked.lock();
         {
-            let since = memo.checked.map(|t| t.elapsed().as_secs_f32()).unwrap_or(f32::MAX);
+            let since = memo
+                .checked
+                .map(|t| t.elapsed().as_secs_f32())
+                .unwrap_or(f32::MAX);
             // (a pass cut short by its time goes on in the next frame; one after streaming
             // waits a tenth of a second after the last)
-            let due = memo.resume || match pass {
-                BudgetPass::Now => true,
-                BudgetPass::AfterStreaming => since >= 0.1,
-                BudgetPass::Timed => since >= 1.0,
-            };
+            let due = memo.resume
+                || match pass {
+                    BudgetPass::Now => true,
+                    BudgetPass::AfterStreaming => since >= 0.1,
+                    BudgetPass::Timed => since >= 1.0,
+                };
             if !due {
                 return 0;
             }
@@ -917,7 +1097,9 @@ impl World {
             .values()
             .map(|(t, _)| scene.texture_bytes_of(*t))
             .sum();
-        let generation = self.tiles_generation.load(std::sync::atomic::Ordering::Relaxed);
+        let generation = self
+            .tiles_generation
+            .load(std::sync::atomic::Ordering::Relaxed);
         let states = self.tile_state.lock();
         let mut gpu = self.gpu.lock();
         let (scenery_bytes, any_dropped) = gpu
@@ -930,7 +1112,8 @@ impl World {
         // budget counted the scenery and the vehicles alone, and on an 8 GB card with a
         // 4000 MB budget the textures grew to 5.4 GB over a drive; with the picture's targets
         // the card paged to the system's memory and the frame rate fell from 140 to 25 (#2295).
-        let usage = scenery_bytes + vehicle_bytes + texture_overdraft(renderer.texture_bytes(scene));
+        let usage =
+            scenery_bytes + vehicle_bytes + texture_overdraft(renderer.texture_bytes(scene));
         // And everything the game holds on the card - the meshes, the render targets and
         // shadow maps, the driver's own - stays within the video memory setting and the
         // driver's budget: the textures counted against their budget alone, the game took
@@ -942,8 +1125,16 @@ impl World {
         // and every step up failed the idle look's check - the whole scan and its sort every
         // second while over)
         const STEP: u64 = 32 << 20;
-        let card_over = if card_cap > 0 { card.total().saturating_sub(card_cap) / STEP * STEP } else { 0 };
-        let usage = if card_over > 0 { usage.max(limit.saturating_add(card_over)) } else { usage };
+        let card_over = if card_cap > 0 {
+            card.total().saturating_sub(card_cap) / STEP * STEP
+        } else {
+            0
+        };
+        let usage = if card_over > 0 {
+            usage.max(limit.saturating_add(card_over))
+        } else {
+            usage
+        };
         if pass == BudgetPass::AfterStreaming && usage <= limit && !memo.resume {
             // (the bytes are all a forced look is for: the restores wait for the second's)
             return 0;
@@ -953,7 +1144,10 @@ impl World {
             memo.resume = false;
             return 0;
         }
-        if pass != BudgetPass::Now && !memo.resume && memo.unchanged(generation, usage, limit, centers) {
+        if pass != BudgetPass::Now
+            && !memo.resume
+            && memo.unchanged(generation, usage, limit, centers)
+        {
             return 0;
         }
         let ts = tile_size();
@@ -971,15 +1165,33 @@ impl World {
         // how near each scenery texture is: the nearest tile that uses it
         let mut near: hashbrown::HashMap<TextureId, f64> = hashbrown::HashMap::new();
         let mut spline_textures = hashbrown::HashSet::new();
-        let (mut types, mut splines): (hashbrown::HashMap<usize, f64>, hashbrown::HashMap<usize, f64>) = Default::default();
-        let (mut trees, mut shared): (hashbrown::HashMap<&str, f64>, hashbrown::HashMap<&PathBuf, f64>) = Default::default();
+        let (mut types, mut splines): (
+            hashbrown::HashMap<usize, f64>,
+            hashbrown::HashMap<usize, f64>,
+        ) = Default::default();
+        let (mut trees, mut shared): (
+            hashbrown::HashMap<&str, f64>,
+            hashbrown::HashMap<&PathBuf, f64>,
+        ) = Default::default();
         for (key, st) in states.iter() {
             let d = tile_distance(key);
             let nearer = |e: &mut f64| *e = e.min(d);
-            st.gpu.types.iter().for_each(|t| nearer(types.entry(*t).or_insert(f64::MAX)));
-            st.gpu.spline_types.iter().for_each(|t| nearer(splines.entry(*t).or_insert(f64::MAX)));
-            st.gpu.trees.iter().for_each(|t| nearer(trees.entry(t.as_str()).or_insert(f64::MAX)));
-            st.gpu.shared_textures.iter().for_each(|p| nearer(shared.entry(p).or_insert(f64::MAX)));
+            st.gpu
+                .types
+                .iter()
+                .for_each(|t| nearer(types.entry(*t).or_insert(f64::MAX)));
+            st.gpu
+                .spline_types
+                .iter()
+                .for_each(|t| nearer(splines.entry(*t).or_insert(f64::MAX)));
+            st.gpu
+                .trees
+                .iter()
+                .for_each(|t| nearer(trees.entry(t.as_str()).or_insert(f64::MAX)));
+            st.gpu
+                .shared_textures
+                .iter()
+                .for_each(|p| nearer(shared.entry(p).or_insert(f64::MAX)));
         }
         {
             let g = &*gpu;
@@ -990,7 +1202,11 @@ impl World {
                 }
             };
             for (t, d) in &types {
-                g.types.get(t).into_iter().flat_map(|t| t.textures.iter()).for_each(|p| see(p, *d));
+                g.types
+                    .get(t)
+                    .into_iter()
+                    .flat_map(|t| t.textures.iter())
+                    .for_each(|p| see(p, *d));
             }
             for (t, d) in &splines {
                 for p in g.splines.get(t).into_iter().flat_map(|s| s.textures.iter()) {
@@ -999,7 +1215,11 @@ impl World {
                 }
             }
             for (t, d) in &trees {
-                g.trees.get(*t).and_then(|t| t.texture.as_ref()).into_iter().for_each(|p| see(p, *d));
+                g.trees
+                    .get(*t)
+                    .and_then(|t| t.texture.as_ref())
+                    .into_iter()
+                    .for_each(|p| see(p, *d));
             }
             for (p, d) in &shared {
                 see(p, *d);
@@ -1018,7 +1238,11 @@ impl World {
         // (2 ms of shrinking a frame, the scan's own time not counted; a picture takes
         // what it takes)
         let budget_end = std::time::Instant::now()
-            + if pass == BudgetPass::Now { std::time::Duration::from_secs(3600) } else { std::time::Duration::from_millis(2) };
+            + if pass == BudgetPass::Now {
+                std::time::Duration::from_secs(3600)
+            } else {
+                std::time::Duration::from_millis(2)
+            };
         // A texture shrunk while its tiles were far that is near now comes back whole at
         // once, room or not: the far ones give way for it in the seconds after. (Waiting for
         // room left the buildings right in front of the bus blurred for good on a map that
@@ -1029,7 +1253,10 @@ impl World {
                 if *d >= NEAR || restoring >= 24 {
                     continue;
                 }
-                if gpu.textures.get(p).is_some_and(|e| e.dropped > 0) && !pending.contains(p) && !gpu.wants_restore.contains(p) {
+                if gpu.textures.get(p).is_some_and(|e| e.dropped > 0)
+                    && !pending.contains(p)
+                    && !gpu.wants_restore.contains(p)
+                {
                     gpu.wants_restore.push(p.clone());
                     restoring += 1;
                 }
@@ -1063,7 +1290,11 @@ impl World {
                 }
                 let before = e.bytes;
                 // far away and big: two levels at once
-                let n = if *d > 700.0 && w.min(h) / 4 >= MIN_SIDE.max(256) && levels > 2 { 2 } else { 1 };
+                let n = if *d > 700.0 && w.min(h) / 4 >= MIN_SIDE.max(256) && levels > 2 {
+                    2
+                } else {
+                    1
+                };
                 if renderer.drop_top_levels_in(&mut drops, scene, e.id, n) {
                     e.bytes = scene.texture_bytes_of(e.id);
                     e.dropped += n;
@@ -1091,12 +1322,15 @@ impl World {
                         cut_short = true;
                         break;
                     }
-                    let Some((w, h, levels)) = renderer.texture_levels(scene, id) else { continue };
+                    let Some((w, h, levels)) = renderer.texture_levels(scene, id) else {
+                        continue;
+                    };
                     if w.min(h) / 2 < 1024 || levels < 2 {
                         continue;
                     }
                     if renderer.drop_top_levels_in(&mut drops, scene, id, 1) {
-                        over = over.saturating_sub(before.saturating_sub(scene.texture_bytes_of(id)));
+                        over =
+                            over.saturating_sub(before.saturating_sub(scene.texture_bytes_of(id)));
                         shrunk.push(id);
                     }
                 }
@@ -1137,7 +1371,12 @@ impl World {
         // Nothing left to do for now: not looked at again before something changed. (A pass
         // that shrank or sent back textures changes the bytes in use, now or when they come
         // back, and looks again.)
-        memo.remember(generation, usage, centers, shrunk.is_empty() && restoring == 0);
+        memo.remember(
+            generation,
+            usage,
+            centers,
+            shrunk.is_empty() && restoring == 0,
+        );
         memo.resume = cut_short;
         // (the swapped-in textures waiting for theirs go along)
         let shrunk_n = shrunk.len();
@@ -1164,8 +1403,15 @@ impl World {
         let mut instances = scene.instances.len();
         // Most checks have no free slot at the end. Avoid sorting every free instance
         // after each streaming burst just to discover that the tail cannot shrink.
-        if instances > 0 && gpu.free_instances.values().any(|l| l.0.iter().any(|r| r.0 == instances - 1)) {
-            let free: hashbrown::HashSet<usize> = gpu.free_instances.values()
+        if instances > 0
+            && gpu
+                .free_instances
+                .values()
+                .any(|l| l.0.iter().any(|r| r.0 == instances - 1))
+        {
+            let free: hashbrown::HashSet<usize> = gpu
+                .free_instances
+                .values()
                 .flat_map(|l| l.0.iter().map(|r| r.0))
                 .collect();
             while instances > 0 && free.contains(&(instances - 1)) {
@@ -1233,7 +1479,12 @@ pub(super) fn show_edit(renderer: &Renderer, scene: &mut Scene, eo: &EditObject,
     // (a deleted one goes deep under the ground rather than being hidden: its instances'
     // visibility is the level-of-detail switch's, and an undone delete brings it back)
     let rot = Mat4::from_rotation_z(-(e.turned.to_radians() as f32)) * eo.xf;
-    let at = eo.pos + e.moved - if e.deleted { DVec3::Z * 10_000.0 } else { DVec3::ZERO };
+    let at = eo.pos + e.moved
+        - if e.deleted {
+            DVec3::Z * 10_000.0
+        } else {
+            DVec3::ZERO
+        };
     for inst in &eo.instances {
         renderer.set_transform(scene, *inst, at, rot);
     }
@@ -1241,7 +1492,12 @@ pub(super) fn show_edit(renderer: &Renderer, scene: &mut Scene, eo: &EditObject,
 
 /// The renderer's side of a parked car driving off (`visible` false) or coming back (true):
 /// its object's instances hidden or shown, their other parameters kept.
-pub fn show_parked_instances(renderer: &Renderer, scene: &mut Scene, instances: &[usize], visible: bool) {
+pub fn show_parked_instances(
+    renderer: &Renderer,
+    scene: &mut Scene,
+    instances: &[usize],
+    visible: bool,
+) {
     for &inst in instances {
         if let Some(i) = scene.instances.get(inst) {
             let (alpha, uv) = (i.slot_alpha.clone(), i.slot_uv.clone());
@@ -1252,7 +1508,9 @@ pub fn show_parked_instances(renderer: &Renderer, scene: &mut Scene, instances: 
 
 /// Stop drawing an instance, keeping its other parameters.
 pub(super) fn hide_instance(renderer: &Renderer, scene: &mut Scene, inst: usize) {
-    let Some(i) = scene.instances.get(inst) else { return };
+    let Some(i) = scene.instances.get(inst) else {
+        return;
+    };
     let (alpha, uv) = (i.slot_alpha.clone(), i.slot_uv.clone());
     renderer.set_params(scene, inst, &alpha, false, &uv);
 }
@@ -1287,22 +1545,42 @@ pub(super) const OMSI_TILE_DIST: i32 = 1;
 /// `[matl_noZcheck]`: HafenCity's `3_BG_niederbaum` is a 1.6 km strip of the far bank of
 /// the Elbe that starts at its placement by the Niederbaumbruecke, and it stood across
 /// the road at the Landungsbruecken.
-pub(super) fn stand_in_area(ot: &ObjectType, xf: &Mat4, pos: DVec3, tile: (i32, i32)) -> Option<[f64; 4]> {
+pub(super) fn stand_in_area(
+    ot: &ObjectType,
+    xf: &Mat4,
+    pos: DVec3,
+    tile: (i32, i32),
+) -> Option<[f64; 4]> {
     let ts = tile_size();
     let loaded = (2 * OMSI_TILE_DIST + 1) as f64 * ts;
     // The footprint belongs to the whole object, regardless of how the exporter
     // splits it into meshes. Separate parts can each fit below the cutoff while
     // their combined extent is a distant scenery backdrop.
-    let bounds = ot.meshes.iter()
+    let bounds = ot
+        .meshes
+        .iter()
         .filter(|(m, _, _)| !m.positions.is_empty())
         .map(|(m, _, _)| mesh_bounds(m, xf, pos))
-        .reduce(|a, b| [a[0].min(b[0]), a[1].min(b[1]), a[2].max(b[2]), a[3].max(b[3])]);
+        .reduce(|a, b| {
+            [
+                a[0].min(b[0]),
+                a[1].min(b[1]),
+                a[2].max(b[2]),
+                a[3].max(b[3]),
+            ]
+        });
     let wide = bounds.is_some_and(|b| (b[2] - b[0]).max(b[3] - b[1]) > 2.0 * loaded)
-        || ot.meshes.iter().any(|(m, _, defs)| stand_in_mesh(m, defs, xf, pos, loaded));
+        || ot
+            .meshes
+            .iter()
+            .any(|(m, _, defs)| stand_in_mesh(m, defs, xf, pos, loaded));
     if !wide {
         return None;
     }
-    log::debug!("{} on tile {tile:?} stands in for far tiles: drawn only from the tiles around it", ot.sco.path.display());
+    log::debug!(
+        "{} on tile {tile:?} stands in for far tiles: drawn only from the tiles around it",
+        ot.sco.path.display()
+    );
     Some([
         (tile.0 - OMSI_TILE_DIST) as f64 * ts,
         (tile.1 - OMSI_TILE_DIST) as f64 * ts,
@@ -1311,7 +1589,13 @@ pub(super) fn stand_in_area(ot: &ObjectType, xf: &Mat4, pos: DVec3, tile: (i32, 
     ])
 }
 
-pub(super) fn stand_in_mesh(m: &MeshData, defs: &[MaterialDef], xf: &Mat4, pos: DVec3, loaded: f64) -> bool {
+pub(super) fn stand_in_mesh(
+    m: &MeshData,
+    defs: &[MaterialDef],
+    xf: &Mat4,
+    pos: DVec3,
+    loaded: f64,
+) -> bool {
     let b = mesh_bounds(m, xf, pos);
     let width = (b[2] - b[0]).max(b[3] - b[1]);
     if width > 2.0 * loaded {
@@ -1412,11 +1696,9 @@ impl BudgetMemo {
             && usage <= self.usage.max(limit)
             && usage + limit / 100 >= self.usage
             && self.centers.len() == centers.len()
-            && self
-                .centers
-                .iter()
-                .zip(centers)
-                .all(|(a, b)| a.truncate().distance_squared(b.truncate()) < Self::MOVED * Self::MOVED)
+            && self.centers.iter().zip(centers).all(|(a, b)| {
+                a.truncate().distance_squared(b.truncate()) < Self::MOVED * Self::MOVED
+            })
     }
 
     fn remember(&mut self, generation: u64, usage: u64, centers: &[DVec3], idle: bool) {
@@ -1442,15 +1724,24 @@ mod budget_memo_tests {
         assert!(m.unchanged(1, 900, limit, &c));
         // a little way on, or up a hill: the same distances for the budget's purposes
         assert!(m.unchanged(1, 900, limit, &[DVec3::new(30.0, 20.0, 50.0)]));
-        assert!(!m.unchanged(1, 900, limit, &[DVec3::new(40.0, 20.0, 5.0)]), "moved 30 m");
+        assert!(
+            !m.unchanged(1, 900, limit, &[DVec3::new(40.0, 20.0, 5.0)]),
+            "moved 30 m"
+        );
         assert!(!m.unchanged(2, 900, limit, &c), "the tiles changed");
         assert!(!m.unchanged(1, 900, limit, &[c[0], c[0]]), "another center");
         // a texture compressed meanwhile: a little less or more, still nothing to do
         assert!(m.unchanged(1, 895, limit, &c));
         assert!(m.unchanged(1, 990, limit, &c));
         assert!(!m.unchanged(1, 1001, limit, &c), "over the budget");
-        assert!(!m.unchanged(1, 880, limit, &c), "room for a texture to come back");
+        assert!(
+            !m.unchanged(1, 880, limit, &c),
+            "room for a texture to come back"
+        );
         m.remember(1, 900, &c, false);
-        assert!(!m.unchanged(1, 900, limit, &c), "a look that did something looks again");
+        assert!(
+            !m.unchanged(1, 900, limit, &c),
+            "a look that did something looks again"
+        );
     }
 }

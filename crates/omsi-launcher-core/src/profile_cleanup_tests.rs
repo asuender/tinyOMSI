@@ -7,7 +7,9 @@ use super::*;
 fn quality_presets_keep_the_mode_and_the_rest() {
     for mode in ["vanilla", "vanilla_plus", "enhanced", "enhanced_plus"] {
         for (_, preset) in graphics_presets_for(mode) {
-            let mut v = settings_from_text(Some(&format!("graphics={mode}\ngraphics_api=gl\nlanguage=PTB\nai_unsched_factor=25\n")));
+            let mut v = settings_from_text(Some(&format!(
+                "graphics={mode}\ngraphics_api=gl\nlanguage=PTB\nai_unsched_factor=25\n"
+            )));
             apply_graphics_profile(&preset, &mut v);
             let saved = settings_from_text(Some(&settings_to_text(&v, None)));
             assert_eq!(saved["graphics"], mode);
@@ -15,7 +17,11 @@ fn quality_presets_keep_the_mode_and_the_rest() {
             assert_eq!(saved["language"], "PTB");
             assert_eq!(saved["ai_unsched_factor"], 25);
             for (key, x) in preset.as_object().unwrap() {
-                assert_eq!(saved[key.as_str()].to_string().trim_matches('"'), x.to_string().trim_matches('"'), "{mode}: {key}");
+                assert_eq!(
+                    saved[key.as_str()].to_string().trim_matches('"'),
+                    x.to_string().trim_matches('"'),
+                    "{mode}: {key}"
+                );
             }
         }
     }
@@ -33,7 +39,11 @@ fn quality_presets_keep_the_mode_and_the_rest() {
     let defaults = settings_from_text(None);
     let high = &graphics_presets_for("vanilla_plus")[2].1;
     for (k, x) in high.as_object().unwrap() {
-        assert_eq!(defaults[k.as_str()].to_string().trim_matches('"'), x.to_string().trim_matches('"'), "{k}");
+        assert_eq!(
+            defaults[k.as_str()].to_string().trim_matches('"'),
+            x.to_string().trim_matches('"'),
+            "{k}"
+        );
     }
 }
 
@@ -48,9 +58,17 @@ fn presets_keep_reflections_clouds_and_video_memory() {
             if mode != "enhanced_plus" {
                 assert_eq!(p["reflections"], 1.0, "{mode} {name}");
             }
-            assert_eq!(p["rain_quality"], ["low", "medium", "high", "high"][i], "{mode} {name}");
+            assert_eq!(
+                p["rain_quality"],
+                ["low", "medium", "high", "high"][i],
+                "{mode} {name}"
+            );
         }
-        assert_eq!(graphics_presets_for(mode)[0].1["shadow_size"], 1024, "{mode}");
+        assert_eq!(
+            graphics_presets_for(mode)[0].1["shadow_size"],
+            1024,
+            "{mode}"
+        );
     }
     let mut v = settings_from_text(Some("video_memory=3000\n"));
     apply_graphics_profile(&graphics_presets_for("vanilla_plus")[0].1, &mut v);
@@ -62,40 +80,95 @@ fn presets_keep_reflections_clouds_and_video_memory() {
 
 #[test]
 fn a_vanilla_preset_leaves_the_shadows_of_vanilla_plus_alone() {
-    let mut v = settings_from_text(Some("graphics=vanilla_plus\nshadows=0\nssao=0\ndetail_textures=0\n"));
+    let mut v = settings_from_text(Some(
+        "graphics=vanilla_plus\nshadows=0\nssao=0\ndetail_textures=0\n",
+    ));
     v["graphics"] = json!("vanilla");
     apply_graphics_profile(&graphics_presets_for("vanilla")[3].1, &mut v);
     v["graphics"] = json!("vanilla_plus");
     let saved = settings_from_text(Some(&settings_to_text(&v, None)));
-    assert_eq!((&saved["shadows"], &saved["ssao"], &saved["detail_textures"], &saved["shadow_size"]), (&json!(false), &json!(false), &json!(false), &json!(4096)));
+    assert_eq!(
+        (
+            &saved["shadows"],
+            &saved["ssao"],
+            &saved["detail_textures"],
+            &saved["shadow_size"]
+        ),
+        (&json!(false), &json!(false), &json!(false), &json!(4096))
+    );
     let mut v = settings_from_text(Some("graphics=vanilla_plus\n"));
     v["graphics"] = json!("vanilla");
     apply_graphics_profile(&graphics_presets_for("vanilla")[0].1, &mut v);
     v["graphics"] = json!("vanilla_plus");
     let saved = settings_from_text(Some(&settings_to_text(&v, None)));
-    assert_eq!((&saved["shadows"], &saved["ssao"], &saved["detail_textures"], &saved["shadow_size"]), (&json!(true), &json!(true), &json!(true), &json!(1024)));
-    let mut v = settings_from_text(Some("graphics=enhanced\nshadows=0\nssao=0\nreflections=0\n"));
+    assert_eq!(
+        (
+            &saved["shadows"],
+            &saved["ssao"],
+            &saved["detail_textures"],
+            &saved["shadow_size"]
+        ),
+        (&json!(true), &json!(true), &json!(true), &json!(1024))
+    );
+    let mut v = settings_from_text(Some(
+        "graphics=enhanced\nshadows=0\nssao=0\nreflections=0\n",
+    ));
     v["graphics"] = json!("enhanced_plus");
     apply_graphics_profile(&graphics_presets_for("enhanced_plus")[0].1, &mut v);
     v["graphics"] = json!("enhanced");
     let saved = settings_from_text(Some(&settings_to_text(&v, None)));
-    assert_eq!((&saved["shadows"], &saved["ssao"], &saved["reflections"]), (&json!(false), &json!(false), &json!(0.0)));
+    assert_eq!(
+        (&saved["shadows"], &saved["ssao"], &saved["reflections"]),
+        (&json!(false), &json!(false), &json!(0.0))
+    );
 }
 
 #[test]
 fn a_phone_starts_from_the_games_phone_defaults() {
     let phone = settings_from_text_on(None, true);
     let saved = settings_from_text_on(Some(&settings_to_text(&phone, None)), false);
-    for (k, x) in [("msaa", json!(2)), ("anisotropy", json!(4)), ("ssao", json!(false)), ("shadow_size", json!(1024)), ("mirror_size", json!(128)), ("max_fps", json!(60)), ("max_obj_dist", json!("900")), ("pax_density", json!(0.7)), ("navigator_corner", json!("top-center"))] {
+    for (k, x) in [
+        ("msaa", json!(2)),
+        ("anisotropy", json!(4)),
+        ("ssao", json!(false)),
+        ("shadow_size", json!(1024)),
+        ("mirror_size", json!(128)),
+        ("max_fps", json!(60)),
+        ("max_obj_dist", json!("900")),
+        ("pax_density", json!(0.7)),
+        ("navigator_corner", json!("top-center")),
+    ] {
         assert_eq!(phone[k], x, "{k}");
         assert_eq!(saved[k], x, "{k}");
     }
     let desktop = settings_from_text_on(None, false);
-    assert_eq!((&desktop["msaa"], &desktop["max_obj_dist"], &desktop["navigator_corner"]), (&json!(4), &json!("auto"), &json!("bottom-left")));
+    assert_eq!(
+        (
+            &desktop["msaa"],
+            &desktop["max_obj_dist"],
+            &desktop["navigator_corner"]
+        ),
+        (&json!(4), &json!("auto"), &json!("bottom-left"))
+    );
     let file = settings_from_text_on(Some("msaa=8\nmax_obj_dist=1500\n"), true);
-    assert_eq!((&file["msaa"], &file["max_obj_dist"], &file["anisotropy"]), (&json!(8), &json!("1500"), &json!(4)));
+    assert_eq!(
+        (&file["msaa"], &file["max_obj_dist"], &file["anisotropy"]),
+        (&json!(8), &json!("1500"), &json!(4))
+    );
     for (k, d) in desktop.as_object().unwrap() {
-        if !["msaa", "anisotropy", "ssao", "shadow_size", "mirror_size", "max_fps", "max_obj_dist", "pax_density", "navigator_corner"].contains(&k.as_str()) {
+        if ![
+            "msaa",
+            "anisotropy",
+            "ssao",
+            "shadow_size",
+            "mirror_size",
+            "max_fps",
+            "max_obj_dist",
+            "pax_density",
+            "navigator_corner",
+        ]
+        .contains(&k.as_str())
+        {
             assert_eq!(&phone[k.as_str()], d, "{k}");
         }
     }
@@ -103,11 +176,21 @@ fn a_phone_starts_from_the_games_phone_defaults() {
 
 #[test]
 fn a_graphics_profile_holds_the_whole_graphics_tab() {
-    for k in ["shadow_blobs", "night_brightness", "gpu_texture_compression"] {
+    for k in [
+        "shadow_blobs",
+        "night_brightness",
+        "gpu_texture_compression",
+    ] {
         assert!(GRAPHICS_PROFILE_KEYS.contains(&k), "{k}");
     }
     let mut mine = settings_from_text(None);
-    for (k, x) in [("shadow_blobs", json!(false)), ("night_brightness", json!(1.5)), ("gpu_texture_compression", json!(false)), ("graphics", json!("enhanced")), ("language", json!("PTB"))] {
+    for (k, x) in [
+        ("shadow_blobs", json!(false)),
+        ("night_brightness", json!(1.5)),
+        ("gpu_texture_compression", json!(false)),
+        ("graphics", json!("enhanced")),
+        ("language", json!("PTB")),
+    ] {
         mine[k] = x;
     }
     let mut profile = serde_json::Map::new();
@@ -117,7 +200,20 @@ fn a_graphics_profile_holds_the_whole_graphics_tab() {
     let mut other = settings_from_text(None);
     apply_graphics_profile(&Value::Object(profile), &mut other);
     let saved = settings_from_text(Some(&settings_to_text(&other, None)));
-    assert_eq!((&saved["shadow_blobs"], &saved["night_brightness"], &saved["gpu_texture_compression"], &saved["graphics"]), (&json!(false), &json!(1.5), &json!(false), &json!("enhanced")));
+    assert_eq!(
+        (
+            &saved["shadow_blobs"],
+            &saved["night_brightness"],
+            &saved["gpu_texture_compression"],
+            &saved["graphics"]
+        ),
+        (
+            &json!(false),
+            &json!(1.5),
+            &json!(false),
+            &json!("enhanced")
+        )
+    );
     assert_eq!(saved["language"], "ENG");
 }
 
@@ -128,7 +224,10 @@ fn puddles_are_saved_and_kept_in_graphics_profiles() {
     assert_eq!(settings_from_text(None)["puddles"], "high");
     for q in ["off", "low", "high"] {
         let v = settings_from_text(Some(&format!("puddles={q}\n")));
-        assert_eq!(settings_from_text(Some(&settings_to_text(&v, None)))["puddles"], q);
+        assert_eq!(
+            settings_from_text(Some(&settings_to_text(&v, None)))["puddles"],
+            q
+        );
     }
     assert_eq!(settings_from_text(Some("puddles=ultra"))["puddles"], "high");
     assert!(GRAPHICS_PROFILE_KEYS.contains(&"puddles"));
@@ -140,9 +239,15 @@ fn cloud_quality_is_saved_and_kept_in_graphics_profiles() {
     assert_eq!(settings_from_text(None)["cloud_quality"], "high");
     for q in ["high", "low"] {
         let v = settings_from_text(Some(&format!("graphics=enhanced\ncloud_quality={q}\n")));
-        assert_eq!(settings_from_text(Some(&settings_to_text(&v, None)))["cloud_quality"], q);
+        assert_eq!(
+            settings_from_text(Some(&settings_to_text(&v, None)))["cloud_quality"],
+            q
+        );
     }
-    assert_eq!(settings_from_text(Some("cloud_quality=auto"))["cloud_quality"], "high");
+    assert_eq!(
+        settings_from_text(Some("cloud_quality=auto"))["cloud_quality"],
+        "high"
+    );
     assert!(GRAPHICS_PROFILE_KEYS.contains(&"cloud_quality"));
 }
 
@@ -191,12 +296,25 @@ fn a_delete_request_needs_a_plain_profile_name() {
 
 #[test]
 fn the_reflections_are_a_strength_and_older_files_read_as_on_or_off() {
-    for (text, x) in [("reflections=1\n", 1.0), ("reflections=0\n", 0.0), ("reflections=true\n", 1.0), ("reflections=0.35\n", 0.35), ("reflections=7\n", 1.0)] {
+    for (text, x) in [
+        ("reflections=1\n", 1.0),
+        ("reflections=0\n", 0.0),
+        ("reflections=true\n", 1.0),
+        ("reflections=0.35\n", 0.35),
+        ("reflections=7\n", 1.0),
+    ] {
         let v = settings_from_text(Some(text));
         assert_eq!(v["reflections"], x, "{text}");
-        assert_eq!(settings_from_text(Some(&settings_to_text(&v, None)))["reflections"], x, "{text}");
+        assert_eq!(
+            settings_from_text(Some(&settings_to_text(&v, None)))["reflections"],
+            x,
+            "{text}"
+        );
     }
     let mut v = settings_from_text(None);
     v["reflections"] = json!(false);
-    assert_eq!(settings_from_text(Some(&settings_to_text(&v, None)))["reflections"], 0.0);
+    assert_eq!(
+        settings_from_text(Some(&settings_to_text(&v, None)))["reflections"],
+        0.0
+    );
 }

@@ -1,7 +1,9 @@
 //! Destinations, roller blinds and the IBIS codes of a trip, for the AI buses and the player's.
 
 use super::*;
-pub(crate) use omsi_vehicle::hof::{ident_names, pick_route, routes_to, same_stop, stop_words, termini_named, trip_terminus};
+pub(crate) use omsi_vehicle::hof::{
+    ident_names, pick_route, routes_to, same_stop, stop_words, termini_named, trip_terminus,
+};
 
 /// Put an AI bus's IBIS onto the line/terminus of its trip: the depot file gives the
 /// terminus code (by ident) and the info trip (route index) for the line - the one its
@@ -64,8 +66,8 @@ pub fn player_ibis(
     // number that pushed the destination aside.
     if has_roller_blind(v)
         && v.var("elec_busbar_main_sw")
-        .map(|x| x > 0.5)
-        .unwrap_or(false)
+            .map(|x| x > 0.5)
+            .unwrap_or(false)
     {
         set_line_to(v, line);
         v.set_var("AI_target_index", target.terminus_index as f32);
@@ -108,7 +110,10 @@ pub fn set_player_destination_at(
     stops: &[&str],
 ) -> Option<BlindPick> {
     set_destination_at(v, hof, line, ti, stops, true);
-    (has_roller_blind(v) && ti < hof.termini.len()).then(|| BlindPick { row: ti, line: line.trim().to_string() })
+    (has_roller_blind(v) && ti < hof.termini.len()).then(|| BlindPick {
+        row: ti,
+        line: line.trim().to_string(),
+    })
 }
 
 /// A destination picked by hand for a hand-cranked roller blind: its row of the depot file
@@ -128,7 +133,11 @@ pub struct BlindPick {
 /// (`starting`) is done, as for a duty ([`player_ibis`]): the stock trigger switches the
 /// main switch on itself, and the start-up's toggle then switched the electrics off again.
 /// A bus picked for cold keeps the pick until it is switched on.
-pub fn turn_roller_blind(v: &mut crate::VehicleInstance, pick: &mut Option<BlindPick>, starting: bool) {
+pub fn turn_roller_blind(
+    v: &mut crate::VehicleInstance,
+    pick: &mut Option<BlindPick>,
+    starting: bool,
+) {
     if pick.is_none() || starting || !v.var("elec_busbar_main_sw").is_some_and(|x| x > 0.5) {
         return;
     }
@@ -136,7 +145,11 @@ pub fn turn_roller_blind(v: &mut crate::VehicleInstance, pick: &mut Option<Blind
     set_line_to(v, &p.line);
     v.set_var("AI_target_index", p.row as f32);
     v.trigger("ai_scheduled_settarget");
-    log::info!("roller blind turned to destination {} on route '{}'", p.row, p.line);
+    log::info!(
+        "roller blind turned to destination {} on route '{}'",
+        p.row,
+        p.line
+    );
 }
 
 /// The row of the depot file a hand-cranked roller blind shows, as its script gives
@@ -144,13 +157,25 @@ pub fn turn_roller_blind(v: &mut crate::VehicleInstance, pick: &mut Option<Blind
 /// (`rlbnd_steckschild_Termindex`, put up for a code above 1000) where it names a row with a
 /// sign text, else the row the blind is turned to (`rlbnd_ziel_target`). None for a bus
 /// without one or without the blind's variable.
-pub(crate) fn roller_blind_row(v: &crate::VehicleInstance, hof: &omsi_vehicle::Hof) -> Option<usize> {
+pub(crate) fn roller_blind_row(
+    v: &crate::VehicleInstance,
+    hof: &omsi_vehicle::Hof,
+) -> Option<usize> {
     if !has_roller_blind(v) {
         return None;
     }
-    let row = |name: &str| v.var(name).filter(|i| *i >= 0.0).map(|i| i.round() as usize).filter(|&i| i < hof.termini.len());
-    let plugged = row("rlbnd_steckschild_Termindex")
-        .filter(|&i| hof.termini[i].strings.first().is_some_and(|s| !s.is_empty()));
+    let row = |name: &str| {
+        v.var(name)
+            .filter(|i| *i >= 0.0)
+            .map(|i| i.round() as usize)
+            .filter(|&i| i < hof.termini.len())
+    };
+    let plugged = row("rlbnd_steckschild_Termindex").filter(|&i| {
+        hof.termini[i]
+            .strings
+            .first()
+            .is_some_and(|s| !s.is_empty())
+    });
     plugged.or_else(|| row("rlbnd_ziel_target"))
 }
 
@@ -168,16 +193,26 @@ pub fn shown_destination(
     pick: Option<&BlindPick>,
 ) -> Option<usize> {
     let code = v.var("IBIS_TerminusCode").unwrap_or(-1.0) as i32;
-    let index = v.var("IBIS_TerminusIndex").filter(|i| *i >= 0.0).map(|i| i.round() as usize);
+    let index = v
+        .var("IBIS_TerminusIndex")
+        .filter(|i| *i >= 0.0)
+        .map(|i| i.round() as usize);
     pick.map(|p| p.row)
         .filter(|&i| i < hof.termini.len())
-        .or_else(|| v.pending_destination.as_ref()
-            .filter(|p| p.hof.as_ref() == hof)
-            .map(|p| p.ti))
+        .or_else(|| {
+            v.pending_destination
+                .as_ref()
+                .filter(|p| p.hof.as_ref() == hof)
+                .map(|p| p.ti)
+        })
         .or_else(|| roller_blind_row(v, hof))
         .or_else(|| index.filter(|&i| hof.termini.get(i).is_some_and(|t| t.code == code)))
         .or_else(|| hof.termini.iter().position(|t| t.code == code))
-        .or_else(|| hof.termini.iter().position(|t| t.strings.first().is_some_and(|s| !s.trim().is_empty())))
+        .or_else(|| {
+            hof.termini
+                .iter()
+                .position(|t| t.strings.first().is_some_and(|s| !s.trim().is_empty()))
+        })
 }
 
 /// What the IBIS shows once a driver has typed a trip's codes, standing at the timetable's
@@ -247,10 +282,17 @@ pub fn has_roller_blind(v: &crate::VehicleInstance) -> bool {
 /// line is right-aligned to three places ("  5", " 5E"); the matrix scripts take the line
 /// as it is.
 pub(crate) fn set_line_to(v: &mut crate::VehicleInstance, line: &str) {
-    let digits: String = line.trim().chars().take_while(|c| c.is_ascii_digit()).collect();
+    let digits: String = line
+        .trim()
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
     let text = if has_roller_blind(v) {
         format!("{:>3}", line.trim())
-    } else if v.ty.program.str_var("Matrix_Nmr").is_some() && !digits.is_empty() && digits.len() <= 3 {
+    } else if v.ty.program.str_var("Matrix_Nmr").is_some()
+        && !digits.is_empty()
+        && digits.len() <= 3
+    {
         // the LiAZ's 4-character matrix shows three digits and a letter (see
         // omsi_script::compat): its AI path takes SetLineTo as it is
         format!("{:0>3}{}", digits, &line.trim()[digits.len()..])
@@ -411,7 +453,10 @@ pub fn serves_unnumbered(hof: &omsi_vehicle::Hof, terminus: &str, stops: &[&str]
         .info_trips
         .iter()
         .enumerate()
-        .filter(|(_, t)| t.code.trim().parse::<u32>().is_ok_and(|c| c / 100 == 0) && codes.contains(&omsi_cfg::parse_i32(&t.route)))
+        .filter(|(_, t)| {
+            t.code.trim().parse::<u32>().is_ok_and(|c| c / 100 == 0)
+                && codes.contains(&omsi_cfg::parse_i32(&t.route))
+        })
         .map(|(i, _)| i)
         .collect();
     let trip: Vec<(String, Vec<String>)> = stops
@@ -420,10 +465,19 @@ pub fn serves_unnumbered(hof: &omsi_vehicle::Hof, terminus: &str, stops: &[&str]
         .filter(|(s, _)| !s.is_empty())
         .collect();
     routes.iter().any(|&r| {
-        let list = hof.info_busstop_lists.get(r).map(|l| l.as_slice()).unwrap_or(&[]);
-        let names: Vec<Vec<(String, Vec<String>)>> = list.iter().map(|id| ident_names(hof, id)).collect();
+        let list = hof
+            .info_busstop_lists
+            .get(r)
+            .map(|l| l.as_slice())
+            .unwrap_or(&[]);
+        let names: Vec<Vec<(String, Vec<String>)>> =
+            list.iter().map(|id| ident_names(hof, id)).collect();
         let starts = matches!((names.first(), trip.first()), (Some(n), Some(t)) if same_stop(n, t));
-        starts && trip.iter().skip(1).any(|t| names.iter().skip(1).any(|n| same_stop(n, t)))
+        starts
+            && trip
+                .iter()
+                .skip(1)
+                .any(|t| names.iter().skip(1).any(|n| same_stop(n, t)))
     })
 }
 
@@ -504,7 +558,14 @@ pub(crate) fn apply_pending_destination(v: &mut crate::VehicleInstance) {
         return;
     }
     let stops: Vec<&str> = pending.stops.iter().map(String::as_str).collect();
-    set_destination_at(v, &pending.hof, &pending.line, pending.ti, &stops, pending.player);
+    set_destination_at(
+        v,
+        &pending.hof,
+        &pending.line,
+        pending.ti,
+        &stops,
+        pending.player,
+    );
 }
 
 /// [`set_destination`] with the depot file's terminus `ti` itself.
@@ -516,11 +577,16 @@ pub(crate) fn set_destination_at(
     stops: &[&str],
     player: bool,
 ) {
-    let Some(term) = hof.termini.get(ti) else { return };
+    let Some(term) = hof.termini.get(ti) else {
+        return;
+    };
     if destination_transition_active(v) {
         // Keep script inputs unchanged until the current animation finishes. Replacing
         // this single slot coalesces rapid selections instead of animating every one.
-        let hof = v.host.hof.as_ref()
+        let hof = v
+            .host
+            .hof
+            .as_ref()
             .filter(|h| h.as_ref() == hof)
             .cloned()
             .unwrap_or_else(|| std::sync::Arc::new(hof.clone()));
@@ -586,11 +652,7 @@ pub(crate) fn set_destination_at(
             v.state.str_vars[i as usize] = val;
         }
     };
-    set_str(
-        v,
-        "IBIS_terminus_name",
-        hof.termini[ti].display_name(),
-    );
+    set_str(v, "IBIS_terminus_name", hof.termini[ti].display_name());
     let complex = if line_num > 0.0 {
         complex_line_text(line, line_num)
     } else {

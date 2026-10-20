@@ -67,11 +67,18 @@ pub(crate) fn buzz(ms: u32) {
 /// on Linux). Nothing on iOS.
 pub(crate) fn reveal(path: &std::path::Path) {
     #[cfg(target_os = "macos")]
-    let _ = std::process::Command::new("open").arg("-R").arg(path).spawn();
+    let _ = std::process::Command::new("open")
+        .arg("-R")
+        .arg(path)
+        .spawn();
     #[cfg(target_os = "windows")]
-    let _ = std::process::Command::new("explorer").arg(format!("/select,{}", path.display())).spawn();
+    let _ = std::process::Command::new("explorer")
+        .arg(format!("/select,{}", path.display()))
+        .spawn();
     #[cfg(all(unix, not(target_os = "macos"), not(target_os = "ios")))]
-    let _ = std::process::Command::new("xdg-open").arg(path.parent().unwrap_or(path)).spawn();
+    let _ = std::process::Command::new("xdg-open")
+        .arg(path.parent().unwrap_or(path))
+        .spawn();
     #[cfg(target_os = "ios")]
     let _ = path;
 }

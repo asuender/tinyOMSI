@@ -69,7 +69,12 @@ pub(super) fn options_pages(app: &App) -> Vec<Page> {
         .flatten()
         .collect();
     let mut display = vec![
-        switch_row(app, "fullscreen", "Fullscreen", "Switches the window between windowed and fullscreen"),
+        switch_row(
+            app,
+            "fullscreen",
+            "Fullscreen",
+            "Switches the window between windowed and fullscreen",
+        ),
         pick("resolution", "Window size", later),
         switch_row(
             app,
@@ -208,19 +213,47 @@ pub(super) fn options_pages(app: &App) -> Vec<Page> {
         .into_iter()
         .flatten()
         .collect();
-    camera.push(button("Reset the seat position", "Reset", "Put the seat back where the vehicle has it.", "seat_reset"));
-    if app.player.is_some() && !app.vr_active() { camera.push(button("Edit the view and mirrors", "Open", "A panel at the side of the driver's view: the eye, the direction, the field of view and each mirror, saved for this vehicle.", "view_editor")); }
+    camera.push(button(
+        "Reset the seat position",
+        "Reset",
+        "Put the seat back where the vehicle has it.",
+        "seat_reset",
+    ));
+    if app.player.is_some() && !app.vr_active() {
+        camera.push(button("Edit the view and mirrors", "Open", "A panel at the side of the driver's view: the eye, the direction, the field of view and each mirror, saved for this vehicle.", "view_editor"));
+    }
     if cfg!(windows) {
         camera.extend(
             vec![
                 switch_row(app, "vr", "Use OpenXR headset", later),
-                if s.vr { pick("vr_scale", "Eye resolution", later) } else { None },
-                if s.vr { pick("vr_head_smoothing_ms", "Head tracking smoothing", later) } else { None },
-                if s.vr { pick("vr_mirror_rate", "Bus mirror refresh", later) } else { None },
-                if s.vr { switch_row(app, "vr_desktop_mirror", "Show headset picture on monitor", later) } else { None },
+                if s.vr {
+                    pick("vr_scale", "Eye resolution", later)
+                } else {
+                    None
+                },
+                if s.vr {
+                    pick("vr_head_smoothing_ms", "Head tracking smoothing", later)
+                } else {
+                    None
+                },
+                if s.vr {
+                    pick("vr_mirror_rate", "Bus mirror refresh", later)
+                } else {
+                    None
+                },
+                if s.vr {
+                    switch_row(
+                        app,
+                        "vr_desktop_mirror",
+                        "Show headset picture on monitor",
+                        later,
+                    )
+                } else {
+                    None
+                },
             ]
-                .into_iter()
-                .flatten(),
+            .into_iter()
+            .flatten(),
         );
     }
     let controls: Vec<(String, String)> = vec![
@@ -268,21 +301,60 @@ pub(super) fn options_pages(app: &App) -> Vec<Page> {
         .into_iter()
         .flatten()
         .collect();
-    let mut pages = vec![("Gameplay", game), ("Graphics", graphics), ("Display and memory", display), ("Sound", sound), ("Camera", camera), ("Controls", controls), ("Interface", interface)];
+    let mut pages = vec![
+        ("Gameplay", game),
+        ("Graphics", graphics),
+        ("Display and memory", display),
+        ("Sound", sound),
+        ("Camera", camera),
+        ("Controls", controls),
+        ("Interface", interface),
+    ];
     if app.vr_active() && app.player.is_some() {
         let desc = "Navigator position (this bus)";
         let mut rows = vec![
             switch_row(app, "navigator", "Navigator", desc).unwrap(),
-            button("Move and rotate with the mouse...", "Open", desc, "vr_nav_edit"),
+            button(
+                "Move and rotate with the mouse...",
+                "Open",
+                desc,
+                "vr_nav_edit",
+            ),
         ];
-        for (id, label) in [("x", "Position right / left"), ("y", "Position forward / back"), ("z", "Position up / down"), ("width", "Display width")] {
+        for (id, label) in [
+            ("x", "Position right / left"),
+            ("y", "Position forward / back"),
+            ("z", "Position up / down"),
+            ("width", "Display width"),
+        ] {
             rows.extend(slider_row(app, &format!("vr_nav_{id}"), label, desc, &cm));
         }
-        for (id, label) in [("yaw", "Display rotation"), ("tilt", "Display tilt"), ("roll", "Display roll")] {
-            rows.extend(slider_row(app, &format!("vr_nav_{id}"), label, desc, &|v| format!("{v:.0}°")));
+        for (id, label) in [
+            ("yaw", "Display rotation"),
+            ("tilt", "Display tilt"),
+            ("roll", "Display roll"),
+        ] {
+            rows.extend(slider_row(
+                app,
+                &format!("vr_nav_{id}"),
+                label,
+                desc,
+                &|v| format!("{v:.0}°"),
+            ));
         }
-        rows.extend(slider_row(app, "vr_nav_opacity", "Interface opacity", desc, &pct));
-        rows.push(button("Reset navigator position", "Reset", desc, "vr_nav_reset"));
+        rows.extend(slider_row(
+            app,
+            "vr_nav_opacity",
+            "Interface opacity",
+            desc,
+            &pct,
+        ));
+        rows.push(button(
+            "Reset navigator position",
+            "Reset",
+            desc,
+            "vr_nav_reset",
+        ));
         pages.push(("VR", rows));
     }
     pages
@@ -293,53 +365,144 @@ pub(super) fn vehicle_pages(app: &App) -> Vec<Page> {
     let server = crate::input_script::on_server(&app.args);
     let mut display: Vec<(String, String)> = Vec::new();
     if has {
-        display.push(opens("Destination display", "Change the current destination", "dest"));
-        display.push(opens("Depot file (HOF)", "Change the current depot file (used for the timetable)", "hof"));
-        display.push(opens("Fleet number", "Change the vehicle's current fleet number", "number"));
+        display.push(opens(
+            "Destination display",
+            "Change the current destination",
+            "dest",
+        ));
+        display.push(opens(
+            "Depot file (HOF)",
+            "Change the current depot file (used for the timetable)",
+            "hof",
+        ));
+        display.push(opens(
+            "Fleet number",
+            "Change the vehicle's current fleet number",
+            "number",
+        ));
     }
     if !server {
-        display.push(opens("Driver", "Change the current driver profile", "driver"));
+        display.push(opens(
+            "Driver",
+            "Change the current driver profile",
+            "driver",
+        ));
     }
     let mut fleet: Vec<(String, String)> = Vec::new();
     if has || !app.session.placed.is_empty() {
-        fleet.push(button("Drive the next vehicle", "Switch", "Take the wheel of another vehicle standing in the world", "switch"));
+        fleet.push(button(
+            "Drive the next vehicle",
+            "Switch",
+            "Take the wheel of another vehicle standing in the world",
+            "switch",
+        ));
         // (one of them by name, rather than going through them one by one, #2026)
         if app.session.placed.len() > 1 {
-            fleet.push(opens("Drive another vehicle", "Choose which of the vehicles standing in the world to drive", "switchto"));
+            fleet.push(opens(
+                "Drive another vehicle",
+                "Choose which of the vehicles standing in the world to drive",
+                "switchto",
+            ));
         }
     }
-    fleet.push(opens("Place a vehicle", "Place a vehicle of your choice", "place"));
+    fleet.push(opens(
+        "Place a vehicle",
+        "Place a vehicle of your choice",
+        "place",
+    ));
     if has {
-        fleet.push(button("Couple", "Couple", "Couple the vehicle to the one in front of or behind it", "couple"));
-        fleet.push(button("Uncouple", "Uncouple", "Separate the coupled vehicles", "uncouple"));
+        fleet.push(button(
+            "Couple",
+            "Couple",
+            "Couple the vehicle to the one in front of or behind it",
+            "couple",
+        ));
+        fleet.push(button(
+            "Uncouple",
+            "Uncouple",
+            "Separate the coupled vehicles",
+            "uncouple",
+        ));
         if app.session.on_foot.is_none() {
-            fleet.push(button("Get up and out", "Get out", "Step out of your car and explore the world", "getout"));
+            fleet.push(button(
+                "Get up and out",
+                "Get out",
+                "Step out of your car and explore the world",
+                "getout",
+            ));
         }
-        fleet.push(button("Remove this vehicle", "Remove", "Removes the current vehicle", "remove"));
+        fleet.push(button(
+            "Remove this vehicle",
+            "Remove",
+            "Removes the current vehicle",
+            "remove",
+        ));
         // (#728: another bus in this one's place, or this one again with its files read
         // anew - a script or a .bus changed - without starting the game again)
-        fleet.push(button("Swap for another vehicle", "Swap", "Put another vehicle in this one's place and drive it", "swap"));
+        fleet.push(button(
+            "Swap for another vehicle",
+            "Swap",
+            "Put another vehicle in this one's place and drive it",
+            "swap",
+        ));
         fleet.push(button("Reload this vehicle", "Reload", "Read the vehicle's files again (.bus, model and sound configuration, scripts) and drive it from here", "reload"));
     }
     if !app.session.placed.is_empty() {
-        fleet.push(button("Remove the placed vehicles", "Remove", "Removes all vehicles you've placed from the world", "clearplaced"));
+        fleet.push(button(
+            "Remove the placed vehicles",
+            "Remove",
+            "Removes all vehicles you've placed from the world",
+            "clearplaced",
+        ));
     }
     let mut service: Vec<(String, String)> = Vec::new();
     if has {
-        service.push(button("Refuel", "Refuel", "Fills the tank of the current vehicle", "refuel"));
+        service.push(button(
+            "Refuel",
+            "Refuel",
+            "Fills the tank of the current vehicle",
+            "refuel",
+        ));
         service.push(button("Wash", "Wash", "Cleans the current vehicle", "wash"));
-        service.push(button("Repair", "Repair", "Repairs the current vehicle", "repair"));
-        service.push(button("Put back on its wheels", "Reset", "Return the vehicle to an upright position", "reset"));
+        service.push(button(
+            "Repair",
+            "Repair",
+            "Repairs the current vehicle",
+            "repair",
+        ));
+        service.push(button(
+            "Put back on its wheels",
+            "Reset",
+            "Return the vehicle to an upright position",
+            "reset",
+        ));
         if !server && app.menus.navigator.is_some() {
-            service.push(button("Move on the map", "Pick", "Teleports you to any location on the map", "teleport"));
-            service.push(opens("Teleport to a start point", "Teleport to a starting point on the map", "tplist"));
+            service.push(button(
+                "Move on the map",
+                "Pick",
+                "Teleports you to any location on the map",
+                "teleport",
+            ));
+            service.push(opens(
+                "Teleport to a start point",
+                "Teleport to a starting point on the map",
+                "tplist",
+            ));
         }
     }
-    vec![("Display and driver", display), ("Vehicles", fleet), ("Service", service)]
+    vec![
+        ("Display and driver", display),
+        ("Vehicles", fleet),
+        ("Service", service),
+    ]
 }
 
 pub(super) fn world_pages(app: &App) -> Vec<Page> {
-    let client = app.net.lan.as_ref().is_some_and(|l| l.role == omsi_net::Role::Client);
+    let client = app
+        .net
+        .lan
+        .as_ref()
+        .is_some_and(|l| l.role == omsi_net::Role::Client);
     let pct = |v: f32| format!("{:.0} %", v * 100.0);
     let mut time: Vec<(String, String)> = Vec::new();
     let mut weather: Vec<(String, String)> = Vec::new();
@@ -347,12 +510,35 @@ pub(super) fn world_pages(app: &App) -> Vec<Page> {
     let mut tools: Vec<(String, String)> = Vec::new();
     if !client {
         let t = app.clock.time;
-        let now = format!("{:02}:{:02}", ((t / 3600.0) as i64).rem_euclid(24), ((t / 60.0) as i64) % 60);
-        time.extend(switch_row(app, "time_sync", "Real-time sync", "The game follows your device's date and time"));
+        let now = format!(
+            "{:02}:{:02}",
+            ((t / 3600.0) as i64).rem_euclid(24),
+            ((t / 60.0) as i64) % 60
+        );
+        time.extend(switch_row(
+            app,
+            "time_sync",
+            "Real-time sync",
+            "The game follows your device's date and time",
+        ));
         if app.real_time_locked() {
             let (d, m) = app.clock.day_month();
-            let text = format!("{:04}-{m:02}-{d:02}  {}:{:02}", app.clock.year, now, (t as i64) % 60);
-            time.push((row("Date and time", 'i', &text, "Synchronized with the real time", None), "noop".to_string()));
+            let text = format!(
+                "{:04}-{m:02}-{d:02}  {}:{:02}",
+                app.clock.year,
+                now,
+                (t as i64) % 60
+            );
+            time.push((
+                row(
+                    "Date and time",
+                    'i',
+                    &text,
+                    "Synchronized with the real time",
+                    None,
+                ),
+                "noop".to_string(),
+            ));
         } else {
             // the exact time: typed as hours, minutes and seconds
             match app.menus.menu_edit.as_ref() {
@@ -360,29 +546,89 @@ pub(super) fn world_pages(app: &App) -> Vec<Page> {
                     let mut c: Vec<char> = d.chars().collect();
                     c.resize(6, '_');
                     let typed = format!("{}{}:{}{}:{}{}", c[0], c[1], c[2], c[3], c[4], c[5]);
-                    time.push((row("Exact time", 'E', &typed, "Press Enter to change, Esc to cancel", None), "time_edit".to_string()));
+                    time.push((
+                        row(
+                            "Exact time",
+                            'E',
+                            &typed,
+                            "Press Enter to change, Esc to cancel",
+                            None,
+                        ),
+                        "time_edit".to_string(),
+                    ));
                 }
                 None => {
                     let secs = format!("{}:{:02}", now, (t as i64) % 60);
-                    time.push((row("Exact time", 'e', &secs, "Change the current time (Press Enter to change)", None), "time_edit".to_string()));
+                    time.push((
+                        row(
+                            "Exact time",
+                            'e',
+                            &secs,
+                            "Change the current time (Press Enter to change)",
+                            None,
+                        ),
+                        "time_edit".to_string(),
+                    ));
                 }
             }
-            time.extend(slider_row(app, "hour", "Hour", "Set the hour of the day directly", &|v| format!("{:02}", v as i64)));
-            time.extend(slider_row(app, "minute", "Minute", "Set the minute directly", &|v| format!("{:02}", v as i64)));
+            time.extend(slider_row(
+                app,
+                "hour",
+                "Hour",
+                "Set the hour of the day directly",
+                &|v| format!("{:02}", v as i64),
+            ));
+            time.extend(slider_row(
+                app,
+                "minute",
+                "Minute",
+                "Set the minute directly",
+                &|v| format!("{:02}", v as i64),
+            ));
             // (forwards and back by a tap: the typed time wants Enter and the held keys Ctrl+Shift+Page Up,
             // neither of which a phone has)
-            for (name, text, secs) in [("Clock -1 hour", "-1 h", -3600), ("Clock -10 minutes", "-10 min", -600), ("Clock +10 minutes", "+10 min", 600), ("Clock +1 hour", "+1 h", 3600)] {
-                time.push(button(name, text, "Move the clock.", &format!("clock_shift {secs}")));
+            for (name, text, secs) in [
+                ("Clock -1 hour", "-1 h", -3600),
+                ("Clock -10 minutes", "-10 min", -600),
+                ("Clock +10 minutes", "+10 min", 600),
+                ("Clock +1 hour", "+1 h", 3600),
+            ] {
+                time.push(button(
+                    name,
+                    text,
+                    "Move the clock.",
+                    &format!("clock_shift {secs}"),
+                ));
             }
-            for (name, hm, secs) in [("Morning", "06:00", 6 * 3600), ("Noon", "12:00", 12 * 3600), ("Evening", "18:00", 18 * 3600), ("Night", "23:00", 23 * 3600)] {
-                time.push(button(name, hm, "Jump to this time of day.", &format!("clock_set {secs}")));
+            for (name, hm, secs) in [
+                ("Morning", "06:00", 6 * 3600),
+                ("Noon", "12:00", 12 * 3600),
+                ("Evening", "18:00", 18 * 3600),
+                ("Night", "23:00", 23 * 3600),
+            ] {
+                time.push(button(
+                    name,
+                    hm,
+                    "Jump to this time of day.",
+                    &format!("clock_set {secs}"),
+                ));
             }
             // the date: by a day, a week or a month, the time of day kept (the timetable's
             // day, the season and the map's chrono changes follow it as at midnight)
             let (d, m) = app.clock.day_month();
-            let day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][app.clock.weekday().rem_euclid(7) as usize];
+            let day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                [app.clock.weekday().rem_euclid(7) as usize];
             let date = format!("{:04}-{m:02}-{d:02}  {}", app.clock.year, omsi_ui::tr(day));
-            time.push((row("Date", 'i', &date, "The day the timetable, the season and the map's changes follow", None), "noop".to_string()));
+            time.push((
+                row(
+                    "Date",
+                    'i',
+                    &date,
+                    "The day the timetable, the season and the map's changes follow",
+                    None,
+                ),
+                "noop".to_string(),
+            ));
             for (name, text, secs) in [
                 ("Date -1 month", "-1 month", app.clock.months_away(-1)),
                 ("Date -1 week", "-1 week", -7.0 * 86400.0),
@@ -391,65 +637,280 @@ pub(super) fn world_pages(app: &App) -> Vec<Page> {
                 ("Date +1 week", "+1 week", 7.0 * 86400.0),
                 ("Date +1 month", "+1 month", app.clock.months_away(1)),
             ] {
-                time.push(button(name, text, "Move the date.", &format!("clock_shift {secs}")));
+                time.push(button(
+                    name,
+                    text,
+                    "Move the date.",
+                    &format!("clock_shift {secs}"),
+                ));
             }
             if let (Some(_), Some(p)) = (app.session.duty.as_ref(), app.player.as_ref()) {
                 let d = p.vehicle.host.tt_delay as f64;
                 if d.abs() >= 1.0 {
-                    let text = format!("{}{}:{:02}", if d < 0.0 { "-" } else { "+" }, (d.abs() / 60.0) as i64, d.abs() as i64 % 60);
-                    time.push(button("On time with the timetable", &text, "Move the clock so that the vehicle is on time", "clock_ontime"));
+                    let text = format!(
+                        "{}{}:{:02}",
+                        if d < 0.0 { "-" } else { "+" },
+                        (d.abs() / 60.0) as i64,
+                        d.abs() as i64 % 60
+                    );
+                    time.push(button(
+                        "On time with the timetable",
+                        &text,
+                        "Move the clock so that the vehicle is on time",
+                        "clock_ontime",
+                    ));
                 }
             }
             if app.net.lan.is_none() {
-                time.extend(slider_row(app, "speed", "Time speed", "How fast the world's clock runs", &|v| format!("x{v}")));
+                time.extend(slider_row(
+                    app,
+                    "speed",
+                    "Time speed",
+                    "How fast the world's clock runs",
+                    &|v| format!("x{v}"),
+                ));
             }
         }
-        weather.extend(switch_row(app, "metar_sync", "METAR sync", "The weather follows the real METAR report"));
-        let src = if app.settings.metar_station.is_empty() { format!("{} ({})", app.metar_station(), omsi_ui::tr("automatic")) } else { app.metar_station() };
-        weather.push((row("METAR source", 'o', &src, "The airport used for real weather.", None), "metar_src".to_string()));
-        let typed=if app.menus.menu_edit_icao{
-            let mut s=app.menus.menu_edit.clone().unwrap_or_default(); while s.len()<4{s.push('_');} format!("{s}  (typing)")
-        }else{app.metar_station()};
-        weather.push((row("ICAO",if app.menus.menu_edit_icao{'E'}else{'e'},&typed,"Enter any 4-letter ICAO station.",None),"metar_icao_edit".to_string()));
-        if app.metar_locked() {
-            weather.push(button("METAR report", "Refresh now", "Fetch the selected station again without waiting for the next automatic update.", "metar_refresh"));
+        weather.extend(switch_row(
+            app,
+            "metar_sync",
+            "METAR sync",
+            "The weather follows the real METAR report",
+        ));
+        let src = if app.settings.metar_station.is_empty() {
+            format!("{} ({})", app.metar_station(), omsi_ui::tr("automatic"))
         } else {
-            weather.push(button("METAR report", "Load once", "Load the selected station once without enabling continuous METAR sync.", "metar_once"));
+            app.metar_station()
+        };
+        weather.push((
+            row(
+                "METAR source",
+                'o',
+                &src,
+                "The airport used for real weather.",
+                None,
+            ),
+            "metar_src".to_string(),
+        ));
+        let typed = if app.menus.menu_edit_icao {
+            let mut s = app.menus.menu_edit.clone().unwrap_or_default();
+            while s.len() < 4 {
+                s.push('_');
+            }
+            format!("{s}  (typing)")
+        } else {
+            app.metar_station()
+        };
+        weather.push((
+            row(
+                "ICAO",
+                if app.menus.menu_edit_icao { 'E' } else { 'e' },
+                &typed,
+                "Enter any 4-letter ICAO station.",
+                None,
+            ),
+            "metar_icao_edit".to_string(),
+        ));
+        if app.metar_locked() {
+            weather.push(button(
+                "METAR report",
+                "Refresh now",
+                "Fetch the selected station again without waiting for the next automatic update.",
+                "metar_refresh",
+            ));
+        } else {
+            weather.push(button(
+                "METAR report",
+                "Load once",
+                "Load the selected station once without enabling continuous METAR sync.",
+                "metar_once",
+            ));
         }
-        weather.push((row("Preset", 'o', &weather_shown(app), "A ready-made weather", None), "weather".to_string()));
+        weather.push((
+            row(
+                "Preset",
+                'o',
+                &weather_shown(app),
+                "A ready-made weather",
+                None,
+            ),
+            "weather".to_string(),
+        ));
         if !app.metar_locked() {
-            weather.push(button("Custom weather", "Edit current", "Freeze the weather currently in force and edit it as a custom weather.", "weather_custom"));
+            weather.push(button(
+                "Custom weather",
+                "Edit current",
+                "Freeze the weather currently in force and edit it as a custom weather.",
+                "weather_custom",
+            ));
         }
         // how much of the sky is covered: a slider, as the launcher's panel has it (the five
         // cloud types are the points it runs between)
-        weather.extend(slider_row(app, "cloud_cover", "Cloud cover", "How much of the sky the clouds cover.", &|v| if v <= 0.0 { omsi_ui::tr("Clear sky").into_owned() } else { format!("{:.0} %", v * 100.0) }));
-        weather.extend(slider_row(app, "visibility", "Visibility", "How far one can see; less is fog.", &|v| if v >= 1000.0 { format!("{:.1} km", v / 1000.0) } else { format!("{} m", v as i64) }));
-        weather.extend(slider_row(app,"brightness","Brightness","Brightness of the custom weather lighting.",&|v|format!("{:.0} %",v*100.0)));
-        let kind = app.session.weather.as_ref().map(|w| (w.precip.first().copied().unwrap_or(0.0).max(0.0) as usize).min(PRECIP_KINDS.len() - 1)).unwrap_or(0);
-        weather.push((row("Precipitation", 'o', PRECIP_KINDS[kind], "Rain or snow.", None), "precipkind".to_string()));
-        weather.extend(slider_row(app, "rain_amt", "Precipitation strength", "How hard it rains or snows.", &pct));
-        weather.extend(slider_row(app, "wet", "Wet roads", "How wet the roads are now (they dry in the sun, wet in the rain).", &pct));
-        weather.extend(switch_row(app,"snow_cover","Snow cover","Snow lying on the world and ground."));
-        weather.extend(switch_row(app,"snow_road","Snow on road","Treat the road surface as snow-covered."));
-        climate.extend(slider_row(app, "temp", "Temperature", "The air temperature.", &|v| format!("{} °C", v as i64)));
-        let dew_temp=app.session.weather.as_ref().map(|w|w.temp.0).unwrap_or(15.0);
-        climate.extend(slider_row(app,"humidity","Humidity","Relative humidity of the air.",&|v|format!("{:.0} % | dew {:.0} °C",v,crate::weather_setup::dew_point_c(dew_temp,v))));
-        climate.extend(slider_row(app, "wind_speed", "Wind speed", "How fast the wind blows; it drives the clouds.", &|v| format!("{} m/s", v as i64)));
-        climate.extend(slider_row(app, "wind_dir", "Wind direction", "The direction of the wind in degrees (0 is north).", &|v| format!("{}°", v as i64)));
+        weather.extend(slider_row(
+            app,
+            "cloud_cover",
+            "Cloud cover",
+            "How much of the sky the clouds cover.",
+            &|v| {
+                if v <= 0.0 {
+                    omsi_ui::tr("Clear sky").into_owned()
+                } else {
+                    format!("{:.0} %", v * 100.0)
+                }
+            },
+        ));
+        weather.extend(slider_row(
+            app,
+            "visibility",
+            "Visibility",
+            "How far one can see; less is fog.",
+            &|v| {
+                if v >= 1000.0 {
+                    format!("{:.1} km", v / 1000.0)
+                } else {
+                    format!("{} m", v as i64)
+                }
+            },
+        ));
+        weather.extend(slider_row(
+            app,
+            "brightness",
+            "Brightness",
+            "Brightness of the custom weather lighting.",
+            &|v| format!("{:.0} %", v * 100.0),
+        ));
+        let kind = app
+            .session
+            .weather
+            .as_ref()
+            .map(|w| {
+                (w.precip.first().copied().unwrap_or(0.0).max(0.0) as usize)
+                    .min(PRECIP_KINDS.len() - 1)
+            })
+            .unwrap_or(0);
+        weather.push((
+            row(
+                "Precipitation",
+                'o',
+                PRECIP_KINDS[kind],
+                "Rain or snow.",
+                None,
+            ),
+            "precipkind".to_string(),
+        ));
+        weather.extend(slider_row(
+            app,
+            "rain_amt",
+            "Precipitation strength",
+            "How hard it rains or snows.",
+            &pct,
+        ));
+        weather.extend(slider_row(
+            app,
+            "wet",
+            "Wet roads",
+            "How wet the roads are now (they dry in the sun, wet in the rain).",
+            &pct,
+        ));
+        weather.extend(switch_row(
+            app,
+            "snow_cover",
+            "Snow cover",
+            "Snow lying on the world and ground.",
+        ));
+        weather.extend(switch_row(
+            app,
+            "snow_road",
+            "Snow on road",
+            "Treat the road surface as snow-covered.",
+        ));
+        climate.extend(slider_row(
+            app,
+            "temp",
+            "Temperature",
+            "The air temperature.",
+            &|v| format!("{} °C", v as i64),
+        ));
+        let dew_temp = app
+            .session
+            .weather
+            .as_ref()
+            .map(|w| w.temp.0)
+            .unwrap_or(15.0);
+        climate.extend(slider_row(
+            app,
+            "humidity",
+            "Humidity",
+            "Relative humidity of the air.",
+            &|v| {
+                format!(
+                    "{:.0} % | dew {:.0} °C",
+                    v,
+                    crate::weather_setup::dew_point_c(dew_temp, v)
+                )
+            },
+        ));
+        climate.extend(slider_row(
+            app,
+            "wind_speed",
+            "Wind speed",
+            "How fast the wind blows; it drives the clouds.",
+            &|v| format!("{} m/s", v as i64),
+        ));
+        climate.extend(slider_row(
+            app,
+            "wind_dir",
+            "Wind direction",
+            "The direction of the wind in degrees (0 is north).",
+            &|v| format!("{}°", v as i64),
+        ));
         // the METAR sync on: only its own rows stay (the weather is the report's)
         if app.metar_locked() {
-            weather.retain(|r| matches!(r.1.as_str(), "metar_sync" | "metar_src" | "metar_icao_edit" | "metar_refresh"));
+            weather.retain(|r| {
+                matches!(
+                    r.1.as_str(),
+                    "metar_sync" | "metar_src" | "metar_icao_edit" | "metar_refresh"
+                )
+            });
             climate.clear();
         }
-        tools.push(button("Object editor", "Open", "Place and move objects in the world.", "editor"));
+        tools.push(button(
+            "Object editor",
+            "Open",
+            "Place and move objects in the world.",
+            "editor",
+        ));
     }
     let mut people: Vec<(String, String)> = Vec::new();
-    people.extend(slider_row(app, "traffic", "Traffic", "How many vehicles drive around the map.", &|v| format!("{} vehicles", v as i64)));
+    people.extend(slider_row(
+        app,
+        "traffic",
+        "Traffic",
+        "How many vehicles drive around the map.",
+        &|v| format!("{} vehicles", v as i64),
+    ));
     if !client && app.session.traffic.is_some() {
-        people.push(button("Clear AI traffic", "Clear", "Remove the current AI cars from the road; random traffic will return automatically.", "traffic_clear"));
+        people.push(button(
+            "Clear AI traffic",
+            "Clear",
+            "Remove the current AI cars from the road; random traffic will return automatically.",
+            "traffic_clear",
+        ));
     }
-    people.extend(slider_row(app, "pax", "Passengers", "How many passengers wait at the stops and ride.", &pct));
-    vec![("Time", time), ("Weather", weather), ("Temperature and wind", climate), ("Traffic and people", people), ("Tools", tools)]
+    people.extend(slider_row(
+        app,
+        "pax",
+        "Passengers",
+        "How many passengers wait at the stops and ride.",
+        &pct,
+    ));
+    vec![
+        ("Time", time),
+        ("Weather", weather),
+        ("Temperature and wind", climate),
+        ("Traffic and people", people),
+        ("Tools", tools),
+    ]
 }
 
 /// The pages of the settings window `kind` (empty ones left out) and the one shown.
@@ -460,7 +921,10 @@ pub(super) fn pages_of(app: &App, kind: &ListKind) -> Option<(Vec<Page>, usize)>
         ListKind::World(t) => (world_pages(app), *t),
         ListKind::Controls => (vec![("Controls", items(app, kind))], 0),
         ListKind::Keyboard(tab) => (keyboard_pages(app), *tab),
-        ListKind::ControllerDevices(_) | ListKind::Controller(..) | ListKind::ControllerAxis(..) | ListKind::ControllerButtonSettings(..) => crate::game_controller_menu::pages(app, kind)?,
+        ListKind::ControllerDevices(_)
+        | ListKind::Controller(..)
+        | ListKind::ControllerAxis(..)
+        | ListKind::ControllerButtonSettings(..) => crate::game_controller_menu::pages(app, kind)?,
         _ => return None,
     };
     let pages: Vec<Page> = pages.into_iter().filter(|p| !p.1.is_empty()).collect();
@@ -474,14 +938,18 @@ fn shown_in_mode(mode: &str, key: &str) -> bool {
         "shadows" | "ssao" => !matches!(mode, "vanilla" | "enhanced_plus"),
         "shadow_size" | "shadow_casters" | "detail_textures" => mode != "vanilla",
         "reflections" => mode != "enhanced_plus",
-        "night_brightness" | "led_glow" | "led_mips" | "mirror_quality" | "cloud_quality" => matches!(mode, "enhanced" | "enhanced_plus"),
+        "night_brightness" | "led_glow" | "led_mips" | "mirror_quality" | "cloud_quality" => {
+            matches!(mode, "enhanced" | "enhanced_plus")
+        }
         _ => true,
     }
 }
 
 /// Which tab of a window (`kind`: Options, World ...) is the one titled `title` (the first if none is).
 pub(crate) fn tab_of(app: &App, kind: ListKind, title: &str) -> usize {
-    pages_of(app, &kind).and_then(|(pages, _)| pages.iter().position(|p| p.0 == title)).unwrap_or(0)
+    pages_of(app, &kind)
+        .and_then(|(pages, _)| pages.iter().position(|p| p.0 == title))
+        .unwrap_or(0)
 }
 
 /// The page titles of the settings window last asked for: its kind, whether the VR
@@ -498,12 +966,29 @@ pub(crate) fn forget_page_titles(app: &App) {
 /// all their rows: the answer is kept for a moment.
 pub(crate) fn page_titles(app: &App, kind: &ListKind) -> Option<(Vec<String>, usize)> {
     let vr_nav_available = app.vr_active() && app.player.is_some();
-    if let Some(hit) = app.menus.page_titles.borrow().as_ref().filter(|(k, vr, t, _)| k == kind && *vr == vr_nav_available && t.elapsed().as_millis() < 5000).map(|(_, _, _, r)| r.clone()) {
+    if let Some(hit) = app
+        .menus
+        .page_titles
+        .borrow()
+        .as_ref()
+        .filter(|(k, vr, t, _)| {
+            k == kind && *vr == vr_nav_available && t.elapsed().as_millis() < 5000
+        })
+        .map(|(_, _, _, r)| r.clone())
+    {
         return Some(hit);
     }
     let (pages, tab) = pages_of(app, kind)?;
-    let r = (pages.iter().map(|p| p.0.to_string()).collect::<Vec<_>>(), tab);
-    *app.menus.page_titles.borrow_mut() = Some((kind.clone(), vr_nav_available, std::time::Instant::now(), r.clone()));
+    let r = (
+        pages.iter().map(|p| p.0.to_string()).collect::<Vec<_>>(),
+        tab,
+    );
+    *app.menus.page_titles.borrow_mut() = Some((
+        kind.clone(),
+        vr_nav_available,
+        std::time::Instant::now(),
+        r.clone(),
+    ));
     Some(r)
 }
 
@@ -515,12 +1000,54 @@ mod tests {
 
     #[test]
     fn graphics_rows_follow_the_sessions_mode() {
-        let keys = ["shadows", "shadow_size", "ssao", "shadow_casters", "detail_textures", "night_brightness", "led_glow", "led_mips", "reflections", "mirror_quality", "cloud_quality", "msaa"];
-        let shown = |mode: &str| keys.iter().filter(|k| shown_in_mode(mode, k)).copied().collect::<Vec<_>>();
+        let keys = [
+            "shadows",
+            "shadow_size",
+            "ssao",
+            "shadow_casters",
+            "detail_textures",
+            "night_brightness",
+            "led_glow",
+            "led_mips",
+            "reflections",
+            "mirror_quality",
+            "cloud_quality",
+            "msaa",
+        ];
+        let shown = |mode: &str| {
+            keys.iter()
+                .filter(|k| shown_in_mode(mode, k))
+                .copied()
+                .collect::<Vec<_>>()
+        };
         assert_eq!(shown("vanilla"), ["reflections", "msaa"]);
-        assert_eq!(shown("vanilla_plus"), ["shadows", "shadow_size", "ssao", "shadow_casters", "detail_textures", "reflections", "msaa"]);
+        assert_eq!(
+            shown("vanilla_plus"),
+            [
+                "shadows",
+                "shadow_size",
+                "ssao",
+                "shadow_casters",
+                "detail_textures",
+                "reflections",
+                "msaa"
+            ]
+        );
         assert_eq!(shown("enhanced"), keys);
-        assert_eq!(shown("Enhanced+"), ["shadow_size", "shadow_casters", "detail_textures", "night_brightness", "led_glow", "led_mips", "mirror_quality", "cloud_quality", "msaa"]);
+        assert_eq!(
+            shown("Enhanced+"),
+            [
+                "shadow_size",
+                "shadow_casters",
+                "detail_textures",
+                "night_brightness",
+                "led_glow",
+                "led_mips",
+                "mirror_quality",
+                "cloud_quality",
+                "msaa"
+            ]
+        );
     }
     #[test]
     fn the_running_sessions_mode_decides_what_it_forces() {
@@ -529,7 +1056,10 @@ mod tests {
         let s = text_in_mode(file, "vanilla_plus");
         assert_eq!(s.graphics, "vanilla_plus");
         assert!(s.shadows && s.ssao && s.detail_textures && !s.classic());
-        let s = text_in_mode("graphics=enhanced_plus\nshadows=0\nssao=0\nreflections=0\n", "vanilla");
+        let s = text_in_mode(
+            "graphics=enhanced_plus\nshadows=0\nssao=0\nreflections=0\n",
+            "vanilla",
+        );
         assert!(!s.ray_tracing() && !s.enhanced && !s.shadows && !s.ssao && s.reflections == 0.0);
         let s = text_in_mode("graphics=vanilla\nshadows=0\n", "enhanced_plus");
         assert!(s.ray_tracing() && s.enhanced && s.shadows && s.ssao && s.reflections == 1.0);
@@ -537,13 +1067,39 @@ mod tests {
 
     #[test]
     fn the_sessions_mode_comes_from_how_the_game_was_started() {
-        let session = |enhanced_plus, enhanced, classic| SessionSettings { enhanced_plus, enhanced, classic, ..Default::default() };
-        assert_eq!(mode_of_session(&session(false, false, true), "vanilla"), "vanilla");
-        assert_eq!(mode_of_session(&session(false, false, false), "vanilla_plus"), "vanilla_plus");
-        assert_eq!(mode_of_session(&session(false, true, false), "enhanced"), "enhanced");
-        assert_eq!(mode_of_session(&session(false, true, false), "enhanced_plus"), "enhanced_plus");
-        assert_eq!(mode_of_session(&session(false, true, false), "vanilla"), "enhanced");
-        assert_eq!(mode_of_session(&session(true, true, false), "vanilla"), "enhanced_plus");
-        assert_eq!(mode_of_session(&session(false, false, false), "enhanced"), "vanilla_plus");
+        let session = |enhanced_plus, enhanced, classic| SessionSettings {
+            enhanced_plus,
+            enhanced,
+            classic,
+            ..Default::default()
+        };
+        assert_eq!(
+            mode_of_session(&session(false, false, true), "vanilla"),
+            "vanilla"
+        );
+        assert_eq!(
+            mode_of_session(&session(false, false, false), "vanilla_plus"),
+            "vanilla_plus"
+        );
+        assert_eq!(
+            mode_of_session(&session(false, true, false), "enhanced"),
+            "enhanced"
+        );
+        assert_eq!(
+            mode_of_session(&session(false, true, false), "enhanced_plus"),
+            "enhanced_plus"
+        );
+        assert_eq!(
+            mode_of_session(&session(false, true, false), "vanilla"),
+            "enhanced"
+        );
+        assert_eq!(
+            mode_of_session(&session(true, true, false), "vanilla"),
+            "enhanced_plus"
+        );
+        assert_eq!(
+            mode_of_session(&session(false, false, false), "enhanced"),
+            "vanilla_plus"
+        );
     }
 }

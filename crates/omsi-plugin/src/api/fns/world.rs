@@ -19,7 +19,14 @@ fn weather(w: Weather) -> Value {
         ("pressure", Value::from(w.pressure)),
         ("clouds", w.clouds.into()),
         ("cloud_base", Value::from(w.cloud_base_m)),
-        ("precipitation", ["none", "rain", "snow"].get(w.precip_kind.clamp(0, 2) as usize).copied().unwrap_or("none").into()),
+        (
+            "precipitation",
+            ["none", "rain", "snow"]
+                .get(w.precip_kind.clamp(0, 2) as usize)
+                .copied()
+                .unwrap_or("none")
+                .into(),
+        ),
         ("precipitation_rate", Value::from(w.precip_rate)),
         ("snow_cover", w.snow_cover.into()),
         ("snow_on_road", w.snow_on_road.into()),
@@ -34,7 +41,10 @@ fn change(t: &Value) -> Result<WeatherChange, ApiError> {
     let num = |k: &str| -> Result<Option<f32>, ApiError> {
         match t.get(k) {
             None | Some(Value::Nil) => Ok(None),
-            Some(v) => v.as_f64().map(|n| Some(n as f32)).ok_or_else(|| ApiError(format!("omsi.weather.set: {k} must be a number"))),
+            Some(v) => v
+                .as_f64()
+                .map(|n| Some(n as f32))
+                .ok_or_else(|| ApiError(format!("omsi.weather.set: {k} must be a number"))),
         }
     };
     let flag = |k: &str| t.get(k).filter(|v| !v.is_nil()).map(Value::truthy);
@@ -43,7 +53,11 @@ fn change(t: &Value) -> Result<WeatherChange, ApiError> {
         Some("none") => Some(0),
         Some("rain") => Some(1),
         Some("snow") => Some(2),
-        Some(s) => return Err(ApiError(format!("omsi.weather.set: precipitation \"{s}\" is none of none, rain, snow"))),
+        Some(s) => {
+            return Err(ApiError(format!(
+                "omsi.weather.set: precipitation \"{s}\" is none of none, rain, snow"
+            )))
+        }
     };
     Ok(WeatherChange {
         visibility_m: num("visibility")?,
@@ -67,7 +81,11 @@ fn time_of(v: &Value) -> Option<f64> {
         return Some(n);
     }
     let s = v.as_str()?;
-    let parts: Vec<f64> = s.split(':').map(|p| p.trim().parse::<f64>()).collect::<Result<_, _>>().ok()?;
+    let parts: Vec<f64> = s
+        .split(':')
+        .map(|p| p.trim().parse::<f64>())
+        .collect::<Result<_, _>>()
+        .ok()?;
     match parts.as_slice() {
         [h, m] => Some(h * 3600.0 + m * 60.0),
         [h, m, s] => Some(h * 3600.0 + m * 60.0 + s),

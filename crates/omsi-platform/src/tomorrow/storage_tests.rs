@@ -60,14 +60,12 @@ fn private_key_file_is_trimmed_validated_and_overridden() {
     }
     let cache = dir.cache();
     assert_ne!(cache, cache_path_in(&dir.0, "other-key"));
-    assert!(
-        !cache
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .contains("test-key")
-    );
+    assert!(!cache
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .contains("test-key"));
 }
 
 #[test]
@@ -93,15 +91,13 @@ fn quota_and_auth_cooldown_survive_reopening_the_store() {
     for status in [401, 403, 429] {
         let dir = Directory::new();
         let path = dir.cache();
-        assert!(
-            fetch_in(&path, "50,14", 900, 100000, temperature, || {
-                Err(ureq::Error::Status(
-                    status,
-                    ureq::Response::new(status, "error", "").unwrap(),
-                ))
-            })
-            .is_err()
-        );
+        assert!(fetch_in(&path, "50,14", 900, 100000, temperature, || {
+            Err(ureq::Error::Status(
+                status,
+                ureq::Response::new(status, "error", "").unwrap(),
+            ))
+        })
+        .is_err());
         assert_eq!(read(&path).blocked_until, 103600);
         assert!(fetch_in(&path, "51,15", 900, 103599, temperature, no_request).is_err());
         assert!(read(&path).reserve(103600).is_ok());
@@ -166,12 +162,10 @@ fn successful_response_reopens_with_budget_and_without_credentials() {
     assert!(fetch_in(&path, "50,14", 900, 100001, temperature, no_request).is_ok());
     assert!(fetch_in(&path, "51,15", 900, 100001, temperature, no_request).is_err());
     // Replacing an existing cache must keep the earlier call in the ledger.
-    assert!(
-        fetch_in(&path, "51,15", 900, 100180, temperature, || {
-            Ok(ureq::Response::new(200, "OK", &body).unwrap())
-        })
-        .is_ok()
-    );
+    assert!(fetch_in(&path, "51,15", 900, 100180, temperature, || {
+        Ok(ureq::Response::new(200, "OK", &body).unwrap())
+    })
+    .is_ok());
     assert_eq!(read(&path).requests, [100000, 100180]);
     assert_eq!(read(&path).values.len(), 2);
 }

@@ -147,11 +147,7 @@ impl UiAnchor {
 }
 
 impl Vr {
-    pub fn new(
-        renderer: &Renderer,
-        configured_scale: f32,
-        desktop_mirror: bool,
-    ) -> Result<Self> {
+    pub fn new(renderer: &Renderer, configured_scale: f32, desktop_mirror: bool) -> Result<Self> {
         let entry = xr::Entry::linked(&()).context("load OpenXR")?;
         if !entry.enumerate_extensions()?.khr_d3d12_enable {
             bail!("the active OpenXR runtime does not support D3D12");
@@ -210,7 +206,8 @@ impl Vr {
         }
         // The runtime's recommendation is a quality target, not a minimum.
         // Rendering both eyes at the full Quest Link size is expensive.
-        let scale = omsi_cfg::flags::OMSI_OPENXR_SCALE.parse::<f32>()
+        let scale = omsi_cfg::flags::OMSI_OPENXR_SCALE
+            .parse::<f32>()
             .filter(|s| s.is_finite())
             .unwrap_or(configured_scale)
             .clamp(0.5, 1.0);
@@ -458,11 +455,7 @@ impl Vr {
                 }))
     }
 
-    pub fn set_cursor_surface(
-        &mut self,
-        hit: Option<DVec3>,
-        bus_pose: Option<(DVec3, Mat4)>,
-    ) {
+    pub fn set_cursor_surface(&mut self, hit: Option<DVec3>, bus_pose: Option<(DVec3, Mat4)>) {
         self.cursor_surface_local = hit.zip(bus_pose).map(|(point, (position, rotation))| {
             rotation
                 .inverse()
@@ -514,12 +507,7 @@ impl Vr {
     }
 
     /// Pick through the same cropped left-eye picture shown on the desktop.
-    pub fn cursor_ray(
-        &self,
-        x: f32,
-        y: f32,
-        size: (u32, u32),
-    ) -> Option<(DVec3, Vec3, f32)> {
+    pub fn cursor_ray(&self, x: f32, y: f32, size: (u32, u32)) -> Option<(DVec3, Vec3, f32)> {
         let (camera, projection) = self.mirror_camera?;
         let h = size.1.max(1) as f32;
         let crop = self.desktop_crop(size);
@@ -593,7 +581,8 @@ impl Vr {
         // still recenters the seated origin in poll().
         let valid = xr::ViewStateFlags::POSITION_VALID | xr::ViewStateFlags::ORIENTATION_VALID;
         if !view_state.contains(valid) {
-            self.frame_stream.end(frame.predicted_display_time, self.blend, &[])?;
+            self.frame_stream
+                .end(frame.predicted_display_time, self.blend, &[])?;
             return Ok(false);
         }
         let midpoint = (xr_position(views[0].pose) + xr_position(views[1].pose)) * 0.5;
@@ -725,7 +714,17 @@ impl Vr {
         }
         renderer.set_env_heading(None);
         let menu_open = !menu_range.is_empty();
-        self.place_cursor(menu_open, cockpit_pointer_enabled, cursor_position, desktop_size, bus_pose, &eye_cameras, &eye_projections, &ui_cameras, views[0].fov);
+        self.place_cursor(
+            menu_open,
+            cockpit_pointer_enabled,
+            cursor_position,
+            desktop_size,
+            bus_pose,
+            &eye_cameras,
+            &eye_projections,
+            &ui_cameras,
+            views[0].fov,
+        );
         let menu_transforms = [0, 1].map(|eye| {
             self.menu_anchor
                 .map(|anchor| anchor.transform(&ui_cameras[eye], ui_projections[eye]))
@@ -746,12 +745,27 @@ impl Vr {
                     }
                 })
         });
-        let navigator = navigator.zip(bus_pose).and_then(|((index, display), (position, body))| {
-            let (texture, rect) = scene.overlays.get(index)?;
-            let aspect = (rect[2] - rect[0]) / (rect[3] - rect[1]);
-            if !aspect.is_finite() || aspect <= 0.0 { return None; }
-            Some((*texture, [0, 1].map(|eye| display.transform(position, body, &eye_cameras[eye], eye_projections[eye], aspect))))
-        });
+        let navigator = navigator
+            .zip(bus_pose)
+            .and_then(|((index, display), (position, body))| {
+                let (texture, rect) = scene.overlays.get(index)?;
+                let aspect = (rect[2] - rect[0]) / (rect[3] - rect[1]);
+                if !aspect.is_finite() || aspect <= 0.0 {
+                    return None;
+                }
+                Some((
+                    *texture,
+                    [0, 1].map(|eye| {
+                        display.transform(
+                            position,
+                            body,
+                            &eye_cameras[eye],
+                            eye_projections[eye],
+                            aspect,
+                        )
+                    }),
+                ))
+            });
         renderer.render_xr_ui(
             scene,
             &targets,
@@ -807,7 +821,18 @@ impl Vr {
     /// head while it is open, the cursor on the menu, on what it points at in the bus (kept in
     /// the bus's frame as it drives on) or before the eyes, hidden after ten idle seconds.
     #[allow(clippy::too_many_arguments)]
-    fn place_cursor(&mut self, menu_open: bool, cockpit_pointer_enabled: bool, cursor_position: (f32, f32), desktop_size: (u32, u32), bus_pose: Option<(DVec3, Mat4)>, eye_cameras: &[Camera; 2], eye_projections: &[Mat4; 2], ui_cameras: &[Camera; 2], fov: xr::Fovf) {
+    fn place_cursor(
+        &mut self,
+        menu_open: bool,
+        cockpit_pointer_enabled: bool,
+        cursor_position: (f32, f32),
+        desktop_size: (u32, u32),
+        bus_pose: Option<(DVec3, Mat4)>,
+        eye_cameras: &[Camera; 2],
+        eye_projections: &[Mat4; 2],
+        ui_cameras: &[Camera; 2],
+        fov: xr::Fovf,
+    ) {
         if !menu_open
             && cockpit_pointer_enabled
             && self
@@ -909,7 +934,13 @@ impl Vr {
 
     /// The desktop window while the headset shows the game: the left eye's picture when the
     /// desktop mirror is on, else black.
-    fn draw_desktop(&mut self, renderer: &Renderer, index: usize, desktop: &wgpu::TextureView, desktop_size: (u32, u32)) {
+    fn draw_desktop(
+        &mut self,
+        renderer: &Renderer,
+        index: usize,
+        desktop: &wgpu::TextureView,
+        desktop_size: (u32, u32),
+    ) {
         if let Some(mirror) = self.mirror.as_ref().filter(|_| self.desktop_mirror) {
             let mirror_start = Instant::now();
             let left_eye = self.images[index].create_view(&wgpu::TextureViewDescriptor {
@@ -956,7 +987,13 @@ impl Vr {
 
     /// The frame's times added to the statistics, logged every five seconds (with the
     /// renderer's mirror stages under `OMSI_PROFILE`).
-    fn record_frame_stats(&mut self, renderer: &Renderer, wait_time: Duration, render_start: Instant, gpu_wait_time: Duration) {
+    fn record_frame_stats(
+        &mut self,
+        renderer: &Renderer,
+        wait_time: Duration,
+        render_start: Instant,
+        gpu_wait_time: Duration,
+    ) {
         self.stats_frames += 1;
         self.stats_wait += wait_time;
         self.stats_render += render_start.elapsed();

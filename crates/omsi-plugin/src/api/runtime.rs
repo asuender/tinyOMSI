@@ -51,7 +51,10 @@ pub struct CallError {
 
 impl CallError {
     pub fn new(msg: impl Into<String>) -> CallError {
-        CallError { msg: msg.into(), fatal: false }
+        CallError {
+            msg: msg.into(),
+            fatal: false,
+        }
     }
 }
 
@@ -95,7 +98,10 @@ pub fn emit_now(ctx: &mut Ctx<'_>, event: &str, args: Vec<Value>) {
 
 impl Hub {
     pub fn with_ui(ui: SharedUi) -> SharedHub {
-        Rc::new(Hub { ui, ..Default::default() })
+        Rc::new(Hub {
+            ui,
+            ..Default::default()
+        })
     }
 
     /// The messages waiting for plugin `name` (taken out).
@@ -104,7 +110,11 @@ impl Hub {
         if all.is_empty() {
             return Vec::new();
         }
-        let (mine, rest): (Vec<Mail>, Vec<Mail>) = std::mem::take(&mut *all).into_iter().partition(|m| m.to.as_deref().is_some_and(|to| to.eq_ignore_ascii_case(name)));
+        let (mine, rest): (Vec<Mail>, Vec<Mail>) =
+            std::mem::take(&mut *all).into_iter().partition(|m| {
+                m.to.as_deref()
+                    .is_some_and(|to| to.eq_ignore_ascii_case(name))
+            });
         *all = rest;
         mine
     }
@@ -114,7 +124,16 @@ impl Hub {
         let mut all = self.mail.borrow_mut();
         let copies: Vec<Mail> = match &m.to {
             Some(_) => vec![m],
-            None => self.names.borrow().iter().filter(|n| !n.eq_ignore_ascii_case(&m.from)).map(|n| Mail { to: Some(n.clone()), ..m.clone() }).collect(),
+            None => self
+                .names
+                .borrow()
+                .iter()
+                .filter(|n| !n.eq_ignore_ascii_case(&m.from))
+                .map(|n| Mail {
+                    to: Some(n.clone()),
+                    ..m.clone()
+                })
+                .collect(),
         };
         for c in copies {
             if all.len() >= MAX_MAIL {
@@ -216,7 +235,15 @@ pub struct PluginState {
 }
 
 impl PluginState {
-    pub fn new(name: &str, label: &'static str, tag: &str, owner: u64, hub: SharedHub, folder: Option<PathBuf>, data_dir: PathBuf) -> PluginState {
+    pub fn new(
+        name: &str,
+        label: &'static str,
+        tag: &str,
+        owner: u64,
+        hub: SharedHub,
+        folder: Option<PathBuf>,
+        data_dir: PathBuf,
+    ) -> PluginState {
         PluginState {
             name: name.to_string(),
             label,
@@ -269,12 +296,23 @@ impl PluginState {
     pub fn record_error(&mut self, io: &mut dyn PluginIo, e: &CallError) {
         self.errors += 1;
         log::warn!("{} {}", self.tag, e.msg);
-        io.message(&format!("{} {}: {}", self.label, self.name, e.msg.lines().next().unwrap_or("")), 8.0);
+        io.message(
+            &format!(
+                "{} {}: {}",
+                self.label,
+                self.name,
+                e.msg.lines().next().unwrap_or("")
+            ),
+            8.0,
+        );
         if e.fatal {
             log::warn!("{} ran longer than {CALL_BUDGET_MS} ms in one call: switched off until it changes or the game restarts", self.tag);
             self.disabled = true;
         } else if self.errors >= MAX_ERRORS {
-            log::warn!("{} {MAX_ERRORS} errors: switched off until it changes or the game restarts", self.tag);
+            log::warn!(
+                "{} {MAX_ERRORS} errors: switched off until it changes or the game restarts",
+                self.tag
+            );
             self.disabled = true;
         }
         if self.disabled {
@@ -287,7 +325,11 @@ impl PluginState {
 // --- what the API's `on`, `after`, `watch`... do -----------------------------------------
 
 pub fn on(ctx: &mut Ctx<'_>, event: &str, cb: u64) {
-    ctx.state().handlers.entry(event.to_string()).or_default().push(cb);
+    ctx.state()
+        .handlers
+        .entry(event.to_string())
+        .or_default()
+        .push(cb);
     ctx.retain(cb);
 }
 
@@ -307,7 +349,14 @@ pub fn after(ctx: &mut Ctx<'_>, seconds: f64, every: bool, cb: u64) -> u64 {
     let s = ctx.state();
     let id = s.id();
     let at = s.clock + seconds;
-    s.timers.insert(id, Timer { at, every: every.then_some(seconds), cb });
+    s.timers.insert(
+        id,
+        Timer {
+            at,
+            every: every.then_some(seconds),
+            cb,
+        },
+    );
     ctx.retain(cb);
     id
 }
@@ -315,7 +364,15 @@ pub fn after(ctx: &mut Ctx<'_>, seconds: f64, every: bool, cb: u64) -> u64 {
 pub fn watch(ctx: &mut Ctx<'_>, kind: WatchKind, name: String, cb: u64) -> u64 {
     let s = ctx.state();
     let id = s.id();
-    s.watches.insert(id, Watch { kind, name, cb, last: Value::Nil });
+    s.watches.insert(
+        id,
+        Watch {
+            kind,
+            name,
+            cb,
+            last: Value::Nil,
+        },
+    );
     ctx.retain(cb);
     id
 }
@@ -332,7 +389,12 @@ pub fn hotkey(ctx: &mut Ctx<'_>, key: Hotkey) -> u64 {
 /// Stop a timer, a watch or a hotkey; false when there was none of that id.
 pub fn cancel(ctx: &mut Ctx<'_>, id: u64) -> bool {
     let s = ctx.state();
-    let cb = s.timers.remove(&id).map(|t| t.cb).or_else(|| s.watches.remove(&id).map(|w| w.cb)).or_else(|| s.hotkeys.remove(&id).map(|h| h.cb));
+    let cb = s
+        .timers
+        .remove(&id)
+        .map(|t| t.cb)
+        .or_else(|| s.watches.remove(&id).map(|w| w.cb))
+        .or_else(|| s.hotkeys.remove(&id).map(|h| h.cb));
     match cb {
         Some(cb) => {
             ctx.release(cb);
@@ -345,7 +407,13 @@ pub fn cancel(ctx: &mut Ctx<'_>, id: u64) -> bool {
 /// Run every handler of `event` in the order they were added, then the language's own
 /// (`on_<event>`); the first that fails stops the rest and is the error.
 pub fn dispatch(ctx: &mut Ctx<'_>, event: &str, args: Vec<Value>) -> Result<(), CallError> {
-    if let Some(list) = ctx.state().handlers.get(event).filter(|l| !l.is_empty()).cloned() {
+    if let Some(list) = ctx
+        .state()
+        .handlers
+        .get(event)
+        .filter(|l| !l.is_empty())
+        .cloned()
+    {
         for cb in list {
             ctx.invoke(cb, args.clone())?;
         }
@@ -422,7 +490,13 @@ pub fn frame(ctx: &mut Ctx<'_>) {
         }
     }
     for a in ctx.io().ticket_asks() {
-        if !unit(ctx, |c| dispatch(c, "passenger_ticket", vec![super::fns::traffic::ticket_ask(a)])) {
+        if !unit(ctx, |c| {
+            dispatch(
+                c,
+                "passenger_ticket",
+                vec![super::fns::traffic::ticket_ask(a)],
+            )
+        }) {
             return;
         }
     }
@@ -430,7 +504,11 @@ pub fn frame(ctx: &mut Ctx<'_>) {
     let direct: Vec<(&'static str, Vec<Value>)> = {
         let hub = ctx.state().hub.clone();
         let mut all = hub.direct.borrow_mut();
-        let mine = all.iter().filter(|d| d.0.eq_ignore_ascii_case(&name)).map(|d| (d.1, d.2.clone())).collect();
+        let mine = all
+            .iter()
+            .filter(|d| d.0.eq_ignore_ascii_case(&name))
+            .map(|d| (d.1, d.2.clone()))
+            .collect();
         all.retain(|d| !d.0.eq_ignore_ascii_case(&name));
         mine
     };
@@ -441,7 +519,13 @@ pub fn frame(ctx: &mut Ctx<'_>) {
     }
     let mail = ctx.state().hub.take_mail(&name);
     for m in mail {
-        if !unit(ctx, |c| dispatch(c, "message", vec![Value::Str(m.from), Value::Str(m.topic), m.data])) {
+        if !unit(ctx, |c| {
+            dispatch(
+                c,
+                "message",
+                vec![Value::Str(m.from), Value::Str(m.topic), m.data],
+            )
+        }) {
             return;
         }
     }
@@ -461,19 +545,33 @@ pub fn frame(ctx: &mut Ctx<'_>) {
             super::fns::plugin::settings_click(ctx, c.element.as_deref());
             continue;
         }
-        if !unit(ctx, |x| dispatch(x, "ui_click", vec![Value::Str(c.panel), Value::opt(c.element)])) {
+        if !unit(ctx, |x| {
+            dispatch(
+                x,
+                "ui_click",
+                vec![Value::Str(c.panel), Value::opt(c.element)],
+            )
+        }) {
             return;
         }
     }
     let changes = ctx.state().ui().take_changes(owner);
     for c in changes {
         if c.panel == super::fns::plugin::SETTINGS_PANEL {
-            if !unit(ctx, |x| super::fns::plugin::setting_changed(x, &c.element, c.value)) {
+            if !unit(ctx, |x| {
+                super::fns::plugin::setting_changed(x, &c.element, c.value)
+            }) {
                 return;
             }
             continue;
         }
-        if !unit(ctx, |x| dispatch(x, "ui_change", vec![Value::Str(c.panel), Value::Str(c.element), c.value])) {
+        if !unit(ctx, |x| {
+            dispatch(
+                x,
+                "ui_change",
+                vec![Value::Str(c.panel), Value::Str(c.element), c.value],
+            )
+        }) {
             return;
         }
     }
@@ -489,9 +587,17 @@ fn tick(ctx: &mut Ctx<'_>, dt: f64) -> Result<(), CallError> {
         s.clock
     };
     // timers due, in id order (a timer may add or cancel others)
-    let due: Vec<u64> = ctx.state().timers.iter().filter(|(_, t)| t.at <= clock).map(|(id, _)| *id).collect();
+    let due: Vec<u64> = ctx
+        .state()
+        .timers
+        .iter()
+        .filter(|(_, t)| t.at <= clock)
+        .map(|(id, _)| *id)
+        .collect();
     for id in due {
-        let Some(t) = ctx.state().timers.get_mut(&id) else { continue };
+        let Some(t) = ctx.state().timers.get_mut(&id) else {
+            continue;
+        };
         let cb = t.cb;
         let once = match t.every {
             Some(every) => {
@@ -516,9 +622,18 @@ fn tick(ctx: &mut Ctx<'_>, dt: f64) -> Result<(), CallError> {
     if !ctx.state().watches.is_empty() {
         let ids: Vec<u64> = ctx.state().watches.keys().copied().collect();
         for id in ids {
-            let Some((kind, name)) = ctx.state().watches.get(&id).map(|w| (w.kind, w.name.clone())) else { continue };
+            let Some((kind, name)) = ctx
+                .state()
+                .watches
+                .get(&id)
+                .map(|w| (w.kind, w.name.clone()))
+            else {
+                continue;
+            };
             let v = read_watch(ctx, kind, &name);
-            let Some(w) = ctx.state().watches.get_mut(&id) else { continue };
+            let Some(w) = ctx.state().watches.get_mut(&id) else {
+                continue;
+            };
             if !same(&v, &w.last) {
                 let old = std::mem::replace(&mut w.last, v.clone());
                 let cb = w.cb;
@@ -552,8 +667,16 @@ fn same(a: &Value, b: &Value) -> bool {
 fn read_watch(ctx: &mut Ctx<'_>, kind: WatchKind, name: &str) -> Value {
     let io = ctx.io();
     match kind {
-        WatchKind::Var => Value::opt(if io.has_vehicle() { io.var(name).map(|v| v as f64) } else { None }),
-        WatchKind::Str => Value::opt(if io.has_vehicle() { io.string(name) } else { None }),
+        WatchKind::Var => Value::opt(if io.has_vehicle() {
+            io.var(name).map(|v| v as f64)
+        } else {
+            None
+        }),
+        WatchKind::Str => Value::opt(if io.has_vehicle() {
+            io.string(name)
+        } else {
+            None
+        }),
         WatchKind::Sys => Value::opt(io.system(name).map(|v| v as f64)),
         WatchKind::Info => io.info_value(name).map_or(Value::Nil, Value::from),
     }
@@ -564,9 +687,21 @@ fn hotkeys(ctx: &mut Ctx<'_>, k: &str) -> Result<(), CallError> {
     let held = |io: &mut dyn PluginIo, a: &str, b: &str| io.key_held(a) || io.key_held(b);
     let (ctrl, shift, alt) = {
         let io = ctx.io();
-        (held(io, "ControlLeft", "ControlRight"), held(io, "ShiftLeft", "ShiftRight"), held(io, "AltLeft", "AltRight"))
+        (
+            held(io, "ControlLeft", "ControlRight"),
+            held(io, "ShiftLeft", "ShiftRight"),
+            held(io, "AltLeft", "AltRight"),
+        )
     };
-    let hits: Vec<u64> = ctx.state().hotkeys.values().filter(|h| h.key.eq_ignore_ascii_case(k) && h.ctrl == ctrl && h.shift == shift && h.alt == alt).map(|h| h.cb).collect();
+    let hits: Vec<u64> = ctx
+        .state()
+        .hotkeys
+        .values()
+        .filter(|h| {
+            h.key.eq_ignore_ascii_case(k) && h.ctrl == ctrl && h.shift == shift && h.alt == alt
+        })
+        .map(|h| h.cb)
+        .collect();
     for cb in hits {
         ctx.invoke(cb, vec![Value::Str(k.to_string())])?;
     }
@@ -581,19 +716,31 @@ fn info_events(ctx: &mut Ctx<'_>) -> Result<(), CallError> {
     }
     let now = ctx.io().info();
     let last = std::mem::take(&mut ctx.state().last_info);
-    let get = |l: &[(&'static str, crate::InfoValue)], k: &str| -> Value { l.iter().find(|(key, _)| *key == k).map_or(Value::Nil, |(_, v)| v.clone().into()) };
+    let get = |l: &[(&'static str, crate::InfoValue)], k: &str| -> Value {
+        l.iter()
+            .find(|(key, _)| *key == k)
+            .map_or(Value::Nil, |(_, v)| v.clone().into())
+    };
     let text = |v: Value| -> String { v.to_text().unwrap_or_default() };
     let (stop, stop_old) = (get(&now, "next_stop"), get(&last, "next_stop"));
     // (also to a stop of the same name: the two sides of a road often share one)
     let r = (|| {
-        if !stop.is_nil() && (!same(&stop, &stop_old) || !same(&get(&now, "next_stop_number"), &get(&last, "next_stop_number"))) {
+        if !stop.is_nil()
+            && (!same(&stop, &stop_old)
+                || !same(
+                    &get(&now, "next_stop_number"),
+                    &get(&last, "next_stop_number"),
+                ))
+        {
             dispatch(ctx, "next_stop", vec![stop.clone(), stop_old.clone()])?;
         }
         let (view, view_old) = (get(&now, "view"), get(&last, "view"));
         if !same(&view, &view_old) {
             dispatch(ctx, "view", vec![view, view_old])?;
         }
-        let duty = |l: &[(&'static str, crate::InfoValue)]| format!("{}/{}", text(get(l, "line")), text(get(l, "tour")));
+        let duty = |l: &[(&'static str, crate::InfoValue)]| {
+            format!("{}/{}", text(get(l, "line")), text(get(l, "tour")))
+        };
         if duty(&now) != duty(&last) {
             dispatch(ctx, "duty", vec![get(&now, "line"), get(&now, "tour")])?;
         }

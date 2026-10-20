@@ -14,7 +14,9 @@ fn vecn(a: &Args, from: usize, n: usize) -> Result<Vec<f64>, ApiError> {
 /// A number with `d` decimals and `sep` between the thousands.
 fn number(n: f64, d: usize, sep: &str) -> String {
     let s = format!("{:.*}", d, n.abs());
-    let (int, frac) = s.split_once('.').map_or((s.as_str(), None), |(i, f)| (i, Some(f)));
+    let (int, frac) = s
+        .split_once('.')
+        .map_or((s.as_str(), None), |(i, f)| (i, Some(f)));
     let mut out = String::new();
     for (i, ch) in int.chars().enumerate() {
         if i > 0 && (int.len() - i) % 3 == 0 {
@@ -52,7 +54,11 @@ fn duration(s: f64) -> String {
     } else {
         format!("{t} s")
     };
-    if neg { format!("-{body}") } else { body }
+    if neg {
+        format!("-{body}")
+    } else {
+        body
+    }
 }
 
 /// The days since 1970-01-01 of a date, and back (proleptic Gregorian).

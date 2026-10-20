@@ -34,7 +34,10 @@ pub struct Presence {
 fn session_id() -> String {
     use std::hash::{BuildHasher, Hasher};
     let keys = std::collections::hash_map::RandomState::new();
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
     let half = |salt: u64| {
         let mut h = keys.build_hasher();
         h.write_u128(now);
@@ -64,7 +67,10 @@ fn allowed() -> bool {
         return false;
     }
     let text = std::fs::read_to_string(omsi_launcher_lib::data_dir().join("settings.cfg")).ok();
-    omsi_launcher_lib::settings_from_text(text.as_deref()).get("presence").and_then(|v| v.as_bool()).unwrap_or(true)
+    omsi_launcher_lib::settings_from_text(text.as_deref())
+        .get("presence")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true)
 }
 
 /// What a post came to.
@@ -77,7 +83,11 @@ enum Sent {
 }
 
 fn post(agent: &ureq::Agent, url: &str, body: &serde_json::Value) -> Sent {
-    match agent.post(url).set("Content-Type", "application/json").send_string(&body.to_string()) {
+    match agent
+        .post(url)
+        .set("Content-Type", "application/json")
+        .send_string(&body.to_string())
+    {
         Ok(_) => Sent::Ok,
         Err(ureq::Error::Status(429, _)) => Sent::Limited,
         Err(_) => Sent::Failed,
@@ -98,7 +108,10 @@ impl Presence {
             log::info!("presence: not counted on the website (setting presence=0)");
             return None;
         }
-        let base = omsi_cfg::flags::OMSI_PRESENCE_URL.var().map(str::to_string).unwrap_or_else(|| SERVICE.to_string());
+        let base = omsi_cfg::flags::OMSI_PRESENCE_URL
+            .var()
+            .map(str::to_string)
+            .unwrap_or_else(|| SERVICE.to_string());
         let base = base.trim_end_matches('/').to_string();
         let stop = Arc::new(AtomicBool::new(false));
         let flag = stop.clone();
@@ -139,7 +152,10 @@ impl Presence {
                 }
             })
             .ok()?;
-        Some(Presence { stop, thread: Some(thread) })
+        Some(Presence {
+            stop,
+            thread: Some(thread),
+        })
     }
 }
 
@@ -171,8 +187,19 @@ mod tests {
     #[test]
     #[ignore = "needs the presence service running at OMSI_PRESENCE_URL"]
     fn a_session_is_counted_while_it_runs() {
-        let base = omsi_cfg::flags::OMSI_PRESENCE_URL.live_var().expect("OMSI_PRESENCE_URL");
-        let count = || ureq::get(&format!("{base}/players")).call().unwrap().into_string().map(|t| serde_json::from_str::<serde_json::Value>(&t).unwrap()).unwrap()["players"].as_u64().unwrap();
+        let base = omsi_cfg::flags::OMSI_PRESENCE_URL
+            .live_var()
+            .expect("OMSI_PRESENCE_URL");
+        let count = || {
+            ureq::get(&format!("{base}/players"))
+                .call()
+                .unwrap()
+                .into_string()
+                .map(|t| serde_json::from_str::<serde_json::Value>(&t).unwrap())
+                .unwrap()["players"]
+                .as_u64()
+                .unwrap()
+        };
         let before = count();
         let p = super::Presence::start().expect("presence allowed");
         std::thread::sleep(std::time::Duration::from_secs(2));

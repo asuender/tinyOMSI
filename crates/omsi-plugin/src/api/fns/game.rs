@@ -12,7 +12,11 @@ const V36: &str = "0.3.36";
 pub const LAN_MAX: usize = 120;
 
 fn pairs(v: Vec<(&'static str, crate::InfoValue)>) -> Value {
-    Value::Map(v.into_iter().map(|(k, v)| (k.to_string(), v.into())).collect())
+    Value::Map(
+        v.into_iter()
+            .map(|(k, v)| (k.to_string(), v.into()))
+            .collect(),
+    )
 }
 
 fn panel_id(c: &mut Ctx<'_>, id: &str) -> Result<u64, ApiError> {

@@ -13,7 +13,10 @@ pub const TOUR_ENTRY_LANES: usize = 4;
 /// route's last lane, and taken on there the trip was over at once - the bus stood at the
 /// last stop for good, and every bus behind it queued (#976).
 pub fn tour_entry(section: &[usize], lane: usize) -> Option<usize> {
-    section.iter().take(TOUR_ENTRY_LANES).position(|&l| l == lane)
+    section
+        .iter()
+        .take(TOUR_ENTRY_LANES)
+        .position(|&l| l == lane)
 }
 
 impl ScheduleSim {
@@ -107,7 +110,11 @@ impl ScheduleSim {
                 .awaiting
                 .iter()
                 .copied()
-                .filter(|&j| self.tour_prev[j].and_then(|k| self.tour_bus(k, traffic)).is_none())
+                .filter(|&j| {
+                    self.tour_prev[j]
+                        .and_then(|k| self.tour_bus(k, traffic))
+                        .is_none()
+                })
                 .collect();
             for j in orphans {
                 self.awaiting.remove(&j);
@@ -133,8 +140,15 @@ impl ScheduleSim {
         let names = self.stop_names();
         let name_of = |id: i64| names.get(&id).cloned().unwrap_or_else(|| id.to_string());
         let tod = day_time - self.day_base;
-        let longest = self.times.iter().flatten().map(|t| t.duration).fold(0.0, f64::max);
-        let from = self.departures.partition_point(|d| d.time < tod - longest - 60.0);
+        let longest = self
+            .times
+            .iter()
+            .flatten()
+            .map(|t| t.duration)
+            .fold(0.0, f64::max);
+        let from = self
+            .departures
+            .partition_point(|d| d.time < tod - longest - 60.0);
         let mut out: HashMap<i64, HashSet<String>> = HashMap::new();
         for i in from..self.departures.len() {
             let d = &self.departures[i];
@@ -148,7 +162,9 @@ impl ScheduleSim {
             let stations = trip_stations(&self.data.trips[d.trip]);
             for (k, sid) in stations.iter().enumerate() {
                 let due = d.time + tt.stations.get(k).map(|s| s.0).unwrap_or(0.0);
-                if !(tod - 60.0..=tod + PAX_SPAWN_AHEAD).contains(&due) || !tt.stops.get(k).copied().unwrap_or(true) {
+                if !(tod - 60.0..=tod + PAX_SPAWN_AHEAD).contains(&due)
+                    || !tt.stops.get(k).copied().unwrap_or(true)
+                {
                     continue;
                 }
                 let here = name_of(*sid);
@@ -170,7 +186,13 @@ impl ScheduleSim {
     pub fn stop_targets(&self) -> HashMap<i64, Vec<(String, HashSet<String>)>> {
         let names = self.stop_names();
         let name_of = |id: i64| names.get(&id).cloned().unwrap_or_else(|| id.to_string());
-        station_targets(self.data.trips.iter().map(|t| (trip_stations(t), t.terminus.trim().to_string())), name_of)
+        station_targets(
+            self.data
+                .trips
+                .iter()
+                .map(|t| (trip_stations(t), t.terminus.trim().to_string())),
+            name_of,
+        )
     }
 
     /// Per bus stop object, the stop objects the trips leaving it go on to, by their
@@ -201,7 +223,9 @@ impl ScheduleSim {
     pub fn stop_names(&self) -> HashMap<i64, String> {
         let mut names = HashMap::new();
         for b in &self.data.bus_stops {
-            names.entry(b.object_id).or_insert_with(|| b.name.trim().to_string());
+            names
+                .entry(b.object_id)
+                .or_insert_with(|| b.name.trim().to_string());
         }
         names
     }
@@ -244,9 +268,19 @@ impl ScheduleSim {
     /// waiting for them, the waiting ones queued again when tiles brought lanes or their
     /// vehicle reaches loaded ones, and the running routes carried on. Returns whether the
     /// map is loading (a wide window), when a few more buses are put out at once.
-    pub fn queue_due(&mut self, world: &dyn TimetableWorld, traffic: &mut TrafficSim, day_time: f64, window: f64) -> bool {
+    pub fn queue_due(
+        &mut self,
+        world: &dyn TimetableWorld,
+        traffic: &mut TrafficSim,
+        day_time: f64,
+        window: f64,
+    ) -> bool {
         let tod = day_time - self.day_base;
-        let window = if std::mem::take(&mut self.restarted) { window.max(20.0 * 60.0) } else { window };
+        let window = if std::mem::take(&mut self.restarted) {
+            window.max(20.0 * 60.0)
+        } else {
+            window
+        };
         let loading = window > 60.0;
         let due: Vec<usize> = self
             .departures
@@ -261,7 +295,10 @@ impl ScheduleSim {
             // counted as busy at midnight, was never made ready again and stopped running)
             self.later_layover.remove(&i);
             // the tour's bus is still on its way here: it takes the trip on when it arrives
-            if self.tour_prev[i].and_then(|k| self.tour_bus(k, traffic)).is_some() {
+            if self.tour_prev[i]
+                .and_then(|k| self.tour_bus(k, traffic))
+                .is_some()
+            {
                 self.awaiting.insert(i);
                 continue;
             }
@@ -288,7 +325,10 @@ impl ScheduleSim {
             if d.time > tod + TOUR_LAYOVER_MAX {
                 break;
             }
-            if d.spawned || self.later_layover.get(&i).is_some_and(|&t| day_time < t) || !self.runs(i) {
+            if d.spawned
+                || self.later_layover.get(&i).is_some_and(|&t| day_time < t)
+                || !self.runs(i)
+            {
                 continue;
             }
             // (the previous trip of the tour only when it runs today: a tour's trips on other
@@ -428,10 +468,17 @@ impl ScheduleSim {
             // (bridged from the end of what the bus has)
             let (lanes, index) = match last {
                 Some(l) if !lanes.is_empty() => {
-                    let with: Vec<usize> = std::iter::once(l).chain(lanes.iter().copied()).collect();
+                    let with: Vec<usize> =
+                        std::iter::once(l).chain(lanes.iter().copied()).collect();
                     add_connectors(traffic, &with);
                     let (b, ix) = bridge_gaps(&traffic.net, &with);
-                    (b[1..].to_vec(), ix[1..].iter().map(|k| k.saturating_sub(1)).collect::<Vec<_>>())
+                    (
+                        b[1..].to_vec(),
+                        ix[1..]
+                            .iter()
+                            .map(|k| k.saturating_sub(1))
+                            .collect::<Vec<_>>(),
+                    )
                 }
                 _ => {
                     add_connectors(traffic, &lanes);
@@ -459,11 +506,21 @@ impl ScheduleSim {
                         station_route(run.station_steps[si], run.next, &slots[..n], &index),
                     ) {
                         from = ri;
-                        stops.push((base + ri, ss, bay_offset(lat), *t_dep, *sid, world.stop_side(*sid)));
+                        stops.push((
+                            base + ri,
+                            ss,
+                            bay_offset(lat),
+                            *t_dep,
+                            *sid,
+                            world.stop_side(*sid),
+                        ));
                         run.served[si] = true;
                     }
                 }
-                let (ty, rail) = (traffic.cars[ci].vehicle.ty.clone(), traffic.cars[ci].is_rail());
+                let (ty, rail) = (
+                    traffic.cars[ci].vehicle.ty.clone(),
+                    traffic.cars[ci].is_rail(),
+                );
                 place_stops(&traffic.net, &lanes, base, &mut stops, &ty, rail);
                 stops.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.total_cmp(&b.1)));
                 log::debug!(
@@ -475,7 +532,11 @@ impl ScheduleSim {
                 let car = &mut traffic.cars[ci];
                 car.state.route.extend(lanes);
                 if let Some(b) = car.bus.as_mut() {
-                    b.stops.extend(stops.into_iter().map(crate::ai_traffic::bus_service::Stop::from_tuple));
+                    b.stops.extend(
+                        stops
+                            .into_iter()
+                            .map(crate::ai_traffic::bus_service::Stop::from_tuple),
+                    );
                 }
                 // (it may have stood waiting at the end of what it had)
                 car.state.planned_next = None;
@@ -549,12 +610,25 @@ impl ScheduleSim {
     /// Car `car`'s route stops short at step `next` of `steps`: it is carried on as the tiles
     /// come, with the trip's `stations` (left at `leave`) not `served` yet.
     #[allow(clippy::too_many_arguments)]
-    pub fn carry_later(&mut self, car: u64, steps: Vec<Step>, next: usize, stations: &[i64], leave: &[f64], served: Vec<bool>, station_steps: Vec<Option<usize>>) {
+    pub fn carry_later(
+        &mut self,
+        car: u64,
+        steps: Vec<Step>,
+        next: usize,
+        stations: &[i64],
+        leave: &[f64],
+        served: Vec<bool>,
+        station_steps: Vec<Option<usize>>,
+    ) {
         self.running.push(RunningTrip {
             car,
             steps,
             next,
-            stations: stations.iter().copied().zip(leave.iter().copied()).collect(),
+            stations: stations
+                .iter()
+                .copied()
+                .zip(leave.iter().copied())
+                .collect(),
             served,
             station_steps,
         });

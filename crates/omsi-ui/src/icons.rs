@@ -20,7 +20,11 @@ pub fn rasterize(name: &str, size: u32) -> Option<Vec<u8>> {
     let mut pix = resvg::tiny_skia::Pixmap::new(size, size)?;
     let s = tree.size();
     let k = size as f32 / s.width().max(s.height());
-    resvg::render(&tree, resvg::tiny_skia::Transform::from_scale(k, k), &mut pix.as_mut());
+    resvg::render(
+        &tree,
+        resvg::tiny_skia::Transform::from_scale(k, k),
+        &mut pix.as_mut(),
+    );
     Some(pix.pixels().iter().map(|p| p.alpha()).collect())
 }
 
@@ -32,12 +36,24 @@ pub fn rasterize_rgba(src: &str, w: u32, h: u32) -> Option<Vec<u8>> {
     let mut pix = resvg::tiny_skia::Pixmap::new(w, h)?;
     let s = tree.size();
     let k = (w as f32 / s.width()).min(h as f32 / s.height());
-    let (dx, dy) = ((w as f32 - s.width() * k) * 0.5, (h as f32 - s.height() * k) * 0.5);
-    resvg::render(&tree, resvg::tiny_skia::Transform::from_row(k, 0.0, 0.0, k, dx, dy), &mut pix.as_mut());
-    Some(pix.pixels().iter().flat_map(|p| {
-        let c = p.demultiply();
-        [c.red(), c.green(), c.blue(), c.alpha()]
-    }).collect())
+    let (dx, dy) = (
+        (w as f32 - s.width() * k) * 0.5,
+        (h as f32 - s.height() * k) * 0.5,
+    );
+    resvg::render(
+        &tree,
+        resvg::tiny_skia::Transform::from_row(k, 0.0, 0.0, k, dx, dy),
+        &mut pix.as_mut(),
+    );
+    Some(
+        pix.pixels()
+            .iter()
+            .flat_map(|p| {
+                let c = p.demultiply();
+                [c.red(), c.green(), c.blue(), c.alpha()]
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
@@ -46,9 +62,16 @@ mod tests {
     fn stop_request_has_smooth_edges_and_an_open_background() {
         for size in [24, 32, 64] {
             let alpha = super::rasterize("stop_request", size).unwrap();
-            assert!(alpha.iter().any(|&a| a > 0 && a < 255), "edges must be anti-aliased");
+            assert!(
+                alpha.iter().any(|&a| a > 0 && a < 255),
+                "edges must be anti-aliased"
+            );
             assert_eq!(alpha[(size / 4 * size + size / 2) as usize], 0);
-            assert_eq!(alpha[(size / 2 * size + size * 3 / 4) as usize], 0, "the bar's interior is transparent");
+            assert_eq!(
+                alpha[(size / 2 * size + size * 3 / 4) as usize],
+                0,
+                "the bar's interior is transparent"
+            );
             assert!(alpha.iter().filter(|&&a| a > 128).count() > (size * size / 12) as usize);
         }
     }

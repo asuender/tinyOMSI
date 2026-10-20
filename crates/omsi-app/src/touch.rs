@@ -64,7 +64,10 @@ enum Btn {
 impl Btn {
     /// Held down while the finger stays (a push button), rather than a tap.
     fn held(self) -> bool {
-        matches!(self, Btn::Door(_) | Btn::DirectDoor(_) | Btn::Horn | Btn::Engine | Btn::Announce)
+        matches!(
+            self,
+            Btn::Door(_) | Btn::DirectDoor(_) | Btn::Horn | Btn::Engine | Btn::Announce
+        )
     }
 }
 
@@ -82,7 +85,11 @@ fn direct_door_buttons<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<usiz
     DIRECT_DOOR_GROUPS
         .iter()
         .enumerate()
-        .filter(|(_, group)| group.iter().any(|cmd| names.iter().any(|n| n.eq_ignore_ascii_case(cmd))))
+        .filter(|(_, group)| {
+            group
+                .iter()
+                .any(|cmd| names.iter().any(|n| n.eq_ignore_ascii_case(cmd)))
+        })
         .map(|(index, _)| index)
         .collect()
 }
@@ -302,7 +309,12 @@ impl App {
     }
 
     fn touch_layout_in(&mut self, w: f32, h: f32) {
-        let dpi = self.window.as_ref().map(|w| w.scale_factor() as f32).unwrap_or(1.0).max(0.5);
+        let dpi = self
+            .window
+            .as_ref()
+            .map(|w| w.scale_factor() as f32)
+            .unwrap_or(1.0)
+            .max(0.5);
         // (a point is the screen's density, a little larger on a big tablet and smaller
         // on a small phone)
         let short = w.min(h) / dpi;
@@ -311,7 +323,11 @@ impl App {
         // left, the speed in the middle, the brakes, the pedals (a manual's clutch too) on
         // the right - in points of the layout below. On a tablet held upright (an iPad mini's
         // 744 points) the clutch pedal ran under the speed and the horn.
-        let clutch = self.player.as_ref().is_some_and(|p| p.vehicle.ty.program.manual_gearbox()) && !self.settings.auto_clutch;
+        let clutch = self
+            .player
+            .as_ref()
+            .is_some_and(|p| p.vehicle.ty.program.manual_gearbox())
+            && !self.settings.auto_clutch;
         let side = if clutch { 300.0 } else { 238.0 };
         u = u.min(w / (2.0 * (side + 67.0) + 28.0)).max(dpi * 0.7);
         let pad = 14.0 * u;
@@ -320,18 +336,49 @@ impl App {
         t.size = (w, h);
         let mut b: Vec<Button> = Vec::new();
         let rb = |x: f32, y: f32, r: f32| Rect::new(x - r, y - r, r * 2.0, r * 2.0);
-        let push = |b: &mut Vec<Button>, btn: Btn, rect: Rect, icon: &'static str, label: &str, on: bool, round: bool| {
-            b.push(Button { btn, rect, icon, label: label.to_string(), on, round });
+        let push = |b: &mut Vec<Button>,
+                    btn: Btn,
+                    rect: Rect,
+                    icon: &'static str,
+                    label: &str,
+                    on: bool,
+                    round: bool| {
+            b.push(Button {
+                btn,
+                rect,
+                icon,
+                label: label.to_string(),
+                on,
+                round,
+            });
         };
-        let menu_mode = self.menus.game_menu.is_some() || self.menus.chooser.is_some() || self.menus.navigator.as_ref().is_some_and(|n| n.map_open());
+        let menu_mode = self.menus.game_menu.is_some()
+            || self.menus.chooser.is_some()
+            || self.menus.navigator.as_ref().is_some_and(|n| n.map_open());
         t.top_gap = None;
         if menu_mode {
             // only the way out: the menu is worked with the fingers as a mouse
             let r = 24.0 * u;
             if self.menus.game_menu.is_some() || self.menus.chooser.is_some() {
-                push(&mut b, Btn::CloseMenu, rb(w - pad - r, pad + r, r), "close", "", false, true);
+                push(
+                    &mut b,
+                    Btn::CloseMenu,
+                    rb(w - pad - r, pad + r, r),
+                    "close",
+                    "",
+                    false,
+                    true,
+                );
             } else {
-                push(&mut b, Btn::Map, rb(w - pad - r, pad + r, r), "close", "", false, true);
+                push(
+                    &mut b,
+                    Btn::Map,
+                    rb(w - pad - r, pad + r, r),
+                    "close",
+                    "",
+                    false,
+                    true,
+                );
             }
             t.info_room = Some(info_room(w, pad, pad, w - pad - r * 2.0, pad + r * 2.0, u));
             t.buttons = b;
@@ -342,30 +389,68 @@ impl App {
         let y = pad + r;
         let step = r * 2.0 + 10.0 * u;
         let mut x = pad + r;
-        for (btn, icon) in [(Btn::Menu, "menu"), (Btn::Pause, if self.paused { "play_arrow" } else { "pause" }), (Btn::Camera, "videocam"), (Btn::LookReset, "360")] {
-            push(&mut b, btn, rb(x, y, r), icon, "", btn == Btn::Pause && self.paused, true);
+        for (btn, icon) in [
+            (Btn::Menu, "menu"),
+            (Btn::Pause, if self.paused { "play_arrow" } else { "pause" }),
+            (Btn::Camera, "videocam"),
+            (Btn::LookReset, "360"),
+        ] {
+            push(
+                &mut b,
+                btn,
+                rb(x, y, r),
+                icon,
+                "",
+                btn == Btn::Pause && self.paused,
+                true,
+            );
             x += step;
         }
         let left_end = x - step + r;
         let mut x = w - pad - r;
         let hidden = t.hidden;
-        push(&mut b, Btn::Hide, rb(x, y, r), if hidden { "visibility" } else { "visibility" }, "", hidden, true);
+        push(
+            &mut b,
+            Btn::Hide,
+            rb(x, y, r),
+            if hidden { "visibility" } else { "visibility" },
+            "",
+            hidden,
+            true,
+        );
         if hidden {
             t.info_room = Some(info_room(w, pad, left_end, x - r, pad + r * 2.0, u));
             t.buttons = b;
             return;
         }
-        let driving = self.player.is_some() && matches!(self.view.as_str(), "driver" | "outside" | "pax");
+        let driving =
+            self.player.is_some() && matches!(self.view.as_str(), "driver" | "outside" | "pax");
         x -= step;
         push(&mut b, Btn::Panel, rb(x, y, r), "tune", "", t.panel, true);
         x -= step;
         push(&mut b, Btn::Map, rb(x, y, r), "map", "", false, true);
         if self.session.duty.is_some() {
             x -= step;
-            push(&mut b, Btn::Timetable, rb(x, y, r), "departure_board", "", self.menus.timetable, true);
+            push(
+                &mut b,
+                Btn::Timetable,
+                rb(x, y, r),
+                "departure_board",
+                "",
+                self.menus.timetable,
+                true,
+            );
         }
         x -= step;
-        push(&mut b, Btn::Screenshot, rb(x, y, r), "photo_camera", "", false, true);
+        push(
+            &mut b,
+            Btn::Screenshot,
+            rb(x, y, r),
+            "photo_camera",
+            "",
+            false,
+            true,
+        );
         t.info_room = Some(info_room(w, pad, left_end, x - r, pad + r * 2.0, u));
         t.top_gap = Some([left_end + 6.0 * u, x - r - 6.0 * u, pad + r * 2.0]);
         if !driving {
@@ -373,30 +458,68 @@ impl App {
             t.stick_r = 62.0 * u;
             t.stick_c = Vec2::new(pad + t.stick_r + 10.0 * u, h - pad - t.stick_r - 10.0 * u);
             // on foot, out of the eyes: kneel for a picture from low down (#1148)
-            if let Some(f) = self.session.on_foot.as_ref().filter(|f| f.cam == crate::on_foot::FootCam::First && f.seat.is_none()) {
+            if let Some(f) = self
+                .session
+                .on_foot
+                .as_ref()
+                .filter(|f| f.cam == crate::on_foot::FootCam::First && f.seat.is_none())
+            {
                 let kr = 26.0 * u;
-                push(&mut b, Btn::Kneel, rb(w - pad - kr, h - pad - kr, kr), "keyboard_arrow_down", "", f.kneel, true);
+                push(
+                    &mut b,
+                    Btn::Kneel,
+                    rb(w - pad - kr, h - pad - kr, kr),
+                    "keyboard_arrow_down",
+                    "",
+                    f.kneel,
+                    true,
+                );
             }
         } else {
             t.stick_r = 0.0;
         }
         if driving {
             let p = self.player.as_ref().unwrap();
-            let has = |name: &str| p.vehicle.ty.program.trigger(name).is_some() || p.bound_actions().iter().any(|a| a.eq_ignore_ascii_case(name));
+            let has = |name: &str| {
+                p.vehicle.ty.program.trigger(name).is_some()
+                    || p.bound_actions()
+                        .iter()
+                        .any(|a| a.eq_ignore_ascii_case(name))
+            };
             // --- the wheel, bottom left
             t.wheel_r = 78.0 * u;
             t.wheel_c = Vec2::new(pad + t.wheel_r + 6.0 * u, h - pad - t.wheel_r);
             // --- the pedals, bottom right
             // (as long as the settings make them, within what the screen's height leaves)
-            let long = self.settings.touch_pedal_length.clamp(0.8, 1.6).min((h * 0.45 / (150.0 * u)).max(0.8));
+            let long = self
+                .settings
+                .touch_pedal_length
+                .clamp(0.8, 1.6)
+                .min((h * 0.45 / (150.0 * u)).max(0.8));
             let th = 150.0 * u * long;
             t.throttle_r = Rect::new(w - pad - 64.0 * u, h - pad - th, 64.0 * u, th);
             let bh = 112.0 * u * long;
-            t.brake_r = Rect::new(t.throttle_r.x - 14.0 * u - 80.0 * u, h - pad - bh, 80.0 * u, bh);
+            t.brake_r = Rect::new(
+                t.throttle_r.x - 14.0 * u - 80.0 * u,
+                h - pad - bh,
+                80.0 * u,
+                bh,
+            );
             // the gearbox above the pedals: an automatic's R N D, a sequential lever's - N +,
             // else a manual's whole gate - R, N and every gear its script has (`kw_s_1` ...),
             // in two rows as the H of the lever (R 1 3 5 over N 2 4 6)
-            const MANUAL: [(&str, &str); 10] = [("kw_s_R", "R"), ("kw_s_N", "N"), ("kw_s_1", "1"), ("kw_s_2", "2"), ("kw_s_3", "3"), ("kw_s_4", "4"), ("kw_s_5", "5"), ("kw_s_6", "6"), ("kw_s_7", "7"), ("kw_s_8", "8")];
+            const MANUAL: [(&str, &str); 10] = [
+                ("kw_s_R", "R"),
+                ("kw_s_N", "N"),
+                ("kw_s_1", "1"),
+                ("kw_s_2", "2"),
+                ("kw_s_3", "3"),
+                ("kw_s_4", "4"),
+                ("kw_s_5", "5"),
+                ("kw_s_6", "6"),
+                ("kw_s_7", "7"),
+                ("kw_s_8", "8"),
+            ];
             // (the kind of gearbox by what the bus's own scripts answer to: every key of
             // the keyboard layout is bound whatever the bus, the automatic's D included)
             let scripted = |name: &str| p.vehicle.ty.program.trigger(name).is_some();
@@ -407,13 +530,29 @@ impl App {
             // script that reads the clutch pedal is a manual one)
             let program = &p.vehicle.ty.program;
             let manual = program.manual_gearbox();
-            let count = p.vehicle.ty.program.constant("antrieb_number_gears").map(|n| n.round() as usize).filter(|n| (1..=8).contains(n));
+            let count = p
+                .vehicle
+                .ty
+                .program
+                .constant("antrieb_number_gears")
+                .map(|n| n.round() as usize)
+                .filter(|n| (1..=8).contains(n));
             let gears: Vec<(&'static str, &'static str)> = if manual {
-                MANUAL.iter().copied().enumerate().filter(|(k, (a, _))| {
-                    matches!(*a, "kw_s_N") || (scripted(a) && count.is_none_or(|n| *k < n + 2))
-                }).map(|(_, g)| g).collect()
+                MANUAL
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .filter(|(k, (a, _))| {
+                        matches!(*a, "kw_s_N") || (scripted(a) && count.is_none_or(|n| *k < n + 2))
+                    })
+                    .map(|(_, g)| g)
+                    .collect()
             } else if has("automatic_D") {
-                vec![("automatic_R", "R"), ("automatic_N", "N"), ("automatic_D", "D")]
+                vec![
+                    ("automatic_R", "R"),
+                    ("automatic_N", "N"),
+                    ("automatic_D", "D"),
+                ]
             } else if has("kw_s_plus") {
                 vec![("kw_s_minus", "-"), ("kw_s_N", "N"), ("kw_s_plus", "+")]
             } else {
@@ -423,7 +562,11 @@ impl App {
             let gy;
             if manual && gears.len() > 3 {
                 // the gear engaged, as the lever's script has it
-                let engaged = p.vehicle.var("antrieb_getr_aktugang").or_else(|| p.vehicle.var("antrieb_getr_gang")).map(|g| g.round() as i32);
+                let engaged = p
+                    .vehicle
+                    .var("antrieb_getr_aktugang")
+                    .or_else(|| p.vehicle.var("antrieb_getr_gang"))
+                    .map(|g| g.round() as i32);
                 let label_of = |g: i32| match g {
                     -1 => "R",
                     0 => "N",
@@ -440,31 +583,87 @@ impl App {
                         Some(g) => label_of(g) == *letter,
                         None => t.gear == Some(*letter),
                     };
-                    push(&mut b, Btn::Gear(action, letter), Rect::new(t.brake_r.x + gw * col as f32 + 3.0 * u, top + row as f32 * (gh + 6.0 * u), gw - 6.0 * u, gh), "", letter, on, false);
+                    push(
+                        &mut b,
+                        Btn::Gear(action, letter),
+                        Rect::new(
+                            t.brake_r.x + gw * col as f32 + 3.0 * u,
+                            top + row as f32 * (gh + 6.0 * u),
+                            gw - 6.0 * u,
+                            gh,
+                        ),
+                        "",
+                        letter,
+                        on,
+                        false,
+                    );
                 }
             } else {
                 let gw = (t.throttle_r.right() - t.brake_r.x) / 3.0;
                 gy = t.throttle_r.y - 10.0 * u - 40.0 * u;
                 for (k, (action, letter)) in gears.iter().enumerate() {
                     let on = t.gear == Some(*letter) && matches!(*letter, "R" | "N" | "D");
-                    push(&mut b, Btn::Gear(action, letter), Rect::new(t.brake_r.x + gw * k as f32 + 3.0 * u, gy, gw - 6.0 * u, 40.0 * u), "", letter, on, false);
+                    push(
+                        &mut b,
+                        Btn::Gear(action, letter),
+                        Rect::new(
+                            t.brake_r.x + gw * k as f32 + 3.0 * u,
+                            gy,
+                            gw - 6.0 * u,
+                            40.0 * u,
+                        ),
+                        "",
+                        letter,
+                        on,
+                        false,
+                    );
                 }
             }
             // a manual without the automatic clutch of the settings: its clutch pedal, left of
             // the brake's buttons
             t.clutch_r = if manual && !self.settings.auto_clutch {
                 let ch = 112.0 * u;
-                Rect::new(t.brake_r.x - 14.0 * u - 50.0 * u - 14.0 * u - 64.0 * u, h - pad - ch, 64.0 * u, ch)
+                Rect::new(
+                    t.brake_r.x - 14.0 * u - 50.0 * u - 14.0 * u - 64.0 * u,
+                    h - pad - ch,
+                    64.0 * u,
+                    ch,
+                )
             } else {
                 Rect::new(0.0, 0.0, 0.0, 0.0)
             };
             // the brakes left of the brake pedal
             let br = 25.0 * u;
             let bx = t.brake_r.x - 14.0 * u - br;
-            let pb_on = p.vehicle.var("parkingbrake").or_else(|| p.vehicle.var("Handbremse")).or_else(|| p.vehicle.var("parking_brake")).is_some_and(|v| v > 0.5);
-            push(&mut b, Btn::ParkingBrake, rb(bx, h - pad - br, br), "local_parking", "", pb_on, true);
-            let sb_on = p.vehicle.var("bremse_halte_sw").or_else(|| p.vehicle.var("haltestellenbremse")).is_some_and(|v| v > 0.5);
-            push(&mut b, Btn::StopBrake, rb(bx, h - pad - br * 3.0 - 10.0 * u, br), "back_hand", "", sb_on, true);
+            let pb_on = p
+                .vehicle
+                .var("parkingbrake")
+                .or_else(|| p.vehicle.var("Handbremse"))
+                .or_else(|| p.vehicle.var("parking_brake"))
+                .is_some_and(|v| v > 0.5);
+            push(
+                &mut b,
+                Btn::ParkingBrake,
+                rb(bx, h - pad - br, br),
+                "local_parking",
+                "",
+                pb_on,
+                true,
+            );
+            let sb_on = p
+                .vehicle
+                .var("bremse_halte_sw")
+                .or_else(|| p.vehicle.var("haltestellenbremse"))
+                .is_some_and(|v| v > 0.5);
+            push(
+                &mut b,
+                Btn::StopBrake,
+                rb(bx, h - pad - br * 3.0 - 10.0 * u, br),
+                "back_hand",
+                "",
+                sb_on,
+                true,
+            );
             // Preserve the current door detection in Standard mode. Direct mode
             // uses 0, 1 and combined 2+3; the fourth trigger button is not shown.
             let door_buttons: Vec<Btn> = if self.settings.touch_door_mode == "direct" {
@@ -482,32 +681,120 @@ impl App {
             let dy = gy - 12.0 * u - dr;
             for (k, action) in door_buttons.into_iter().enumerate() {
                 let dx = t.throttle_r.right() - dr - (doors - 1 - k) as f32 * (dr * 2.0 + 10.0 * u);
-                push(&mut b, action, rb(dx, dy, dr), "door_sliding", &(k + 1).to_string(), false, true);
+                push(
+                    &mut b,
+                    action,
+                    rb(dx, dy, dr),
+                    "door_sliding",
+                    &(k + 1).to_string(),
+                    false,
+                    true,
+                );
             }
             // the indicators and the horn beside the wheel
             let ir = 23.0 * u;
             let iy = t.wheel_c.y - t.wheel_r - 14.0 * u - ir;
-            let blink = p.vehicle.var("lights_sw_blinker").map(|v| v.round() as i32).unwrap_or(0);
-            let warn = p.vehicle.var("lights_sw_warnblinker").is_some_and(|v| v > 0.5);
-            push(&mut b, Btn::BlinkLeft, rb(t.wheel_c.x - t.wheel_r + ir, iy, ir), "turn_left", "", blink == 1, true);
-            push(&mut b, Btn::Hazard, rb(t.wheel_c.x, iy, ir), "warning", "", warn, true);
-            push(&mut b, Btn::BlinkRight, rb(t.wheel_c.x + t.wheel_r - ir, iy, ir), "turn_right", "", blink == 2, true);
+            let blink = p
+                .vehicle
+                .var("lights_sw_blinker")
+                .map(|v| v.round() as i32)
+                .unwrap_or(0);
+            let warn = p
+                .vehicle
+                .var("lights_sw_warnblinker")
+                .is_some_and(|v| v > 0.5);
+            push(
+                &mut b,
+                Btn::BlinkLeft,
+                rb(t.wheel_c.x - t.wheel_r + ir, iy, ir),
+                "turn_left",
+                "",
+                blink == 1,
+                true,
+            );
+            push(
+                &mut b,
+                Btn::Hazard,
+                rb(t.wheel_c.x, iy, ir),
+                "warning",
+                "",
+                warn,
+                true,
+            );
+            push(
+                &mut b,
+                Btn::BlinkRight,
+                rb(t.wheel_c.x + t.wheel_r - ir, iy, ir),
+                "turn_right",
+                "",
+                blink == 2,
+                true,
+            );
             let hr = 26.0 * u;
-            push(&mut b, Btn::Horn, rb(t.wheel_c.x + t.wheel_r + 18.0 * u + hr, h - pad - hr, hr), "campaign", "", false, true);
+            push(
+                &mut b,
+                Btn::Horn,
+                rb(t.wheel_c.x + t.wheel_r + 18.0 * u + hr, h - pad - hr, hr),
+                "campaign",
+                "",
+                false,
+                true,
+            );
             // --- the cab panel: the rest of the switches, over the middle
             if t.panel {
                 let items: Vec<(Btn, &'static str, &str, bool)> = vec![
-                    (Btn::Battery, "power_settings_new", "Battery", p.vehicle.var("elec_busbar_main").or_else(|| p.vehicle.var("bat_switch")).is_some_and(|v| v > 0.5)),
-                    (Btn::Engine, "key", "Engine start (hold)", p.vehicle.var("engine_on").is_some_and(|v| v > 0.5)),
-                    (Btn::AutoStart, "autorenew", "Start the bus by itself", false),
-                    (Btn::Headlights, "light", "Headlights", p.vehicle.var("lights_fern").or_else(|| p.vehicle.var("lights_sw_licht")).is_some_and(|v| v > 0.5)),
+                    (
+                        Btn::Battery,
+                        "power_settings_new",
+                        "Battery",
+                        p.vehicle
+                            .var("elec_busbar_main")
+                            .or_else(|| p.vehicle.var("bat_switch"))
+                            .is_some_and(|v| v > 0.5),
+                    ),
+                    (
+                        Btn::Engine,
+                        "key",
+                        "Engine start (hold)",
+                        p.vehicle.var("engine_on").is_some_and(|v| v > 0.5),
+                    ),
+                    (
+                        Btn::AutoStart,
+                        "autorenew",
+                        "Start the bus by itself",
+                        false,
+                    ),
+                    (
+                        Btn::Headlights,
+                        "light",
+                        "Headlights",
+                        p.vehicle
+                            .var("lights_fern")
+                            .or_else(|| p.vehicle.var("lights_sw_licht"))
+                            .is_some_and(|v| v > 0.5),
+                    ),
                     (Btn::HighBeam, "flashlight_on", "High beam", false),
-                    (Btn::Wipers, "water_drop", "Wipers", p.vehicle.var("wiper_sw").is_some_and(|v| v > 0.5)),
+                    (
+                        Btn::Wipers,
+                        "water_drop",
+                        "Wipers",
+                        p.vehicle.var("wiper_sw").is_some_and(|v| v > 0.5),
+                    ),
                     (Btn::SaloonLights, "highlight", "Saloon lights", false),
                     (Btn::Ticket, "confirmation_number", "Sell ticket", false),
                     (Btn::Announce, "campaign", "Announcement (Q)", false),
-                    (Btn::InteriorCam, "airline_seat_recline_normal", "Next seat view", false),
-                    (Btn::Navigator, "navigation", "Navigator", self.menus.navigator.as_ref().is_some_and(|n| n.enabled)),
+                    (
+                        Btn::InteriorCam,
+                        "airline_seat_recline_normal",
+                        "Next seat view",
+                        false,
+                    ),
+                    (
+                        Btn::Navigator,
+                        "navigation",
+                        "Navigator",
+                        self.menus.navigator.as_ref().is_some_and(|n| n.enabled),
+                    ),
                     (Btn::Info, "info", "Information bar", self.menus.info_bar),
                     (Btn::Tilt, "screen_rotation", "Tilt steering", t.tilt),
                 ];
@@ -521,7 +808,12 @@ impl App {
                 let x0 = (w - pw) * 0.5;
                 let y0 = (pad + r * 2.0 + 16.0 * u).max((h - ph) * 0.42);
                 for (k, (btn, icon, label, on)) in items.into_iter().enumerate() {
-                    let rect = Rect::new(x0 + (k % cols) as f32 * (cw + gap), y0 + (k / cols) as f32 * (ch + gap), cw, ch);
+                    let rect = Rect::new(
+                        x0 + (k % cols) as f32 * (cw + gap),
+                        y0 + (k / cols) as f32 * (ch + gap),
+                        cw,
+                        ch,
+                    );
                     push(&mut b, btn, rect, icon, label, on, false);
                 }
             }
@@ -545,7 +837,9 @@ impl App {
 
     pub(crate) fn finger_down(&mut self, event_loop: &ActiveEventLoop, id: u64, p: Vec2) {
         self.input.touch.fingers.retain(|f| f.id != id);
-        let menu_mode = self.menus.game_menu.is_some() || self.menus.chooser.is_some() || self.menus.navigator.as_ref().is_some_and(|n| n.map_open());
+        let menu_mode = self.menus.game_menu.is_some()
+            || self.menus.chooser.is_some()
+            || self.menus.navigator.as_ref().is_some_and(|n| n.map_open());
         let t = &self.input.touch;
         let role = if let Some(k) = t.button_at(p) {
             Role::Button(k, t.buttons[k].btn)
@@ -555,25 +849,56 @@ impl App {
             Role::Mouse
         } else if t.stick_r > 0.0 && p.distance(t.stick_c) <= t.stick_r * 1.3 {
             Role::Stick
-        } else if self.player.is_some() && t.stick_r == 0.0 && !t.hidden && t.throttle_r.pad(6.0 * t.u, 6.0 * t.u).contains(p) {
+        } else if self.player.is_some()
+            && t.stick_r == 0.0
+            && !t.hidden
+            && t.throttle_r.pad(6.0 * t.u, 6.0 * t.u).contains(p)
+        {
             Role::Throttle
-        } else if self.player.is_some() && t.stick_r == 0.0 && !t.hidden && t.brake_r.pad(6.0 * t.u, 6.0 * t.u).contains(p) {
+        } else if self.player.is_some()
+            && t.stick_r == 0.0
+            && !t.hidden
+            && t.brake_r.pad(6.0 * t.u, 6.0 * t.u).contains(p)
+        {
             Role::Brake
-        } else if self.player.is_some() && t.stick_r == 0.0 && !t.hidden && t.clutch_r.w > 0.0 && t.clutch_r.pad(6.0 * t.u, 6.0 * t.u).contains(p) {
+        } else if self.player.is_some()
+            && t.stick_r == 0.0
+            && !t.hidden
+            && t.clutch_r.w > 0.0
+            && t.clutch_r.pad(6.0 * t.u, 6.0 * t.u).contains(p)
+        {
             Role::Clutch
-        } else if self.player.is_some() && t.stick_r == 0.0 && !t.hidden && !t.tilt && p.distance(t.wheel_c) <= t.wheel_r * 1.15 {
+        } else if self.player.is_some()
+            && t.stick_r == 0.0
+            && !t.hidden
+            && !t.tilt
+            && p.distance(t.wheel_c) <= t.wheel_r * 1.15
+        {
             {
                 let d = p - t.wheel_c;
                 Role::Wheel(d.y.atan2(d.x), d.length())
             }
         } else if self.game_panel_touch(p.x, p.y) {
             Role::Panel
-        } else if self.menus.navigator.as_ref().is_some_and(|n| n.over_panel(p.x, p.y)) {
+        } else if self
+            .menus
+            .navigator
+            .as_ref()
+            .is_some_and(|n| n.over_panel(p.x, p.y))
+        {
             Role::Navigator
         } else {
             // the cockpit's switch under the finger, else the camera's
             self.on_cursor(p.x, p.y);
-            if self.menus.hover.is_some() && self.view == "driver" && self.input.touch.fingers.iter().all(|f| f.role != Role::Cockpit) {
+            if self.menus.hover.is_some()
+                && self.view == "driver"
+                && self
+                    .input
+                    .touch
+                    .fingers
+                    .iter()
+                    .all(|f| f.role != Role::Cockpit)
+            {
                 self.left_button(event_loop, true);
                 Role::Cockpit
             } else {
@@ -593,15 +918,45 @@ impl App {
             // (the line under the finger lights up; it is picked when the finger comes up
             // without having moved - a finger that came down to scroll used to pick the
             // line it landed on)
-            Role::Menu if !self.input.touch.fingers.iter().any(|f| f.role == Role::MenuSlider) => self.on_cursor(p.x, p.y),
+            Role::Menu
+                if !self
+                    .input
+                    .touch
+                    .fingers
+                    .iter()
+                    .any(|f| f.role == Role::MenuSlider) =>
+            {
+                self.on_cursor(p.x, p.y)
+            }
             Role::Wheel(..) => self.input.touch.steering = true,
             _ => {}
         }
-        let moved = role == Role::Menu && self.input.touch.fingers.iter().any(|f| f.role == Role::MenuSlider);
-        self.input.touch.fingers.push(Touched { id, start: p, pos: p, role, moved, since: Instant::now() });
-        self.input.touch_pedals(p, self.settings.touch_pedal_deadzone);
+        let moved = role == Role::Menu
+            && self
+                .input
+                .touch
+                .fingers
+                .iter()
+                .any(|f| f.role == Role::MenuSlider);
+        self.input.touch.fingers.push(Touched {
+            id,
+            start: p,
+            pos: p,
+            role,
+            moved,
+            since: Instant::now(),
+        });
+        self.input
+            .touch_pedals(p, self.settings.touch_pedal_deadzone);
         // two fingers on the picture: a pinch
-        let looks: Vec<Vec2> = self.input.touch.fingers.iter().filter(|f| matches!(f.role, Role::Look | Role::Mouse)).map(|f| f.pos).collect();
+        let looks: Vec<Vec2> = self
+            .input
+            .touch
+            .fingers
+            .iter()
+            .filter(|f| matches!(f.role, Role::Look | Role::Mouse))
+            .map(|f| f.pos)
+            .collect();
         if looks.len() == 2 {
             self.input.touch.pinch = Some(looks[0].distance(looks[1]).max(1.0));
         }
@@ -609,8 +964,14 @@ impl App {
 
     pub(crate) fn finger_move(&mut self, id: u64, p: Vec2) {
         let u = self.input.touch.u;
-        let Some(k) = self.input.touch.fingers.iter().position(|f| f.id == id) else { return };
-        let (last, start, was_moved) = (self.input.touch.fingers[k].pos, self.input.touch.fingers[k].start, self.input.touch.fingers[k].moved);
+        let Some(k) = self.input.touch.fingers.iter().position(|f| f.id == id) else {
+            return;
+        };
+        let (last, start, was_moved) = (
+            self.input.touch.fingers[k].pos,
+            self.input.touch.fingers[k].start,
+            self.input.touch.fingers[k].moved,
+        );
         {
             let f = &mut self.input.touch.fingers[k];
             f.pos = p;
@@ -619,11 +980,34 @@ impl App {
             }
         }
         let role = self.input.touch.fingers[k].role;
-        if role == Role::Menu && self.input.touch.fingers.iter().any(|f| f.role == Role::MenuSlider) { return; }
+        if role == Role::Menu
+            && self
+                .input
+                .touch
+                .fingers
+                .iter()
+                .any(|f| f.role == Role::MenuSlider)
+        {
+            return;
+        }
         let sideways = (p.x - start.x).abs() >= (p.y - start.y).abs();
-        let grip = if role == Role::Menu && !was_moved && self.input.touch.fingers[k].moved && sideways && self.shell_takes_mouse() { self.shell.onto_slider(start, p) } else { None };
+        let grip = if role == Role::Menu
+            && !was_moved
+            && self.input.touch.fingers[k].moved
+            && sideways
+            && self.shell_takes_mouse()
+        {
+            self.shell.onto_slider(start, p)
+        } else {
+            None
+        };
         if let Some(q) = grip {
-            self.input.touch.fingers.iter_mut().filter(|f| f.role == Role::Menu).for_each(|f| f.moved = true);
+            self.input
+                .touch
+                .fingers
+                .iter_mut()
+                .filter(|f| f.role == Role::Menu)
+                .for_each(|f| f.moved = true);
             self.input.touch.fingers[k].role = Role::MenuSlider;
             self.on_cursor(q.x, q.y);
             self.shell.button(true);
@@ -647,14 +1031,21 @@ impl App {
                     } else if da < -std::f32::consts::PI {
                         da += std::f32::consts::TAU;
                     }
-                    self.input.touch.steer = (self.input.touch.steer + da / touch_lock_angle(&self.settings)).clamp(-1.0, 1.0);
+                    self.input.touch.steer = (self.input.touch.steer
+                        + da / touch_lock_angle(&self.settings))
+                    .clamp(-1.0, 1.0);
                 }
                 self.input.touch.fingers[k].role = Role::Wheel(a, d.length());
             }
-            Role::Throttle | Role::Brake => self.input.touch_pedals(p, self.settings.touch_pedal_deadzone),
+            Role::Throttle | Role::Brake => self
+                .input
+                .touch_pedals(p, self.settings.touch_pedal_deadzone),
             Role::Stick => {
                 let d = p - self.input.touch.stick_c;
-                self.input.touch.stick_at = Some((self.input.touch.stick_c, d.clamp_length_max(self.input.touch.stick_r)));
+                self.input.touch.stick_at = Some((
+                    self.input.touch.stick_c,
+                    d.clamp_length_max(self.input.touch.stick_r),
+                ));
                 self.stick_keys(d / self.input.touch.stick_r);
             }
             // (only a finger that has gone a way drags it: one wavering on a tap still opens
@@ -688,13 +1079,21 @@ impl App {
                         // wheel to whichever scroll area was touched, including
                         // nested lists. Dragging upwards must scroll down.
                         self.shell.pointer(p.x, p.y);
-                        self.shell.wheel(touch_menu_scroll_lines(p.y - last.y, self.shell.scale));
+                        self.shell
+                            .wheel(touch_menu_scroll_lines(p.y - last.y, self.shell.scale));
                     } else {
                         // Legacy UI / VR still uses menu_top, in rows rather than pixels.
                         self.on_cursor(-1e4, -1e4);
-                        let (start, row_h) = self.ui.as_ref().map(|u| (u.menu_start as f32, u.menu_row_h.max(1.0))).unwrap_or((0.0, 1.0));
+                        let (start, row_h) = self
+                            .ui
+                            .as_ref()
+                            .map(|u| (u.menu_start as f32, u.menu_row_h.max(1.0)))
+                            .unwrap_or((0.0, 1.0));
                         let top = self.menus.menu_top.unwrap_or(start) - (p.y - last.y) / row_h;
-                        let (n, rows) = (self.menu_len() as f32, self.ui.as_ref().map(|u| u.menu_rows).unwrap_or(0) as f32);
+                        let (n, rows) = (
+                            self.menu_len() as f32,
+                            self.ui.as_ref().map(|u| u.menu_rows).unwrap_or(0) as f32,
+                        );
                         self.menus.menu_top = Some(top.clamp(0.0, (n - rows).max(0.0)));
                     }
                 } else {
@@ -718,7 +1117,14 @@ impl App {
     }
 
     fn touch_pinch(&mut self) {
-        let looks: Vec<Vec2> = self.input.touch.fingers.iter().filter(|f| matches!(f.role, Role::Look | Role::Mouse)).map(|f| f.pos).collect();
+        let looks: Vec<Vec2> = self
+            .input
+            .touch
+            .fingers
+            .iter()
+            .filter(|f| matches!(f.role, Role::Look | Role::Mouse))
+            .map(|f| f.pos)
+            .collect();
         if looks.len() < 2 {
             return;
         }
@@ -732,21 +1138,52 @@ impl App {
         }
     }
 
-    pub(crate) fn finger_up(&mut self, event_loop: &ActiveEventLoop, id: u64, p: Vec2, cancelled: bool) {
-        let Some(k) = self.input.touch.fingers.iter().position(|f| f.id == id) else { return };
+    pub(crate) fn finger_up(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        id: u64,
+        p: Vec2,
+        cancelled: bool,
+    ) {
+        let Some(k) = self.input.touch.fingers.iter().position(|f| f.id == id) else {
+            return;
+        };
         let f = self.input.touch.fingers.remove(k);
-        if self.input.touch.fingers.iter().filter(|f| matches!(f.role, Role::Look | Role::Mouse)).count() < 2 {
+        if self
+            .input
+            .touch
+            .fingers
+            .iter()
+            .filter(|f| matches!(f.role, Role::Look | Role::Mouse))
+            .count()
+            < 2
+        {
             self.input.touch.pinch = None;
         }
         match f.role {
             Role::Button(_, b) => {
                 if b.held() {
                     self.touch_button(event_loop, b, false);
-                } else if !cancelled && self.input.touch.button_at(p).and_then(|k| self.input.touch.buttons.get(k)).map(|x| x.btn) == Some(b) {
+                } else if !cancelled
+                    && self
+                        .input
+                        .touch
+                        .button_at(p)
+                        .and_then(|k| self.input.touch.buttons.get(k))
+                        .map(|x| x.btn)
+                        == Some(b)
+                {
                     self.touch_button(event_loop, b, true);
                 }
             }
-            Role::Wheel(..) => self.input.touch.steering = self.input.touch.fingers.iter().any(|f| matches!(f.role, Role::Wheel(..))),
+            Role::Wheel(..) => {
+                self.input.touch.steering = self
+                    .input
+                    .touch
+                    .fingers
+                    .iter()
+                    .any(|f| matches!(f.role, Role::Wheel(..)))
+            }
             Role::Throttle => self.input.touch.throttle = 0.0,
             Role::Brake => self.input.touch.brake = 0.0,
             Role::Clutch => self.input.touch.clutch = 0.0,
@@ -774,7 +1211,11 @@ impl App {
                 }
             }
             Role::MenuSlider => {
-                let at = if cancelled { Vec2::splat(-1e4) } else { self.shell.onto_slider(f.start, p).unwrap_or(p) };
+                let at = if cancelled {
+                    Vec2::splat(-1e4)
+                } else {
+                    self.shell.onto_slider(f.start, p).unwrap_or(p)
+                };
                 self.on_cursor(at.x, at.y);
                 self.shell.button(false);
             }
@@ -792,7 +1233,11 @@ impl App {
             Role::Look => {
                 // a tap on the picture: a click there (a switch the finger missed by a hair
                 // is still found: the cursor's pick is generous)
-                if !f.moved && !cancelled && f.since.elapsed().as_secs_f32() < 0.45 && self.input.touch.fingers.is_empty() {
+                if !f.moved
+                    && !cancelled
+                    && f.since.elapsed().as_secs_f32() < 0.45
+                    && self.input.touch.fingers.is_empty()
+                {
                     self.on_cursor(p.x, p.y);
                     self.left_button(event_loop, true);
                     self.left_button(event_loop, false);
@@ -878,7 +1323,14 @@ impl App {
                 // driver → outside → passenger → driver (on foot: back to the bus)
                 self.view = match self.view.as_str() {
                     "driver" => "outside",
-                    "outside" if self.player.as_ref().is_some_and(|p| p.pax_camera_count() > 0) => "pax",
+                    "outside"
+                        if self
+                            .player
+                            .as_ref()
+                            .is_some_and(|p| p.pax_camera_count() > 0) =>
+                    {
+                        "pax"
+                    }
                     _ => "driver",
                 }
                 .into();
@@ -907,14 +1359,23 @@ impl App {
             }
             Btn::Screenshot => self.take_screenshot(),
             Btn::Door(n) => {
-                let code = [KeyCode::Digit1, KeyCode::Digit2, KeyCode::Digit3, KeyCode::Digit4][(n - 1).min(3)];
+                let code = [
+                    KeyCode::Digit1,
+                    KeyCode::Digit2,
+                    KeyCode::Digit3,
+                    KeyCode::Digit4,
+                ][(n - 1).min(3)];
                 self.tap_key(event_loop, code, down, down);
             }
             Btn::DirectDoor(group) => {
                 if let Some(names) = DIRECT_DOOR_GROUPS.get(group) {
                     for name in *names {
                         // A partial group is valid for buses exposing only one trigger.
-                        if self.player.as_ref().is_some_and(|p| p.vehicle.ty.program.trigger(name).is_some()) {
+                        if self
+                            .player
+                            .as_ref()
+                            .is_some_and(|p| p.vehicle.ty.program.trigger(name).is_some())
+                        {
                             self.vehicle_action(name, down);
                         }
                     }
@@ -982,7 +1443,11 @@ impl App {
             Btn::Tilt => {
                 self.input.touch.tilt = !self.input.touch.tilt;
                 crate::platform::set_tilt(self.input.touch.tilt);
-                let t = if self.input.touch.tilt { "Tilt steering on: hold the phone like a wheel" } else { "Tilt steering off" };
+                let t = if self.input.touch.tilt {
+                    "Tilt steering on: hold the phone like a wheel"
+                } else {
+                    "Tilt steering off"
+                };
                 self.touch_note(t);
             }
         }
@@ -1015,7 +1480,12 @@ impl App {
                 t.note = None;
             }
         }
-        let (steer, thr, brk, active) = (steer_curve(t.steer), t.throttle, t.brake, t.steering || t.tilt || t.steer != 0.0);
+        let (steer, thr, brk, active) = (
+            steer_curve(t.steer),
+            t.throttle,
+            t.brake,
+            t.steering || t.tilt || t.steer != 0.0,
+        );
         let clu = t.clutch;
         if let Some(p) = self.player.as_mut() {
             let a = &mut p.analog;
@@ -1036,7 +1506,10 @@ impl App {
 
     /// Paint the controls into `painter` (physical pixels).
     fn touch_paint(&mut self) {
-        let speed = self.player.as_ref().map(|p| p.vehicle.physics.velocity_kmh().abs());
+        let speed = self
+            .player
+            .as_ref()
+            .map(|p| p.vehicle.physics.velocity_kmh().abs());
         let lock_angle = touch_lock_angle(&self.settings);
         // (the buttons' backgrounds follow the interface's opacity; their icons stay solid)
         let panel_bg = PANEL_BG.alpha(crate::ui::backdrop(self.settings.ui_opacity));
@@ -1049,7 +1522,11 @@ impl App {
         t.atlas.begin_frame();
         let atlas = &mut t.atlas;
         // the wheel, the stick and the pedals
-        let driving = !t.buttons.is_empty() && t.stick_r == 0.0 && !t.hidden && t.throttle_r.w > 0.0 && t.buttons.iter().any(|b| matches!(b.btn, Btn::Gear(..)));
+        let driving = !t.buttons.is_empty()
+            && t.stick_r == 0.0
+            && !t.hidden
+            && t.throttle_r.w > 0.0
+            && t.buttons.iter().any(|b| matches!(b.btn, Btn::Gear(..)));
         if driving {
             if !t.tilt {
                 let c = t.wheel_c;
@@ -1068,7 +1545,10 @@ impl App {
                     let d = Vec2::new(a.cos(), a.sin());
                     let n = Vec2::new(-d.y, d.x) * half;
                     // from the hub's edge to the rim's inner edge
-                    let (p0, p1) = (c + d * hub, c + d * (rim_in * rim_in - half * half).max(0.0).sqrt());
+                    let (p0, p1) = (
+                        c + d * hub,
+                        c + d * (rim_in * rim_in - half * half).max(0.0).sqrt(),
+                    );
                     pt.convex(&[p0 + n, p1 + n, p1 - n, p0 - n], part);
                 }
                 pt.circle(c, hub, part);
@@ -1077,74 +1557,211 @@ impl App {
                 pt.arc(c, rim_in, r, top + 0.12, top + TAU - 0.12, part);
                 pt.arc(c, rim_in, r, top - 0.12, top + 0.12, PANEL_ON);
             } else {
-                pt.text(atlas, fonts, "TILT", 14.0 * u, Weight::Bold, t.wheel_c, Align::Center, DIM);
+                pt.text(
+                    atlas,
+                    fonts,
+                    "TILT",
+                    14.0 * u,
+                    Weight::Bold,
+                    t.wheel_c,
+                    Align::Center,
+                    DIM,
+                );
             }
-            for (r, v, name) in [(t.clutch_r, t.clutch, "CLUTCH"), (t.brake_r, t.brake, "BRAKE"), (t.throttle_r, t.throttle, "GAS")] {
+            for (r, v, name) in [
+                (t.clutch_r, t.clutch, "CLUTCH"),
+                (t.brake_r, t.brake, "BRAKE"),
+                (t.throttle_r, t.throttle, "GAS"),
+            ] {
                 if r.w <= 0.0 {
                     continue;
                 }
                 pt.rounded(r, 12.0 * u, panel_bg);
                 if v > 0.0 {
                     let fill = Rect::new(r.x, r.bottom() - r.h * v, r.w, r.h * v);
-                    pt.rounded(fill, 12.0 * u, match name { "GAS" => Color::rgba(104, 190, 118, 0.75), "CLUTCH" => Color::rgba(90, 150, 230, 0.75), _ => Color::rgba(222, 78, 68, 0.75) });
+                    pt.rounded(
+                        fill,
+                        12.0 * u,
+                        match name {
+                            "GAS" => Color::rgba(104, 190, 118, 0.75),
+                            "CLUTCH" => Color::rgba(90, 150, 230, 0.75),
+                            _ => Color::rgba(222, 78, 68, 0.75),
+                        },
+                    );
                 }
                 pt.rounded_border(r, 12.0 * u, 2.0 * u, Color::rgba(230, 230, 230, 0.35));
                 // the pedal's ribs
                 for k in 1..5 {
                     let y = r.y + r.h * k as f32 / 5.0;
-                    pt.line(Vec2::new(r.x + 12.0 * u, y), Vec2::new(r.right() - 12.0 * u, y), 2.0 * u, Color::rgba(230, 230, 230, 0.18));
+                    pt.line(
+                        Vec2::new(r.x + 12.0 * u, y),
+                        Vec2::new(r.right() - 12.0 * u, y),
+                        2.0 * u,
+                        Color::rgba(230, 230, 230, 0.18),
+                    );
                 }
-                pt.text(atlas, fonts, name, 11.0 * u, Weight::Bold, Vec2::new(r.center().x, r.bottom() - 10.0 * u), Align::Center, DIM);
+                pt.text(
+                    atlas,
+                    fonts,
+                    name,
+                    11.0 * u,
+                    Weight::Bold,
+                    Vec2::new(r.center().x, r.bottom() - 10.0 * u),
+                    Align::Center,
+                    DIM,
+                );
             }
             if let Some(v) = speed {
                 let at = Vec2::new(w * 0.5, h - 22.0 * u);
                 let s = crate::units::Units::now().speed_text(v);
                 let tw = fonts.width(&s, 20.0 * u, Weight::Bold);
-                pt.rounded(Rect::new(at.x - tw * 0.5 - 12.0 * u, at.y - 24.0 * u, tw + 24.0 * u, 34.0 * u), 10.0 * u, panel_bg);
-                pt.text(atlas, fonts, &s, 20.0 * u, Weight::Bold, at, Align::Center, TEXT);
+                pt.rounded(
+                    Rect::new(
+                        at.x - tw * 0.5 - 12.0 * u,
+                        at.y - 24.0 * u,
+                        tw + 24.0 * u,
+                        34.0 * u,
+                    ),
+                    10.0 * u,
+                    panel_bg,
+                );
+                pt.text(
+                    atlas,
+                    fonts,
+                    &s,
+                    20.0 * u,
+                    Weight::Bold,
+                    at,
+                    Align::Center,
+                    TEXT,
+                );
             }
         }
         if t.stick_r > 0.0 && !t.hidden {
             pt.circle(t.stick_c, t.stick_r, panel_bg);
-            pt.arc(t.stick_c, t.stick_r - 3.0 * u, t.stick_r, 0.0, std::f32::consts::TAU, Color::rgba(230, 230, 230, 0.35));
+            pt.arc(
+                t.stick_c,
+                t.stick_r - 3.0 * u,
+                t.stick_r,
+                0.0,
+                std::f32::consts::TAU,
+                Color::rgba(230, 230, 230, 0.35),
+            );
             let knob = t.stick_at.map(|(c, d)| c + d).unwrap_or(t.stick_c);
             pt.circle(knob, 24.0 * u, Color::rgba(230, 230, 230, 0.8));
-            pt.icon(atlas, "open_with", knob, 26.0 * u, Color::rgba(20, 20, 20, 0.9));
+            pt.icon(
+                atlas,
+                "open_with",
+                knob,
+                26.0 * u,
+                Color::rgba(20, 20, 20, 0.9),
+            );
         }
         if t.panel && !t.hidden {
-            let rs: Vec<Rect> = t.buttons.iter().filter(|b| !b.round && !matches!(b.btn, Btn::Gear(..))).map(|b| b.rect).collect();
+            let rs: Vec<Rect> = t
+                .buttons
+                .iter()
+                .filter(|b| !b.round && !matches!(b.btn, Btn::Gear(..)))
+                .map(|b| b.rect)
+                .collect();
             if let (Some(a), Some(b)) = (rs.first(), rs.last()) {
-                let all = Rect::new(a.x - 10.0 * u, a.y - 10.0 * u, b.right() - a.x + 20.0 * u, b.bottom() - a.y + 20.0 * u);
+                let all = Rect::new(
+                    a.x - 10.0 * u,
+                    a.y - 10.0 * u,
+                    b.right() - a.x + 20.0 * u,
+                    b.bottom() - a.y + 20.0 * u,
+                );
                 pt.rounded(all, 16.0 * u, Color::rgba(10, 12, 16, 0.78));
             }
         }
         // the buttons
-        let held: Vec<Btn> = t.fingers.iter().filter_map(|f| if let Role::Button(_, b) = f.role { Some(b) } else { None }).collect();
+        let held: Vec<Btn> = t
+            .fingers
+            .iter()
+            .filter_map(|f| {
+                if let Role::Button(_, b) = f.role {
+                    Some(b)
+                } else {
+                    None
+                }
+            })
+            .collect();
         for b in t.buttons.iter() {
             let pressed = held.contains(&b.btn);
-            let bg = if b.on { PANEL_ON } else if pressed { Color::rgba(90, 94, 100, 0.85) } else { panel_bg };
-            let fg = if b.on { Color::rgba(20, 20, 20, 1.0) } else { TEXT };
+            let bg = if b.on {
+                PANEL_ON
+            } else if pressed {
+                Color::rgba(90, 94, 100, 0.85)
+            } else {
+                panel_bg
+            };
+            let fg = if b.on {
+                Color::rgba(20, 20, 20, 1.0)
+            } else {
+                TEXT
+            };
             if b.round {
                 let c = b.rect.center();
                 let r = b.rect.w * 0.5 * if pressed { 0.94 } else { 1.0 };
                 pt.circle(c, r, bg);
-                pt.arc(c, r - 1.5 * u, r, 0.0, std::f32::consts::TAU, Color::rgba(255, 255, 255, 0.16));
+                pt.arc(
+                    c,
+                    r - 1.5 * u,
+                    r,
+                    0.0,
+                    std::f32::consts::TAU,
+                    Color::rgba(255, 255, 255, 0.16),
+                );
                 pt.icon(atlas, b.icon, c, r * 1.15, fg);
                 if !b.label.is_empty() {
                     // (the door's number)
                     let at = c + Vec2::new(r * 0.62, r * 0.62);
                     pt.circle(at, 9.0 * u, Color::rgba(20, 20, 20, 0.9));
-                    pt.text(atlas, fonts, &b.label, 11.0 * u, Weight::Bold, at + Vec2::new(0.0, 4.0 * u), Align::Center, TEXT);
+                    pt.text(
+                        atlas,
+                        fonts,
+                        &b.label,
+                        11.0 * u,
+                        Weight::Bold,
+                        at + Vec2::new(0.0, 4.0 * u),
+                        Align::Center,
+                        TEXT,
+                    );
                 }
             } else {
                 pt.rounded(b.rect, 10.0 * u, bg);
                 if b.icon.is_empty() {
-                    pt.text_in(atlas, fonts, &b.label, 17.0 * u, Weight::Bold, b.rect, Align::Center, fg);
+                    pt.text_in(
+                        atlas,
+                        fonts,
+                        &b.label,
+                        17.0 * u,
+                        Weight::Bold,
+                        b.rect,
+                        Align::Center,
+                        fg,
+                    );
                 } else {
-                    pt.icon(atlas, b.icon, Vec2::new(b.rect.x + 24.0 * u, b.rect.center().y), 24.0 * u, fg);
-                    let tr = Rect::new(b.rect.x + 44.0 * u, b.rect.y, b.rect.w - 50.0 * u, b.rect.h);
+                    pt.icon(
+                        atlas,
+                        b.icon,
+                        Vec2::new(b.rect.x + 24.0 * u, b.rect.center().y),
+                        24.0 * u,
+                        fg,
+                    );
+                    let tr =
+                        Rect::new(b.rect.x + 44.0 * u, b.rect.y, b.rect.w - 50.0 * u, b.rect.h);
                     let text = fonts.fit(&omsi_ui::tr(&b.label), 12.5 * u, Weight::Medium, tr.w);
-                    pt.text_in(atlas, fonts, &text, 12.5 * u, Weight::Medium, tr, Align::Left, fg);
+                    pt.text_in(
+                        atlas,
+                        fonts,
+                        &text,
+                        12.5 * u,
+                        Weight::Medium,
+                        tr,
+                        Align::Left,
+                        fg,
+                    );
                 }
             }
         }
@@ -1153,8 +1770,26 @@ impl App {
             let s = omsi_ui::tr(&note).to_string();
             let tw = fonts.width(&s, 15.0 * u, Weight::Medium);
             let at = Vec2::new(w * 0.5, h * 0.42);
-            pt.rounded(Rect::new(at.x - tw * 0.5 - 16.0 * u, at.y - 24.0 * u, tw + 32.0 * u, 36.0 * u), 12.0 * u, Color::rgba(10, 12, 16, 0.8 * a));
-            pt.text(atlas, fonts, &s, 15.0 * u, Weight::Medium, at, Align::Center, TEXT.alpha(a));
+            pt.rounded(
+                Rect::new(
+                    at.x - tw * 0.5 - 16.0 * u,
+                    at.y - 24.0 * u,
+                    tw + 32.0 * u,
+                    36.0 * u,
+                ),
+                12.0 * u,
+                Color::rgba(10, 12, 16, 0.8 * a),
+            );
+            pt.text(
+                atlas,
+                fonts,
+                &s,
+                15.0 * u,
+                Weight::Medium,
+                at,
+                Align::Center,
+                TEXT.alpha(a),
+            );
         }
     }
 
@@ -1169,7 +1804,14 @@ impl App {
     }
 
     /// `touch down|move|up x,y [id]` of an input script: a finger, through the same path.
-    pub(crate) fn script_touch(&mut self, event_loop: &ActiveEventLoop, verb: &str, x: f32, y: f32, id: u64) {
+    pub(crate) fn script_touch(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        verb: &str,
+        x: f32,
+        y: f32,
+        id: u64,
+    ) {
         let p = Vec2::new(x, y);
         match verb {
             "down" => self.finger_down(event_loop, id, p),
@@ -1190,13 +1832,33 @@ impl Touch {
             self.gpu = Some((Gpu::new(&r.device, format, 1, self.atlas.size), format));
             self.atlas.mark_all_dirty();
         }
-        let Some((gpu, _)) = self.gpu.as_mut() else { return };
+        let Some((gpu, _)) = self.gpu.as_mut() else {
+            return;
+        };
         gpu.upload(&r.device, &r.queue, 0, &self.painter.verts);
         gpu.upload_atlas(&r.queue, &mut self.atlas);
         let layers = [Layer::flat([0.0, 0.0, w as f32, h as f32], 0.0, 1.0)];
-        let draws = [Draw { buffer: 0, range: 0..self.painter.len(), layer: 0, texture: 0 }];
-        let mut enc = r.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("touch controls") });
-        gpu.render(&r.device, &r.queue, &mut enc, view, (w, h), None, &layers, &draws);
+        let draws = [Draw {
+            buffer: 0,
+            range: 0..self.painter.len(),
+            layer: 0,
+            texture: 0,
+        }];
+        let mut enc = r
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("touch controls"),
+            });
+        gpu.render(
+            &r.device,
+            &r.queue,
+            &mut enc,
+            view,
+            (w, h),
+            None,
+            &layers,
+            &draws,
+        );
         r.queue.submit([enc.finish()]);
     }
 
@@ -1208,21 +1870,70 @@ impl Touch {
         }
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let size = self.atlas.size;
-        let gpu = self.shot_gpu.get_or_insert_with(|| Gpu::new(&r.device, format, 1, size));
+        let gpu = self
+            .shot_gpu
+            .get_or_insert_with(|| Gpu::new(&r.device, format, 1, size));
         gpu.upload(&r.device, &r.queue, 0, &self.painter.verts);
         self.atlas.mark_all_dirty();
         gpu.upload_atlas(&r.queue, &mut self.atlas);
         // (the window's pipeline has the atlas sent again next frame)
         self.atlas.mark_all_dirty();
-        let tex = r.device.create_texture(&wgpu::TextureDescriptor { label: Some("touch shot"), size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC, view_formats: &[] });
+        let tex = r.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("touch shot"),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
         let view = tex.create_view(&Default::default());
         let layers = [Layer::flat([0.0, 0.0, w as f32, h as f32], 0.0, 1.0)];
-        let draws = [Draw { buffer: 0, range: 0..self.painter.len(), layer: 0, texture: 0 }];
+        let draws = [Draw {
+            buffer: 0,
+            range: 0..self.painter.len(),
+            layer: 0,
+            texture: 0,
+        }];
         let mut enc = r.device.create_command_encoder(&Default::default());
-        gpu.render(&r.device, &r.queue, &mut enc, &view, (w, h), Some(wgpu::Color::TRANSPARENT), &layers, &draws);
+        gpu.render(
+            &r.device,
+            &r.queue,
+            &mut enc,
+            &view,
+            (w, h),
+            Some(wgpu::Color::TRANSPARENT),
+            &layers,
+            &draws,
+        );
         let stride = (w * 4).div_ceil(256) * 256;
-        let buf = r.device.create_buffer(&wgpu::BufferDescriptor { label: None, size: (stride * h) as u64, usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ, mapped_at_creation: false });
-        enc.copy_texture_to_buffer(tex.as_image_copy(), wgpu::TexelCopyBufferInfo { buffer: &buf, layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(stride), rows_per_image: None } }, wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 });
+        let buf = r.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: (stride * h) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        enc.copy_texture_to_buffer(
+            tex.as_image_copy(),
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buf,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(stride),
+                    rows_per_image: None,
+                },
+            },
+            wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+        );
         r.queue.submit([enc.finish()]);
         buf.slice(..).map_async(wgpu::MapMode::Read, |_| {});
         omsi_render::wait_gpu(&r.device, None).ok();
@@ -1254,7 +1965,11 @@ pub(crate) fn composite(base: &mut [u8], over: &[u8]) {
 /// drawn wheel could not be made to turn as the bus's own (#856). (120 degrees was a lock in
 /// a flick.)
 fn touch_lock_angle(s: &crate::settings::Settings) -> f32 {
-    let lock_to_lock = if s.wheel_lock >= 45.0 { s.wheel_lock } else { s.wheel_range };
+    let lock_to_lock = if s.wheel_lock >= 45.0 {
+        s.wheel_lock
+    } else {
+        s.wheel_range
+    };
     (lock_to_lock.clamp(90.0, 2880.0) * 0.5).to_radians()
 }
 
@@ -1278,15 +1993,39 @@ mod tests {
 
     #[test]
     fn direct_door_buttons_are_independent_zero_one_and_combined_two_three() {
-        assert_eq!(DIRECT_DOOR_GROUPS, [
-            &["bus_doorfront0"][..],
-            &["bus_doorfront1"][..],
-            &["bus_doorfront2", "bus_doorfront3"][..],
-        ]);
-        assert_eq!(direct_door_buttons(["bus_doorfront0", "bus_doorfront1", "bus_doorfront2", "bus_doorfront3", "bus_doorfront4"]), vec![0, 1, 2]);
-        assert_eq!(direct_door_buttons(["bus_doorfront3", "bus_doorfront1", "bus_doorfront4"]), vec![1, 2]);
-        assert_eq!(direct_door_buttons(["BUS_DOORFRONT0", "bus_doorfront2", "bus_dooraft"]), vec![0, 2]);
-        assert!(direct_door_buttons(["bus_doorfront4", "bus_doorfront5", "bus_doorfrontX", "bus_doorfront01"]).is_empty());
+        assert_eq!(
+            DIRECT_DOOR_GROUPS,
+            [
+                &["bus_doorfront0"][..],
+                &["bus_doorfront1"][..],
+                &["bus_doorfront2", "bus_doorfront3"][..],
+            ]
+        );
+        assert_eq!(
+            direct_door_buttons([
+                "bus_doorfront0",
+                "bus_doorfront1",
+                "bus_doorfront2",
+                "bus_doorfront3",
+                "bus_doorfront4"
+            ]),
+            vec![0, 1, 2]
+        );
+        assert_eq!(
+            direct_door_buttons(["bus_doorfront3", "bus_doorfront1", "bus_doorfront4"]),
+            vec![1, 2]
+        );
+        assert_eq!(
+            direct_door_buttons(["BUS_DOORFRONT0", "bus_doorfront2", "bus_dooraft"]),
+            vec![0, 2]
+        );
+        assert!(direct_door_buttons([
+            "bus_doorfront4",
+            "bus_doorfront5",
+            "bus_doorfrontX",
+            "bus_doorfront01"
+        ])
+        .is_empty());
     }
 
     use crate::settings::Settings;
@@ -1295,8 +2034,14 @@ mod tests {
     /// them, its ends hidden, #1164), or goes under them where the gap is narrow.
     #[test]
     fn the_information_bar_keeps_clear_of_the_buttons_along_the_top() {
-        assert_eq!(super::info_room(1280.0, 14.0, 278.0, 914.0, 56.0, 1.0), [286.0, 906.0, 14.0]);
-        assert_eq!(super::info_room(720.0, 14.0, 278.0, 470.0, 56.0, 1.0), [14.0, 706.0, 64.0]);
+        assert_eq!(
+            super::info_room(1280.0, 14.0, 278.0, 914.0, 56.0, 1.0),
+            [286.0, 906.0, 14.0]
+        );
+        assert_eq!(
+            super::info_room(720.0, 14.0, 278.0, 470.0, 56.0, 1.0),
+            [14.0, 706.0, 64.0]
+        );
     }
 
     #[test]
@@ -1325,10 +2070,31 @@ mod tests {
     fn the_screen_wheel_turns_as_the_wheel_settings_say() {
         let deg = |s: &Settings| touch_lock_angle(s).to_degrees().round();
         // "Full lock at: OMSI": the wheel's whole rotation is the lock, half of it each way
-        assert_eq!(deg(&Settings { wheel_range: 900.0, wheel_lock: 0.0, ..Default::default() }), 450.0);
-        assert_eq!(deg(&Settings { wheel_range: 1800.0, wheel_lock: 0.0, ..Default::default() }), 900.0);
+        assert_eq!(
+            deg(&Settings {
+                wheel_range: 900.0,
+                wheel_lock: 0.0,
+                ..Default::default()
+            }),
+            450.0
+        );
+        assert_eq!(
+            deg(&Settings {
+                wheel_range: 1800.0,
+                wheel_lock: 0.0,
+                ..Default::default()
+            }),
+            900.0
+        );
         // a lock set of its own wins
-        assert_eq!(deg(&Settings { wheel_range: 900.0, wheel_lock: 540.0, ..Default::default() }), 270.0);
+        assert_eq!(
+            deg(&Settings {
+                wheel_range: 900.0,
+                wheel_lock: 540.0,
+                ..Default::default()
+            }),
+            270.0
+        );
     }
 }
 
@@ -1349,7 +2115,8 @@ impl InputState {
     fn touch_pedals(&mut self, _p: Vec2, rest: f32) {
         let rest = rest.clamp(0.0, 0.4);
         let t = &mut self.touch;
-        let depth = |r: Rect, y: f32| pedal_press(((r.bottom() - y) / r.h.max(1.0)).clamp(0.0, 1.0), rest);
+        let depth =
+            |r: Rect, y: f32| pedal_press(((r.bottom() - y) / r.h.max(1.0)).clamp(0.0, 1.0), rest);
         for f in &t.fingers {
             match f.role {
                 Role::Throttle => t.throttle = depth(t.throttle_r, f.pos.y),
@@ -1358,7 +2125,8 @@ impl InputState {
                 // to take a gear, see `pedal_ends`, and a thumb seldom sits at the top edge)
                 // (the clutch as it was: no rest zone, straight up the pedal)
                 Role::Clutch => {
-                    let c = (0.2 + 0.8 * ((t.clutch_r.bottom() - f.pos.y) / t.clutch_r.h.max(1.0))).clamp(0.2, 1.0);
+                    let c = (0.2 + 0.8 * ((t.clutch_r.bottom() - f.pos.y) / t.clutch_r.h.max(1.0)))
+                        .clamp(0.2, 1.0);
                     t.clutch = if c >= 0.75 { 1.0 } else { c };
                 }
                 _ => {}

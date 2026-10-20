@@ -112,7 +112,13 @@ impl VehicleInstance {
         }
         // (the variables of the further conditions - a range, a negated one, the second of a
         // mesh's `[visible]`s - start at 0)
-        for c in ty.model.meshes.iter().flat_map(|m| m.visible_groups()).flatten() {
+        for c in ty
+            .model
+            .meshes
+            .iter()
+            .flat_map(|m| m.visible_groups())
+            .flatten()
+        {
             let key = c.variable.to_ascii_lowercase();
             if !var_index.contains_key(&key) && !model_only.iter().any(|(k, _)| *k == key) {
                 model_only.push((key, None));
@@ -231,7 +237,10 @@ impl VehicleInstance {
         VehicleInstance {
             pending_destination: None,
             a_trans: OmsiFrames::default(),
-            particles: ParticleSet::new(ty.model.particle_systems(), std::ptr::addr_of!(host) as u64 ^ 0x9e37_79b9),
+            particles: ParticleSet::new(
+                ty.model.particle_systems(),
+                std::ptr::addr_of!(host) as u64 ^ 0x9e37_79b9,
+            ),
             light_fade: Vec::new(),
             v_springfactor,
             rest_sag,
@@ -249,7 +258,14 @@ impl VehicleInstance {
             v_brakeforce: v("Brakeforce"),
             v_clutch: v("Clutch").or_else(|| v("clutch_pedal")),
             v_pax_req: (0..PAX_DOORS)
-                .flat_map(|i| [format!("PAX_Entry{i}_Req"), format!("PAX_Exit{i}_Req"), format!("PAX_Entry{i}_Busy"), format!("PAX_Exit{i}_Busy")])
+                .flat_map(|i| {
+                    [
+                        format!("PAX_Entry{i}_Req"),
+                        format!("PAX_Exit{i}_Req"),
+                        format!("PAX_Entry{i}_Busy"),
+                        format!("PAX_Exit{i}_Busy"),
+                    ]
+                })
                 .filter_map(|n| v(&n))
                 .collect(),
             v_accel: [v("A_Trans_X"), v("A_Trans_Y"), v("A_Trans_Z")],
@@ -391,7 +407,11 @@ impl VehicleInstance {
 
     /// [`Self::text_texture_string`] without a copy.
     pub fn text_texture_str(&self, field: &str) -> &str {
-        self.ty.program.text_texture_var(field).map(|i| self.state.str_vars[i as usize].as_str()).unwrap_or("")
+        self.ty
+            .program
+            .text_texture_var(field)
+            .map(|i| self.state.str_vars[i as usize].as_str())
+            .unwrap_or("")
     }
 
     /// Re-render changed text textures; returns the indices with a pending image.
@@ -404,7 +424,12 @@ impl VehicleInstance {
         // (the field and the text are read where they are: both were copied for every text
         // texture every frame)
         for (i, t) in self.text_textures.iter_mut().enumerate() {
-            let text = self.ty.program.text_texture_var(&t.def.variable).map(|v| self.state.str_vars[v as usize].as_str()).unwrap_or("");
+            let text = self
+                .ty
+                .program
+                .text_texture_var(&t.def.variable)
+                .map(|v| self.state.str_vars[v as usize].as_str())
+                .unwrap_or("");
             if t.update(text) {
                 changed.push(i);
             }
@@ -433,7 +458,9 @@ impl VehicleInstance {
     /// Latin font back, which the matrix then draws at the next terminus. Set once, the
     /// display stayed Cyrillic for good.
     pub(crate) fn apply_scheme_vars_each_frame(&mut self) {
-        let Some(Some(i)) = self.host.paint_scheme else { return };
+        let Some(Some(i)) = self.host.paint_scheme else {
+            return;
+        };
         if let Some(s) = self.ty.paint_schemes.get(i) {
             if s.set_vars.is_empty() {
                 return;

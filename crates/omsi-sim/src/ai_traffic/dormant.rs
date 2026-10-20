@@ -10,7 +10,6 @@ pub const DESPAWN_FACTOR: f64 = 1.6;
 /// player (memory: a dormant car is a few dozen bytes, but each one woken is a full vehicle).
 pub const MAP_POPULATION_FACTOR: f32 = 8.0;
 
-
 pub fn street_lane_weight(l: &crate::traffic::Lane) -> Option<f64> {
     (l.kind == LaneKind::Street && !l.no_cars && l.density > 0.0 && l.length() >= 8.0)
         .then(|| l.length() as f64 * l.density.clamp(0.05, 4.0) as f64)
@@ -43,7 +42,11 @@ impl TrafficSim {
                     // network ends does it leave the map (filtering by its group alone, the
                     // trucks of Spandau were gone at the first junction whose turn has no
                     // `trucks` rule, and hardly one of them ever came into range)
-                    let pool = self.types.iter().find(|t| Arc::ptr_eq(&t.0, &d.ty)).and_then(|t| self.group_uvg[t.3]);
+                    let pool = self
+                        .types
+                        .iter()
+                        .find(|t| Arc::ptr_eq(&t.0, &d.ty))
+                        .and_then(|t| self.group_uvg[t.3]);
                     let same_kind = |n: &usize| self.net.lanes[*n].kind == d.kind;
                     let open = |pooled: bool| -> Vec<usize> {
                         l.next
@@ -60,7 +63,11 @@ impl TrafficSim {
                             })
                             .collect()
                     };
-                    let mut options = if pool.is_some() { open(true) } else { Vec::new() };
+                    let mut options = if pool.is_some() {
+                        open(true)
+                    } else {
+                        Vec::new()
+                    };
                     if options.is_empty() {
                         options = open(false);
                     }
@@ -72,7 +79,10 @@ impl TrafficSim {
                         break;
                     }
                     d.s -= l.length();
-                    d.walk = d.walk.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                    d.walk = d
+                        .walk
+                        .wrapping_mul(6364136223846793005)
+                        .wrapping_add(1442695040888963407);
                     d.lane = options[(d.walk >> 33) as usize % options.len()];
                 }
             }
@@ -92,8 +102,11 @@ impl TrafficSim {
             return;
         }
         let far = self.spawn_radius * DESPAWN_FACTOR;
-        let centers: Vec<DVec3> = std::iter::once(center).chain(self.lan_centers.iter().copied()).collect();
-        let mut nearby: Vec<usize> = centers.iter()
+        let centers: Vec<DVec3> = std::iter::once(center)
+            .chain(self.lan_centers.iter().copied())
+            .collect();
+        let mut nearby: Vec<usize> = centers
+            .iter()
             .flat_map(|&c| self.net.lanes_starting_near(c, self.spawn_radius))
             .collect();
         nearby.sort_unstable();
@@ -101,8 +114,13 @@ impl TrafficSim {
         let mut near = 0f64;
         for i in nearby {
             let l = &self.net.lanes[i];
-            let Some(w) = street_lane_weight(l) else { continue };
-            let d = centers.iter().map(|c| (l.start() - *c).truncate().length()).fold(f64::MAX, f64::min);
+            let Some(w) = street_lane_weight(l) else {
+                continue;
+            };
+            let d = centers
+                .iter()
+                .map(|c| (l.start() - *c).truncate().length())
+                .fold(f64::MAX, f64::min);
             if d < self.spawn_radius {
                 near += w;
             }
@@ -110,17 +128,26 @@ impl TrafficSim {
         if near < 50.0 {
             return;
         }
-        let map_target = ((street_target as f64 * self.street_weight / near).min(street_target as f64 * MAP_POPULATION_FACTOR as f64)) as usize;
+        let map_target = ((street_target as f64 * self.street_weight / near)
+            .min(street_target as f64 * MAP_POPULATION_FACTOR as f64))
+            as usize;
         // (a car that gave up counts while it is on the road: see omsi-app's `populate_kind`)
         let present = self.cars.iter().filter(|c| !c.is_bus()).count() + self.dormant.len();
         if present >= map_target {
             return;
         }
         // The full outside list is only needed while replenishing the map population.
-        let outside: Vec<(usize, f32)> = self.net.lanes.iter().enumerate()
+        let outside: Vec<(usize, f32)> = self
+            .net
+            .lanes
+            .iter()
+            .enumerate()
             .filter_map(|(i, l)| {
                 let w = street_lane_weight(l)?;
-                let d = centers.iter().map(|c| (l.start() - *c).truncate().length()).fold(f64::MAX, f64::min);
+                let d = centers
+                    .iter()
+                    .map(|c| (l.start() - *c).truncate().length())
+                    .fold(f64::MAX, f64::min);
                 (d > far).then_some((i, w as f32))
             })
             .collect();
@@ -128,19 +155,42 @@ impl TrafficSim {
             return;
         }
         let mut acc = 0.0f32;
-        let cumulative: Vec<f32> = outside.iter().map(|c| { acc += c.1; acc }).collect();
+        let cumulative: Vec<f32> = outside
+            .iter()
+            .map(|c| {
+                acc += c.1;
+                acc
+            })
+            .collect();
         for _ in 0..(map_target - present).min(64) {
             let x = self.rand_f() as f32 * acc;
-            let lane = outside[cumulative.partition_point(|&c| c < x).min(outside.len() - 1)].0;
+            let lane = outside[cumulative
+                .partition_point(|&c| c < x)
+                .min(outside.len() - 1)]
+            .0;
             let s = (self.rand_f() * (self.net.lanes[lane].length() as f64 - 4.0)) as f32 + 2.0;
             let Some(ty) = self.pick_type(LaneKind::Street, Some(lane)) else {
                 continue;
             };
             let seed = self.rand();
-            let scheme = if ty.paint_schemes.is_empty() { None } else { Some((seed >> 8) as usize % ty.paint_schemes.len().min(AI_SCHEMES)) };
+            let scheme = if ty.paint_schemes.is_empty() {
+                None
+            } else {
+                Some((seed >> 8) as usize % ty.paint_schemes.len().min(AI_SCHEMES))
+            };
             let id = self.next_id;
             self.next_id += 1;
-            self.dormant.push(DormantCar { id, ty, kind: LaneKind::Street, lane, s, speed: 8.0, seed, scheme, walk: seed | 1 });
+            self.dormant.push(DormantCar {
+                id,
+                ty,
+                kind: LaneKind::Street,
+                lane,
+                s,
+                speed: 8.0,
+                seed,
+                scheme,
+                walk: seed | 1,
+            });
         }
     }
 
@@ -150,7 +200,11 @@ impl TrafficSim {
     /// order they wake in. Its id.
     pub fn put_to_sleep(&mut self, i: usize) -> u64 {
         let c = self.take_off(i, Removal::Dormant);
-        let kind = self.net.lanes.get(c.state.lane).map_or(LaneKind::Street, |l| l.kind);
+        let kind = self
+            .net
+            .lanes
+            .get(c.state.lane)
+            .map_or(LaneKind::Street, |l| l.kind);
         self.dormant.push(DormantCar {
             id: c.id,
             ty: c.vehicle.ty.clone(),
@@ -175,17 +229,20 @@ impl TrafficSim {
                 let l = self.net.lanes.get(d.lane)?;
                 let s = d.s.clamp(0.0, (l.length() - 0.1).max(0.0));
                 let (p, heading) = l.at(s);
-                centers.iter().any(|c| (p - *c).truncate().length() < radius).then_some(admission::Request {
-                    ticket: k as u64,
-                    class: admission::Class::Dormant,
-                    lane: d.lane,
-                    s,
-                    pos: p,
-                    heading: heading as f64,
-                    at: self.time,
-                    dormant: Some(d.id),
-                    tries: 0,
-                })
+                centers
+                    .iter()
+                    .any(|c| (p - *c).truncate().length() < radius)
+                    .then_some(admission::Request {
+                        ticket: k as u64,
+                        class: admission::Class::Dormant,
+                        lane: d.lane,
+                        s,
+                        pos: p,
+                        heading: heading as f64,
+                        at: self.time,
+                        dormant: Some(d.id),
+                        tries: 0,
+                    })
             })
             .collect()
     }
@@ -199,6 +256,17 @@ impl TrafficSim {
     /// Put dormant car `d` back on the road as itself (`vehicle` made of its type): its id,
     /// seed and paint, where it has got to, at about its speed. Its id.
     pub fn wake(&mut self, d: DormantCar, vehicle: VehicleInstance) -> u64 {
-        self.place_car(vehicle, d.kind, d.lane, d.s, d.ty, d.seed, d.scheme, Some(d.id), Some(d.speed), None)
+        self.place_car(
+            vehicle,
+            d.kind,
+            d.lane,
+            d.s,
+            d.ty,
+            d.seed,
+            d.scheme,
+            Some(d.id),
+            Some(d.speed),
+            None,
+        )
     }
 }

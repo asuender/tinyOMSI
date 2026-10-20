@@ -61,7 +61,14 @@ fn writer() -> &'static Option<Sender<Vec<u8>>> {
 
 /// Called every frame; hands the writer a JSON at most twice a second, while the file is
 /// wanted (see the module).
-pub fn publish(player: Option<&crate::player::Player>, duty: Option<&PlayerDuty>, humans: Option<&crate::humans::Humans>, paused: bool, schedule: Option<&crate::schedule::Schedule>, traffic: Option<&crate::traffic::Traffic>) {
+pub fn publish(
+    player: Option<&crate::player::Player>,
+    duty: Option<&PlayerDuty>,
+    humans: Option<&crate::humans::Humans>,
+    paused: bool,
+    schedule: Option<&crate::schedule::Schedule>,
+    traffic: Option<&crate::traffic::Traffic>,
+) {
     static LAST: Mutex<Option<Instant>> = Mutex::new(None);
     {
         let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
@@ -74,7 +81,10 @@ pub fn publish(player: Option<&crate::player::Player>, duty: Option<&PlayerDuty>
     if !WANTED.load(Ordering::Relaxed) {
         return;
     }
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0);
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs_f64())
+        .unwrap_or(0.0);
     let mut v = serde_json::json!({
         "version": 2,
         "pid": std::process::id(),
@@ -106,7 +116,9 @@ pub fn publish(player: Option<&crate::player::Player>, duty: Option<&PlayerDuty>
                     .map(|s| serde_json::json!({ "object_id": s.object_id, "name": s.name.trim(), "stops": s.stops, "arr": s.arr, "dep": s.dep, "x": s.position.map(|q| q.x), "y": s.position.map(|q| q.y) }))
                     .collect();
                 let next = trip.stops.get(d.next_stop);
-                let dist = next.and_then(|s| s.position).map(|q| ((q.x - pos.x).powi(2) + (q.y - pos.y).powi(2)).sqrt());
+                let dist = next
+                    .and_then(|s| s.position)
+                    .map(|q| ((q.x - pos.x).powi(2) + (q.y - pos.y).powi(2)).sqrt());
                 // (the previous stop the bus actually calls at)
                 let prev = trip.stops.iter().take(d.next_stop).rev().find(|s| s.stops);
                 v["duty"] = serde_json::json!({

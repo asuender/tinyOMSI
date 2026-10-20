@@ -28,10 +28,24 @@ const TAG_FILL: Color = Color::rgba(255, 255, 255, 0.10);
 impl Layout<'_> {
     pub(crate) fn nav_natural(&self, e: &Element) -> f32 {
         match &e.kind {
-            Kind::Box { children, .. } => children.iter().map(|c| self.natural(c)).fold(0.0, f32::max) + BOX_STRIPE + BOX_PAD.0 + BOX_PAD.1,
+            Kind::Box { children, .. } => {
+                children.iter().map(|c| self.natural(c)).fold(0.0, f32::max)
+                    + BOX_STRIPE
+                    + BOX_PAD.0
+                    + BOX_PAD.1
+            }
             Kind::Stops { stops, size } => {
                 let k = size / 13.0;
-                stops.iter().map(|s| NAME_X * k + self.width(&s.name, *size, Weight::Medium) + 2.0 * self.width("00:00", size * 12.0 / 13.0, Weight::Bold) + 16.0 * k).fold(0.0, f32::max).ceil()
+                stops
+                    .iter()
+                    .map(|s| {
+                        NAME_X * k
+                            + self.width(&s.name, *size, Weight::Medium)
+                            + 2.0 * self.width("00:00", size * 12.0 / 13.0, Weight::Bold)
+                            + 16.0 * k
+                    })
+                    .fold(0.0, f32::max)
+                    .ceil()
             }
             _ => 0.0,
         }
@@ -54,7 +68,12 @@ impl Layout<'_> {
             Kind::Box { children, gap } => {
                 let tint = e.color.map(color).unwrap_or(ACCENT);
                 self.rounded(r, BOX_R, tint.alpha(BOX_TINT), None);
-                self.rounded(Rect::new(r.x, r.y, BOX_STRIPE, r.h), BOX_STRIPE * 0.5, tint, None);
+                self.rounded(
+                    Rect::new(r.x, r.y, BOX_STRIPE, r.h),
+                    BOX_STRIPE * 0.5,
+                    tint,
+                    None,
+                );
                 let x = r.x + BOX_STRIPE + BOX_PAD.0;
                 let w = (r.right() - BOX_PAD.1 - x).max(1.0);
                 let mut y = r.y + BOX_Y;
@@ -95,15 +114,31 @@ impl Layout<'_> {
         let mut x = track.x;
         for (i, (v, c)) in parts.iter().enumerate() {
             let w = least + spare * v / total;
-            let drawn = if i + 1 == parts.len() { track.right() - x } else { w - 1.0 };
-            self.rounded(Rect::new(x, track.y, drawn.max(0.0), height), (height * 0.5).min(drawn * 0.5).max(0.0), color(*c), None);
+            let drawn = if i + 1 == parts.len() {
+                track.right() - x
+            } else {
+                w - 1.0
+            };
+            self.rounded(
+                Rect::new(x, track.y, drawn.max(0.0), height),
+                (height * 0.5).min(drawn * 0.5).max(0.0),
+                color(*c),
+                None,
+            );
             x += w;
         }
         true
     }
 
     /// A badge: its text in its weight on a rounded fill, `BADGE_H` high, in the middle of `r`.
-    pub(crate) fn badge(&mut self, e: &Element, r: Rect, text: &str, text_color: Option<Rgba>, wt: Weight) {
+    pub(crate) fn badge(
+        &mut self,
+        e: &Element,
+        r: Rect,
+        text: &str,
+        text_color: Option<Rgba>,
+        wt: Weight,
+    ) {
         let w = self.natural(e).min(r.w);
         let b = Rect::new(r.x, r.y + (r.h - BADGE_H) * 0.5, w, BADGE_H);
         let fill = e.color.map(color).unwrap_or(ACCENT);
@@ -111,12 +146,23 @@ impl Layout<'_> {
         let t = self.fit(text, BADGE_PX, wt, w - 2.0 * BADGE_PAD);
         let tw = self.width(&t, BADGE_PX, wt);
         let y = self.baseline(b.y, b.h, BADGE_PX, wt);
-        self.text(t, BADGE_PX, wt, Vec2::new(b.x + (b.w - tw) * 0.5, y), text_color.map(color).unwrap_or(ink_on(fill)));
+        self.text(
+            t,
+            BADGE_PX,
+            wt,
+            Vec2::new(b.x + (b.w - tw) * 0.5, y),
+            text_color.map(color).unwrap_or(ink_on(fill)),
+        );
     }
 
     /// A circle (a rounded square as wide as it is high).
     fn dot(&mut self, at: Vec2, radius: f32, c: Color) {
-        self.rounded(Rect::new(at.x - radius, at.y - radius, 2.0 * radius, 2.0 * radius), radius, c, None);
+        self.rounded(
+            Rect::new(at.x - radius, at.y - radius, 2.0 * radius, 2.0 * radius),
+            radius,
+            c,
+            None,
+        );
     }
 
     /// One stop on the rail: its pin with the rail through it (grey where the bus has been),
@@ -125,12 +171,22 @@ impl Layout<'_> {
     fn stop(&mut self, s: &Stop, r: Rect, size: f32, rail: Color, above: bool, below: bool) {
         let k = size / 13.0;
         let (x, cy) = (r.x + RAIL_X * k, r.y + r.h * 0.5);
-        let line = if s.state == StopState::Done { RAIL_DONE } else { rail };
+        let line = if s.state == StopState::Done {
+            RAIL_DONE
+        } else {
+            rail
+        };
         if above {
-            self.out.items.push(Item::Rect { r: Rect::new(x - 1.5 * k, r.y, 3.0 * k, r.h * 0.5), color: line });
+            self.out.items.push(Item::Rect {
+                r: Rect::new(x - 1.5 * k, r.y, 3.0 * k, r.h * 0.5),
+                color: line,
+            });
         }
         if below {
-            self.out.items.push(Item::Rect { r: Rect::new(x - 1.5 * k, cy, 3.0 * k, r.h * 0.5), color: line });
+            self.out.items.push(Item::Rect {
+                r: Rect::new(x - 1.5 * k, cy, 3.0 * k, r.h * 0.5),
+                color: line,
+            });
         }
         let center = Vec2::new(x, cy);
         match s.state {
@@ -162,7 +218,13 @@ impl Layout<'_> {
         if !s.expected.is_empty() {
             let ew = self.width(&s.expected, tpx, Weight::Bold);
             let base = self.baseline(r.y, lh, tpx, Weight::Bold);
-            self.text(s.expected.clone(), tpx, Weight::Bold, Vec2::new(right - ew, base), s.expected_color.map(color).unwrap_or(TEXT_SOFT));
+            self.text(
+                s.expected.clone(),
+                tpx,
+                Weight::Bold,
+                Vec2::new(right - ew, base),
+                s.expected_color.map(color).unwrap_or(TEXT_SOFT),
+            );
             right -= ew + 8.0 * k;
         }
         if !s.tag.is_empty() {
@@ -171,7 +233,13 @@ impl Layout<'_> {
             let t = Rect::new(right - w, cy - 8.0 * k, w, 16.0 * k);
             self.rounded(t, 4.0 * k, TAG_FILL, None);
             let base = self.baseline(t.y, t.h, px, Weight::Medium);
-            self.text(s.tag.clone(), px, Weight::Medium, Vec2::new(t.x + 5.0 * k, base), TEXT_DIM);
+            self.text(
+                s.tag.clone(),
+                px,
+                Weight::Medium,
+                Vec2::new(t.x + 5.0 * k, base),
+                TEXT_DIM,
+            );
             right -= w + 8.0 * k;
         }
         let (px, wt, c) = match s.state {

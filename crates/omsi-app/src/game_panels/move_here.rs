@@ -15,7 +15,10 @@ pub(crate) fn panel(at: glam::DVec3) -> Panel {
         vec![
             title("Move the vehicle here?"),
             note(&format!("x {:.0}  y {:.0}", at.x, at.y)),
-            grow_row(vec![button("yes", "Move here", Some("near_me")), button("no", "Cancel", Some("close"))]),
+            grow_row(vec![
+                button("yes", "Move here", Some("near_me")),
+                button("no", "Cancel", Some("close")),
+            ]),
         ],
     )
 }
@@ -26,15 +29,27 @@ pub(crate) fn ask(app: &mut crate::App, at: glam::DVec3) {
 }
 
 pub(crate) fn click(app: &mut crate::App, id: &str) {
-    let Some(at) = app.menus.game_panels.move_to.take() else { return };
+    let Some(at) = app.menus.game_panels.move_to.take() else {
+        return;
+    };
     if id != "yes" {
         return;
     }
-    if app.net.lan.as_ref().is_some_and(|l| l.role == omsi_net::Role::Client) {
-        app.service_msg = Some(("In a LAN session only the host moves vehicles on the map".into(), 4.0));
+    if app
+        .net
+        .lan
+        .as_ref()
+        .is_some_and(|l| l.role == omsi_net::Role::Client)
+    {
+        app.service_msg = Some((
+            "In a LAN session only the host moves vehicles on the map".into(),
+            4.0,
+        ));
         return;
     }
-    let Some(heading) = app.player.as_ref().map(|p| p.vehicle.heading) else { return };
+    let Some(heading) = app.player.as_ref().map(|p| p.vehicle.heading) else {
+        return;
+    };
     crate::admin::teleport(app, at, heading);
     app.service_msg = Some(("The bus stands where the map was clicked".into(), 3.0));
     app.service_event("teleport", "player", None);

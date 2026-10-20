@@ -92,8 +92,8 @@ pub fn auto_shift_gear(
 
 #[cfg(test)]
 mod auto_shift_tests {
-    use super::GateMemory;
     use super::auto_shift_gear as g;
+    use super::GateMemory;
 
     #[test]
     fn a_gear_variable_that_does_not_follow_the_gates_gives_way_to_the_gate() {

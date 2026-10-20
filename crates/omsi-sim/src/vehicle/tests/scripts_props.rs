@@ -21,9 +21,24 @@ fn ai_scripts_receive_pedals_before_both_frame_variants() {
             "",
         );
         for (throttle, brake, clutch) in [(0.75, 0.0, 0.0), (0.0, 0.6, 0.2), (0.0, 0.0, 0.0)] {
-            v.set_controls(crate::Controls { throttle, brake, clutch, ..Default::default() });
-            v.update_ai(0.02, &AiFrame { speed: 8.0, ..Default::default() });
-            assert_eq!(v.var("engine_throttle_injection"), Some(throttle), "{frame}");
+            v.set_controls(crate::Controls {
+                throttle,
+                brake,
+                clutch,
+                ..Default::default()
+            });
+            v.update_ai(
+                0.02,
+                &AiFrame {
+                    speed: 8.0,
+                    ..Default::default()
+                },
+            );
+            assert_eq!(
+                v.var("engine_throttle_injection"),
+                Some(throttle),
+                "{frame}"
+            );
             assert_eq!(v.var("brake_seen"), Some(brake), "{frame}");
             assert_eq!(v.var("clutch_seen"), Some(clutch), "{frame}");
         }
@@ -72,7 +87,15 @@ fn shadow_blob_lies_on_the_wheels_plane() {
     let rail_ty = coupling_test_type(Some(5.0));
     let rail_v = VehicleInstance::new(rail_ty.clone(), VehicleHost::new(Default::default()));
     assert_eq!(rail_v.contact_plane(), [0.0, 0.0, 0.0]);
-    let rail_t = TrailerPart::new_ex(rail_ty.clone(), &rail_ty, false, false, &rail_ty.program, 0, 0);
+    let rail_t = TrailerPart::new_ex(
+        rail_ty.clone(),
+        &rail_ty,
+        false,
+        false,
+        &rail_ty.program,
+        0,
+        0,
+    );
     let m_local = rail_t.mesh_local_transform(0);
     assert!(!m_local.is_nan());
 }
@@ -98,8 +121,12 @@ fn stores_and_reads_bits_match_the_scan_for_stock_scripts() {
         let ops: Vec<&omsi_script::Op> = p.blocks.iter().flat_map(|b| &b.ops).collect();
         let (mut stored, mut read) = (0, 0);
         for v in 0..p.var_names.len() as omsi_script::VarId + 64 {
-            let s = ops.iter().any(|op| matches!(op, omsi_script::Op::Store(x) if *x == v));
-            let r = ops.iter().any(|op| matches!(op, omsi_script::Op::Load(x) if *x == v));
+            let s = ops
+                .iter()
+                .any(|op| matches!(op, omsi_script::Op::Store(x) if *x == v));
+            let r = ops
+                .iter()
+                .any(|op| matches!(op, omsi_script::Op::Load(x) if *x == v));
             assert_eq!(p.stores(v), s, "{}: stores {v}", bus.display());
             assert_eq!(p.reads(v), r, "{}: reads {v}", bus.display());
             stored += s as usize;
@@ -246,7 +273,11 @@ fn volvo_wright_rear_toggle_keeps_close_target_through_frames() {
     assert_eq!(v.var("doorTarget_23"), Some(0.0));
     assert!(v.var("door_2").unwrap_or(1.0) < 0.1);
     assert!(v.var("door_3").unwrap_or(1.0) < 0.1);
-    assert!(v.host.fired_triggers.iter().any(|name| name == "ev_doortriggerclose_2"));
+    assert!(v
+        .host
+        .fired_triggers
+        .iter()
+        .any(|name| name == "ev_doortriggerclose_2"));
 }
 
 #[test]
@@ -259,10 +290,17 @@ fn volvo_wright_family_rear_toggle_closes_every_bus_variant() {
         .expect("Volvo Wright directory")
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .filter(|path| path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bus")))
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("bus"))
+        })
         .collect();
     buses.sort();
-    assert!(buses.len() >= 20, "unexpectedly few Volvo Wright buses: {}", buses.len());
+    assert!(
+        buses.len() >= 20,
+        "unexpectedly few Volvo Wright buses: {}",
+        buses.len()
+    );
     for bus in buses {
         let name = bus.file_name().unwrap().to_string_lossy().into_owned();
         let ty = Arc::new(VehicleType::load(&root, &bus).unwrap_or_else(|e| panic!("{name}: {e}")));
@@ -285,7 +323,10 @@ fn volvo_wright_family_rear_toggle_closes_every_bus_variant() {
         assert!(v.trigger("bus_dooraft"), "{name}: missing bus_dooraft");
         let target = v.var("doorTarget_23").unwrap_or(0.0);
         let request = v.var("door_back_close_request").unwrap_or(0.0);
-        assert!(target == 0.0 || request > 0.0, "{name}: rear door stayed open (target={target}, request={request})");
+        assert!(
+            target == 0.0 || request > 0.0,
+            "{name}: rear door stayed open (target={target}, request={request})"
+        );
     }
 }
 
@@ -299,7 +340,10 @@ fn a_wheels_ground_is_the_road_under_it_not_the_highest_face() {
     let (road, deck) = (12.0f64, 17.0f64);
     // the faces: the deck above the wheel, the road under it
     let faces = |_x: f64, _y: f64, top: f64| crate::rigid::GroundProbe {
-        below: [road, deck].into_iter().filter(|h| *h <= top).fold(None, |a: Option<f64>, b| Some(a.map_or(b, |a| a.max(b)))),
+        below: [road, deck]
+            .into_iter()
+            .filter(|h| *h <= top)
+            .fold(None, |a: Option<f64>, b| Some(a.map_or(b, |a| a.max(b)))),
         above: None,
     };
     let faces: &dyn crate::rigid::Ground = &faces;
@@ -309,9 +353,15 @@ fn a_wheels_ground_is_the_road_under_it_not_the_highest_face() {
     let wheel = DVec3::new(100.0, 200.0, road);
     assert_eq!(wheel_ground(Some(faces), Some(plain), wheel), Some(road));
     // a wheel standing on the deck itself gets the deck
-    assert_eq!(wheel_ground(Some(faces), Some(plain), DVec3::new(100.0, 200.0, deck)), Some(deck));
+    assert_eq!(
+        wheel_ground(Some(faces), Some(plain), DVec3::new(100.0, 200.0, deck)),
+        Some(deck)
+    );
     // nothing drawn within a step of the wheel: the plain sampler, as before
-    let empty = |_x: f64, _y: f64, _top: f64| crate::rigid::GroundProbe { below: None, above: Some(deck) };
+    let empty = |_x: f64, _y: f64, _top: f64| crate::rigid::GroundProbe {
+        below: None,
+        above: Some(deck),
+    };
     let empty: &dyn crate::rigid::Ground = &empty;
     assert_eq!(wheel_ground(Some(empty), Some(plain), wheel), Some(deck));
     // no face probe at all (a rail or air lane): the plain sampler
@@ -376,7 +426,11 @@ fn props_plan_matches_compute_mesh_props() {
 #[ignore = "needs the original OMSI 2 install (OMSI_ROOT)"]
 fn props_plan_dirt_and_lights_match_the_names() {
     let root = original_root();
-    for bus in ["Vehicles/MAN_NL_NG/MAN_EN92_main.bus", "Vehicles/MAN_SD202/MAN_D92.bus", "Vehicles/VW_Golf_2/ai_vw_golf_2.bus"] {
+    for bus in [
+        "Vehicles/MAN_NL_NG/MAN_EN92_main.bus",
+        "Vehicles/MAN_SD202/MAN_D92.bus",
+        "Vehicles/VW_Golf_2/ai_vw_golf_2.bus",
+    ] {
         let bus = root.join(bus);
         require_content(&[&bus]);
         let ty = Arc::new(VehicleType::load(&root, &bus).expect("bus"));
@@ -387,7 +441,9 @@ fn props_plan_dirt_and_lights_match_the_names() {
         let mut dirt = Vec::new();
         for (i, vm) in v.ty.meshes.iter().enumerate() {
             for m in &v.ty.model.meshes[vm.def_index].materials {
-                let Some(name) = m.alphascale.as_deref().map(str::trim) else { continue };
+                let Some(name) = m.alphascale.as_deref().map(str::trim) else {
+                    continue;
+                };
                 let wiped = match name.to_ascii_lowercase().as_str() {
                     "dirt_norm" => false,
                     "dirt_wiped" => true,
@@ -398,20 +454,33 @@ fn props_plan_dirt_and_lights_match_the_names() {
                 }
             }
         }
-        let lights: Vec<f32> = v
-            .ty
-            .model
-            .meshes
-            .iter()
-            .flat_map(|md| &md.light_enh_2)
-            .map(|l| l.variable.trim().parse::<f32>().ok().or_else(|| v.var(l.variable.trim())).unwrap_or(0.0))
-            .collect();
+        let lights: Vec<f32> =
+            v.ty.model
+                .meshes
+                .iter()
+                .flat_map(|md| &md.light_enh_2)
+                .map(|l| {
+                    l.variable
+                        .trim()
+                        .parse::<f32>()
+                        .ok()
+                        .or_else(|| v.var(l.variable.trim()))
+                        .unwrap_or(0.0)
+                })
+                .collect();
         let mut plan = PropsPlan::default();
         plan.refresh(&v.ty, &v.var_index);
         assert_eq!(plan.dirt, dirt, "{}", bus.display());
-        let planned: Vec<f32> = plan.lights.iter().map(|s| s.value(&v.state.vars, 0.0)).collect();
+        let planned: Vec<f32> = plan
+            .lights
+            .iter()
+            .map(|s| s.value(&v.state.vars, 0.0))
+            .collect();
         assert_eq!(planned, lights, "{}", bus.display());
-        assert_eq!(plan.dirt_wiped.map(|i| v.state.vars[i]), v.var("Dirt_Wiped"));
+        assert_eq!(
+            plan.dirt_wiped.map(|i| v.state.vars[i]),
+            v.var("Dirt_Wiped")
+        );
         assert!(!lights.is_empty(), "{}: no lamps", bus.display());
     }
 }
@@ -420,29 +489,50 @@ fn props_plan_dirt_and_lights_match_the_names() {
 fn synthetic_material_plan_preserves_lightmap_thresholds_and_alpha_slots() {
     let mut ty = coupling_test_type(None);
     let ty = Arc::get_mut(&mut ty).unwrap();
-    ty.model = Model::parse(&omsi_cfg::CfgFile::from_str("synthetic.cfg",
-        include_str!("../../../../omsi-model/tests/fixtures/material-compatibility.cfg")));
+    ty.model = Model::parse(&omsi_cfg::CfgFile::from_str(
+        "synthetic.cfg",
+        include_str!("../../../../omsi-model/tests/fixtures/material-compatibility.cfg"),
+    ));
     ty.meshes.push(VehicleMesh {
-        def_index: 0, data: MeshData::default(), file: PathBuf::new(),
-        materials: (0..2).map(|_| omsi_o3d::Material {
-            texture: "display.dds".into(), ..Default::default()
-        }).collect(),
-        overrides: Vec::new(), pivot: Mat4::IDENTITY, viewpoint: 0,
-        skin: Vec::new(), keep_winding: false,
+        def_index: 0,
+        data: MeshData::default(),
+        file: PathBuf::new(),
+        materials: (0..2)
+            .map(|_| omsi_o3d::Material {
+                texture: "display.dds".into(),
+                ..Default::default()
+            })
+            .collect(),
+        overrides: Vec::new(),
+        pivot: Mat4::IDENTITY,
+        viewpoint: 0,
+        skin: Vec::new(),
+        keep_winding: false,
     });
-    let mut index: HashMap<String, omsi_script::VarId> = ["display_alpha", "bright", "dim", "display_mode"]
-        .into_iter().enumerate().map(|(i, n)| (n.into(), i as omsi_script::VarId)).collect();
+    let mut index: HashMap<String, omsi_script::VarId> =
+        ["display_alpha", "bright", "dim", "display_mode"]
+            .into_iter()
+            .enumerate()
+            .map(|(i, n)| (n.into(), i as omsi_script::VarId))
+            .collect();
     let mut plan = PropsPlan::default();
     plan.refresh(ty, &index);
     let mut got = Vec::new();
     // Both lightmaps off, either on, both on, and the exact OMSI 0.5 threshold.
-    for (bright, dim, expected) in [(0.0, 0.0, 0.0), (1.0, 0.0, 1.0),
-        (0.0, 1.0, 1.0), (1.0, 1.0, 1.0), (0.49, 0.49, 0.0), (0.5, 0.0, 1.0)] {
+    for (bright, dim, expected) in [
+        (0.0, 0.0, 0.0),
+        (1.0, 0.0, 1.0),
+        (0.0, 1.0, 1.0),
+        (1.0, 1.0, 1.0),
+        (0.49, 0.49, 0.0),
+        (0.5, 0.0, 1.0),
+    ] {
         for alpha in [0.0, 0.5, 1.0] {
             for mode in [0.0, 1.0] {
                 let vars = [alpha, bright, dim, mode];
                 plan.apply(&vars, &mut got);
-                let want = compute_mesh_props(ty, &|name| index.get(name).map(|&i| vars[i as usize]));
+                let want =
+                    compute_mesh_props(ty, &|name| index.get(name).map(|&i| vars[i as usize]));
                 assert_eq!(got[0].slot_light, vec![expected, 1.0]);
                 assert_eq!(got[0].slot_alpha, vec![alpha, 1.0]);
                 assert_eq!(got[0].slot_light, want[0].slot_light);
@@ -473,10 +563,13 @@ fn a_lightmap_on_an_unknown_variable_is_on() {
             .iter()
             .enumerate()
             .find_map(|(i, vm)| {
-                ty.model.meshes[vm.def_index].materials.iter().find_map(|m| {
-                    let (_, v) = m.lightmaps.first()?;
-                    Some((i, override_slot(&vm.materials, m)?, v.clone()))
-                })
+                ty.model.meshes[vm.def_index]
+                    .materials
+                    .iter()
+                    .find_map(|m| {
+                        let (_, v) = m.lightmaps.first()?;
+                        Some((i, override_slot(&vm.materials, m)?, v.clone()))
+                    })
             })
             .expect("a lightmap");
         let di = ty.meshes[i].def_index;
@@ -486,7 +579,8 @@ fn a_lightmap_on_an_unknown_variable_is_on() {
                 m.lightmaps.truncate(1);
             }
         }
-        let mut v = VehicleInstance::new(Arc::new(ty), VehicleHost::new(crate::SimClock::default()));
+        let mut v =
+            VehicleInstance::new(Arc::new(ty), VehicleHost::new(crate::SimClock::default()));
         for x in v.state.vars.iter_mut() {
             *x = value;
         }

@@ -23,7 +23,9 @@ impl HeadPose {
     /// (0x829860) moves its camera across by `-x` of the TrackIR pose, which opentrack fills
     /// with its own x: a head moved to the right took the camera to the left (#1157).
     pub fn seat_offset(&self) -> glam::Vec3 {
-        glam::Vec3::new(-self.pos[0], -self.pos[2], self.pos[1]).clamp(glam::Vec3::splat(-60.0), glam::Vec3::splat(60.0)) / 100.0
+        glam::Vec3::new(-self.pos[0], -self.pos[2], self.pos[1])
+            .clamp(glam::Vec3::splat(-60.0), glam::Vec3::splat(60.0))
+            / 100.0
     }
 }
 
@@ -45,8 +47,14 @@ const STREAM_GAP: Duration = Duration::from_millis(100);
 /// opentrack's own), not the frame rate: the newest pose taken each frame turned the view
 /// in steps - several frames still, then a jump - which looks like a picture out of step with
 /// the screen, and like a shaking head where the steps were small (#2216, #1983).
-pub fn between_poses(before: Option<(HeadPose, Instant)>, newest: (HeadPose, Instant), now: Instant) -> HeadPose {
-    let Some((p0, t0)) = before else { return newest.0 };
+pub fn between_poses(
+    before: Option<(HeadPose, Instant)>,
+    newest: (HeadPose, Instant),
+    now: Instant,
+) -> HeadPose {
+    let Some((p0, t0)) = before else {
+        return newest.0;
+    };
     let (p1, t1) = newest;
     let gap = t1.saturating_duration_since(t0);
     if gap.is_zero() || gap > STREAM_GAP {
@@ -57,8 +65,16 @@ pub fn between_poses(before: Option<(HeadPose, Instant)>, newest: (HeadPose, Ins
     // (the turns the short way round)
     let turn = |a: f32, b: f32| a + ((b - a + 180.0).rem_euclid(360.0) - 180.0) * f;
     HeadPose {
-        pos: [lerp(p0.pos[0], p1.pos[0]), lerp(p0.pos[1], p1.pos[1]), lerp(p0.pos[2], p1.pos[2])],
-        rot: [turn(p0.rot[0], p1.rot[0]), turn(p0.rot[1], p1.rot[1]), turn(p0.rot[2], p1.rot[2])],
+        pos: [
+            lerp(p0.pos[0], p1.pos[0]),
+            lerp(p0.pos[1], p1.pos[1]),
+            lerp(p0.pos[2], p1.pos[2]),
+        ],
+        rot: [
+            turn(p0.rot[0], p1.rot[0]),
+            turn(p0.rot[1], p1.rot[1]),
+            turn(p0.rot[2], p1.rot[2]),
+        ],
     }
 }
 
@@ -125,7 +141,9 @@ impl HeadTracker {
                     if n < 48 {
                         continue;
                     }
-                    let d = |i: usize| f64::from_le_bytes(buf[i * 8..i * 8 + 8].try_into().unwrap()) as f32;
+                    let d = |i: usize| {
+                        f64::from_le_bytes(buf[i * 8..i * 8 + 8].try_into().unwrap()) as f32
+                    };
                     let v = [d(0), d(1), d(2), d(3), d(4), d(5)];
                     if v.iter().any(|x| !x.is_finite()) {
                         continue;
@@ -138,20 +156,30 @@ impl HeadTracker {
                     {
                         last_udp = Some(Instant::now());
                     }
-                    *out.lock().unwrap() = Some((HeadPose { pos: [v[0], v[1], v[2]], rot: [v[3], v[4], v[5]] }, Instant::now()));
+                    *out.lock().unwrap() = Some((
+                        HeadPose {
+                            pos: [v[0], v[1], v[2]],
+                            rot: [v[3], v[4], v[5]],
+                        },
+                        Instant::now(),
+                    ));
                 }
             })
             .ok()?;
         if listening {
             log::info!("head tracking: listening for opentrack on UDP port {port}");
         }
-        Some(HeadTracker { last, seen: Mutex::new([None, None]) })
+        Some(HeadTracker {
+            last,
+            seen: Mutex::new([None, None]),
+        })
     }
 
     /// The pose, while poses keep coming (none for half a second: the head is centred),
     /// drawn between the last two that came ([`between_poses`]).
     pub fn pose(&self) -> Option<HeadPose> {
-        let newest = (*self.last.lock().ok()?).filter(|(_, t)| t.elapsed() < Duration::from_millis(500))?;
+        let newest =
+            (*self.last.lock().ok()?).filter(|(_, t)| t.elapsed() < Duration::from_millis(500))?;
         let mut seen = self.seen.lock().ok()?;
         if seen[1].map(|s| s.1) != Some(newest.1) {
             *seen = [seen[1], Some(newest)];
@@ -198,13 +226,17 @@ mod freetrack {
         /// A new pose, when opentrack has written one since the last call.
         pub fn poll(&mut self) -> Option<HeadPose> {
             if self.view.is_none() {
-                if self.tried.is_some_and(|t| t.elapsed() < Duration::from_secs(1)) {
+                if self
+                    .tried
+                    .is_some_and(|t| t.elapsed() < Duration::from_secs(1))
+                {
                     return None;
                 }
                 self.tried = Some(Instant::now());
                 // SAFETY: plain Win32 calls; the view stays mapped for the life of the game.
                 unsafe {
-                    let handle = OpenFileMappingW(FILE_MAP_READ.0, false, w!("FT_SharedMem")).ok()?;
+                    let handle =
+                        OpenFileMappingW(FILE_MAP_READ.0, false, w!("FT_SharedMem")).ok()?;
                     let view = MapViewOfFile(handle, FILE_MAP_READ, 0, 0, FIELDS * 4);
                     if view.Value.is_null() {
                         let _ = windows::Win32::Foundation::CloseHandle(handle);
@@ -234,7 +266,6 @@ mod freetrack {
         }
     }
 }
-
 
 #[cfg(windows)]
 mod npclient {
@@ -330,11 +361,14 @@ mod npclient {
 
     impl Reader {
         pub fn new(hwnd: Option<isize>) -> Self {
-            let native_enabled = omsi_cfg::flags::OMSI_TRACKIR_NATIVE.live_os()
+            let native_enabled = omsi_cfg::flags::OMSI_TRACKIR_NATIVE
+                .live_os()
                 .map(|v| v != "0")
                 .unwrap_or(true);
             if !native_enabled {
-                log::info!("head tracking: native TrackIR NPClient disabled by OMSI_TRACKIR_NATIVE=0");
+                log::info!(
+                    "head tracking: native TrackIR NPClient disabled by OMSI_TRACKIR_NATIVE=0"
+                );
             }
             Self {
                 native: None,
@@ -383,7 +417,10 @@ mod npclient {
             let mut candidates = Vec::new();
 
             if let Some(dir) = Self::dll_path() {
-                if dir.extension().is_some_and(|e| e.eq_ignore_ascii_case("dll")) {
+                if dir
+                    .extension()
+                    .is_some_and(|e| e.eq_ignore_ascii_case("dll"))
+                {
                     candidates.push(dir.clone());
                 } else {
                     candidates.push(dir.join("NPClient64.dll"));
@@ -393,14 +430,23 @@ mod npclient {
 
             // Keep conventional fallbacks as well. This helps installations where
             // the registry value is missing or stale but the standard TrackIR 5 directory exists.
-            candidates.push(Path::new(r"C:\Program Files (x86)\NaturalPoint\TrackIR5\NPClient64.dll").to_path_buf());
-            candidates.push(Path::new(r"C:\Program Files\NaturalPoint\TrackIR5\NPClient64.dll").to_path_buf());
+            candidates.push(
+                Path::new(r"C:\Program Files (x86)\NaturalPoint\TrackIR5\NPClient64.dll")
+                    .to_path_buf(),
+            );
+            candidates.push(
+                Path::new(r"C:\Program Files\NaturalPoint\TrackIR5\NPClient64.dll").to_path_buf(),
+            );
 
             for path in candidates {
                 if !path.is_file() {
                     continue;
                 }
-                let wide: Vec<u16> = path.to_string_lossy().encode_utf16().chain(std::iter::once(0)).collect();
+                let wide: Vec<u16> = path
+                    .to_string_lossy()
+                    .encode_utf16()
+                    .chain(std::iter::once(0))
+                    .collect();
                 if let Ok(dll) = unsafe { LoadLibraryW(PCWSTR(wide.as_ptr())) } {
                     return Some((dll, path));
                 }
@@ -420,7 +466,10 @@ mod npclient {
             if self.native.is_some() {
                 return Some(());
             }
-            if self.tried.is_some_and(|t| t.elapsed() < Duration::from_secs(2)) {
+            if self
+                .tried
+                .is_some_and(|t| t.elapsed() < Duration::from_secs(2))
+            {
                 return None;
             }
             self.tried = Some(Instant::now());
@@ -430,7 +479,10 @@ mod npclient {
                 Some((
                     Self::symbol::<RegisterWindowHandle>(dll, s!("NP_RegisterWindowHandle"))?,
                     Self::symbol::<UnregisterWindowHandle>(dll, s!("NP_UnregisterWindowHandle"))?,
-                    Self::symbol::<RegisterProgramProfileId>(dll, s!("NP_RegisterProgramProfileID"))?,
+                    Self::symbol::<RegisterProgramProfileId>(
+                        dll,
+                        s!("NP_RegisterProgramProfileID"),
+                    )?,
                     Self::symbol::<QueryVersion>(dll, s!("NP_QueryVersion"))?,
                     Self::symbol::<RequestData>(dll, s!("NP_RequestData"))?,
                     Self::symbol::<GetData>(dll, s!("NP_GetData"))?,
@@ -450,10 +502,13 @@ mod npclient {
                 stop_transmission,
             ) = symbols;
 
-            let hwnd = self.hwnd.map(|h| h as *mut c_void).unwrap_or(std::ptr::null_mut());
+            let hwnd = self
+                .hwnd
+                .map(|h| h as *mut c_void)
+                .unwrap_or(std::ptr::null_mut());
             let register_result = unsafe { register_window(hwnd) };
             if register_result != 0 {
-                                return None;
+                return None;
             }
 
             let mut version = 0u16;
@@ -515,7 +570,8 @@ mod npclient {
                 return None;
             }
 
-            if native.last_frame.replace(data.w_p_frame_signature) == Some(data.w_p_frame_signature) {
+            if native.last_frame.replace(data.w_p_frame_signature) == Some(data.w_p_frame_signature)
+            {
                 return None;
             }
 
@@ -565,8 +621,19 @@ mod tests {
 
     #[test]
     fn freetrack_pose_is_in_cm_and_degrees() {
-        let p = freetrack_pose(-0.5f32.to_radians() * 60.0, 10f32.to_radians(), 5f32.to_radians(), 15.0, -20.0, 100.0);
-        assert!((p.rot[0] - 30.0).abs() < 1e-3 && (p.rot[1] + 10.0).abs() < 1e-3 && (p.rot[2] - 5.0).abs() < 1e-3);
+        let p = freetrack_pose(
+            -0.5f32.to_radians() * 60.0,
+            10f32.to_radians(),
+            5f32.to_radians(),
+            15.0,
+            -20.0,
+            100.0,
+        );
+        assert!(
+            (p.rot[0] - 30.0).abs() < 1e-3
+                && (p.rot[1] + 10.0).abs() < 1e-3
+                && (p.rot[2] - 5.0).abs() < 1e-3
+        );
         assert_eq!(p.pos, [1.5, -2.0, 10.0]);
     }
 
@@ -577,27 +644,59 @@ mod tests {
         let t0 = Instant::now();
         let gap = Duration::from_micros(33_333);
         let t1 = t0 + gap;
-        let p0 = HeadPose { pos: [0.0, 0.0, 0.0], rot: [170.0, 0.0, 0.0] };
-        let p1 = HeadPose { pos: [2.0, 0.0, 0.0], rot: [-170.0, 4.0, 0.0] };
+        let p0 = HeadPose {
+            pos: [0.0, 0.0, 0.0],
+            rot: [170.0, 0.0, 0.0],
+        };
+        let p1 = HeadPose {
+            pos: [2.0, 0.0, 0.0],
+            rot: [-170.0, 4.0, 0.0],
+        };
         let at = |d: Duration| between_poses(Some((p0, t0)), (p1, t1), t1 + d);
         assert_eq!(at(Duration::ZERO).pos[0], 0.0);
         let half = at(gap / 2);
-        assert!((half.pos[0] - 1.0).abs() < 1e-3 && (half.rot[1] - 2.0).abs() < 1e-3, "{half:?}");
+        assert!(
+            (half.pos[0] - 1.0).abs() < 1e-3 && (half.rot[1] - 2.0).abs() < 1e-3,
+            "{half:?}"
+        );
         assert!((half.rot[0] - 180.0).abs() < 1e-3, "{half:?}");
         assert_eq!(at(gap * 3).pos[0], 2.0);
         // the first pose, and one after a pause: as it is
         assert_eq!(between_poses(None, (p1, t1), t1).pos[0], 2.0);
-        assert_eq!(between_poses(Some((p0, t0)), (p1, t0 + Duration::from_millis(400)), t0 + Duration::from_millis(400)).pos[0], 2.0);
+        assert_eq!(
+            between_poses(
+                Some((p0, t0)),
+                (p1, t0 + Duration::from_millis(400)),
+                t0 + Duration::from_millis(400)
+            )
+            .pos[0],
+            2.0
+        );
     }
 
     /// The head 10 cm to the right (opentrack's x -10), 5 cm up and 20 cm back: the eye goes
     /// right, up and back with it (#1157).
     #[test]
     fn the_eye_follows_the_head_across() {
-        let p = HeadPose { pos: [-10.0, 5.0, 20.0], rot: [0.0; 3] };
+        let p = HeadPose {
+            pos: [-10.0, 5.0, 20.0],
+            rot: [0.0; 3],
+        };
         let o = p.seat_offset();
-        assert!((o.x - 0.1).abs() < 1e-6 && (o.y + 0.2).abs() < 1e-6 && (o.z - 0.05).abs() < 1e-6, "{o}");
+        assert!(
+            (o.x - 0.1).abs() < 1e-6 && (o.y + 0.2).abs() < 1e-6 && (o.z - 0.05).abs() < 1e-6,
+            "{o}"
+        );
         // (held within 60 cm)
-        assert!((HeadPose { pos: [-200.0, 0.0, 0.0], rot: [0.0; 3] }.seat_offset().x - 0.6).abs() < 1e-6);
+        assert!(
+            (HeadPose {
+                pos: [-200.0, 0.0, 0.0],
+                rot: [0.0; 3]
+            }
+            .seat_offset()
+            .x - 0.6)
+                .abs()
+                < 1e-6
+        );
     }
 }

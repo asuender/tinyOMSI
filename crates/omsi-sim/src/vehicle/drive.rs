@@ -5,7 +5,11 @@ use super::*;
 
 /// Scripts often test a stopped bus with `!Velocity_Ground`, so do not expose tiny solver drift.
 pub(super) fn script_speed(speed_kmh: f32) -> f32 {
-    if speed_kmh.abs() < 0.01 { 0.0 } else { speed_kmh }
+    if speed_kmh.abs() < 0.01 {
+        0.0
+    } else {
+        speed_kmh
+    }
 }
 
 /// The speed the driven wheels' turning gives (m/s): the mean of their rims' speed, each
@@ -17,7 +21,9 @@ pub(super) fn script_speed(speed_kmh: f32) -> f32 {
 pub(super) fn driven_wheels_speed(wheels: impl Iterator<Item = (f32, f32, bool)>) -> Option<f32> {
     let (sum, n) = wheels
         .filter(|w| w.2)
-        .fold((0.0f32, 0u32), |(sum, n), (spin, radius, _)| (sum + spin * radius, n + 1));
+        .fold((0.0f32, 0u32), |(sum, n), (spin, radius, _)| {
+            (sum + spin * radius, n + 1)
+        });
     (n > 0).then(|| sum / n as f32)
 }
 
@@ -43,7 +49,14 @@ impl VehicleInstance {
     /// The axle that steers: the frontmost, as the rigid body takes it (the simple model
     /// took the first listed, which is not always the front one).
     pub(super) fn steered_axle(&self) -> usize {
-        self.ty.def.axles.iter().enumerate().max_by(|a, b| a.1.long.total_cmp(&b.1.long)).map(|(i, _)| i).unwrap_or(0)
+        self.ty
+            .def
+            .axles
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.long.total_cmp(&b.1.long))
+            .map(|(i, _)| i)
+            .unwrap_or(0)
     }
 
     pub(super) fn spring_factor(&self, axle: usize, side: usize) -> f32 {
@@ -148,7 +161,9 @@ impl VehicleInstance {
                 // bus does not shove it along; out of one standing or drawing away all the way
                 let approaching = hit.mass > 0.0 && hit.velocity.dot(contact.normal) > 0.0;
                 let out = if approaching {
-                    contact.depth.min((-own_velocity.dot(contact.normal)).max(0.0) * dt as f64 + 0.001)
+                    contact
+                        .depth
+                        .min((-own_velocity.dot(contact.normal)).max(0.0) * dt as f64 + 0.001)
                 } else {
                     contact.depth + 0.001
                 };
@@ -167,8 +182,13 @@ impl VehicleInstance {
                         // standing bus at 10 m/s is some 44 kJ, not the 500 kJ of the bus
                         // itself at that speed
                         let e = if hit.mass > 0.0 {
-                            let back = if speed > 1.0 { crate::rigid::RESTITUTION } else { 0.0 };
-                            0.5 * speed * speed * (1.0 - back * back) / (1.0 / self.physics.mass_kg + 1.0 / hit.mass)
+                            let back = if speed > 1.0 {
+                                crate::rigid::RESTITUTION
+                            } else {
+                                0.0
+                            };
+                            0.5 * speed * speed * (1.0 - back * back)
+                                / (1.0 / self.physics.mass_kg + 1.0 / hit.mass)
                         } else {
                             0.5 * self.physics.mass_kg * speed * speed
                         };
@@ -318,7 +338,14 @@ impl VehicleInstance {
                 self.put(w[0], ws.rotation_deg.to_radians());
                 self.put(w[1], ws.rpm);
                 if !self.ty.def.is_rail() {
-                    self.put(w[2], if ai == self.steered_axle() { steer } else { 0.0 });
+                    self.put(
+                        w[2],
+                        if ai == self.steered_axle() {
+                            steer
+                        } else {
+                            0.0
+                        },
+                    );
                 }
                 self.put(w[3], ws.suspension);
             }
@@ -336,7 +363,12 @@ impl VehicleInstance {
         // each part pulls or holds back along its own heading: the third section of a
         // double articulated bus in a bend does not point where the second does
         let dir_of = |t: &TrailerPart| {
-            let h = if t.pivot.is_some() { t.heading } else { self.heading }.to_radians();
+            let h = if t.pivot.is_some() {
+                t.heading
+            } else {
+                self.heading
+            }
+            .to_radians();
             Vec3::new(h.sin() as f32, h.cos() as f32, 0.0)
         };
         self.trailers
@@ -471,7 +503,9 @@ impl VehicleInstance {
                 // a brush that takes less than a kilojoule is no accident (a broken post is), and
                 // a car still inside the bus from the frame before is the same accident
                 let o = &obstacles[hit.obstacle];
-                if hit.speed >= crate::rigid::CRASH_SPEED && omsi_cfg::flags::OMSI_DEBUG_PHYSICS.is_set() {
+                if hit.speed >= crate::rigid::CRASH_SPEED
+                    && omsi_cfg::flags::OMSI_DEBUG_PHYSICS.is_set()
+                {
                     log::info!("  hit obstacle {} at ({:.1}, {:.1}) z {:.2}..{:.2} half {:.2}x{:.2} heading {:.0}, {:.1} km/h", o.id, o.center.x, o.center.y, o.z0, o.z1, o.half.x, o.half.y, o.heading.to_degrees(), hit.speed * 3.6);
                 }
                 if hit.speed < crate::rigid::CRASH_SPEED
@@ -482,8 +516,8 @@ impl VehicleInstance {
                 }
                 self.break_glass_for_impact(hit.point, hit.speed, hit.energy);
                 if o.mass > 0.0 && o.id <= -2 {
-                    let point = rb.position
-                        + rb.orientation.mul_vec3(hit.point - rb.cog).as_dvec3();
+                    let point =
+                        rb.position + rb.orientation.mul_vec3(hit.point - rb.cog).as_dvec3();
                     self.dynamic_impacts.push(DynamicImpact {
                         obstacle_id: o.id,
                         point,
@@ -541,7 +575,11 @@ impl VehicleInstance {
         // second is no speed, scripts test `!Velocity` for a bus at rest)
         let ground = script_speed(speed * 3.6);
         let wheels = driven_wheels_speed(wheels).unwrap_or(speed) * 3.6;
-        let v = if ground == 0.0 && wheels.abs() < 0.5 { 0.0 } else { script_speed(wheels) };
+        let v = if ground == 0.0 && wheels.abs() < 0.5 {
+            0.0
+        } else {
+            script_speed(wheels)
+        };
         self.put(self.v_velocity, v);
         self.put(self.v_velocity_ground, ground);
         let n_wheel = rb
@@ -558,7 +596,9 @@ impl VehicleInstance {
         // 9.81 m/s² (the wheels' springs need it), which as `A_Trans_Z` kept checks such
         // as the NEOMAN ECAS's "|A_Trans_Z| < 3 while driving" from ever passing.
         // (over OMSI's frames: the rattle scripts take its change from one frame to the next)
-        let a = self.a_trans.push(scripts_acceleration(rb.accel_body, rb.orientation), dt);
+        let a = self
+            .a_trans
+            .push(scripts_acceleration(rb.accel_body, rb.orientation), dt);
         self.physics.a_trans = a;
         self.put(self.v_accel[0], a.x);
         self.put(self.v_accel[1], a.y);

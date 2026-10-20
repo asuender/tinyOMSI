@@ -45,7 +45,12 @@ impl Settings {
     }
 
     fn values(&self) -> Value {
-        Value::Map(self.list.iter().map(|s| (s.key.clone(), s.value.clone())).collect())
+        Value::Map(
+            self.list
+                .iter()
+                .map(|s| (s.key.clone(), s.value.clone()))
+                .collect(),
+        )
     }
 }
 
@@ -63,7 +68,9 @@ fn fit(kind: &SettingKind, v: &Value) -> Option<Value> {
             }
             Value::Num(n)
         }),
-        SettingKind::Text => v.to_text().map(|t| Value::Str(t.chars().take(ui::MAX_TEXT).collect())),
+        SettingKind::Text => v
+            .to_text()
+            .map(|t| Value::Str(t.chars().take(ui::MAX_TEXT).collect())),
         SettingKind::Choice(c) => v.to_text().filter(|t| c.contains(t)).map(Value::Str),
     }
 }
@@ -85,16 +92,28 @@ fn parse(spec: &Value) -> Result<Vec<Setting>, String> {
         let num = |k: &str, d: f32| s.get(k).and_then(Value::as_f64).map_or(d, |n| n as f32);
         let kind = match text("type").as_deref() {
             Some("bool") => SettingKind::Bool,
-            Some("number") => SettingKind::Number { min: num("min", 0.0), max: num("max", 100.0), step: num("step", 0.0) },
+            Some("number") => SettingKind::Number {
+                min: num("min", 0.0),
+                max: num("max", 100.0),
+                step: num("step", 0.0),
+            },
             Some("text") => SettingKind::Text,
             Some("choice") => {
-                let c: Vec<String> = s.get("choices").map(|c| c.items().iter().filter_map(Value::to_text).collect()).unwrap_or_default();
+                let c: Vec<String> = s
+                    .get("choices")
+                    .map(|c| c.items().iter().filter_map(Value::to_text).collect())
+                    .unwrap_or_default();
                 if c.is_empty() {
                     return Err(format!("{}: a choice needs its choices", at("choices")));
                 }
                 SettingKind::Choice(c)
             }
-            other => return Err(format!("{}: {other:?} is no setting type (bool, number, text, choice)", at("type"))),
+            other => {
+                return Err(format!(
+                    "{}: {other:?} is no setting type (bool, number, text, choice)",
+                    at("type")
+                ))
+            }
         };
         let default = s.get("default").cloned().unwrap_or(Value::Nil);
         let value = fit(&kind, &default).unwrap_or(match &kind {
@@ -104,13 +123,21 @@ fn parse(spec: &Value) -> Result<Vec<Setting>, String> {
             SettingKind::Choice(c) => Value::Str(c[0].clone()),
         });
         let label = text("label").unwrap_or_else(|| key.clone());
-        out.push(Setting { key, label, kind, value });
+        out.push(Setting {
+            key,
+            label,
+            kind,
+            value,
+        });
     }
     Ok(out)
 }
 
 fn load_saved(s: &PluginState) -> Vec<(String, Value)> {
-    match std::fs::read_to_string(s.data_dir.join(SETTINGS_FILE)).ok().map(|t| crate::api::json::decode(&t, false)) {
+    match std::fs::read_to_string(s.data_dir.join(SETTINGS_FILE))
+        .ok()
+        .map(|t| crate::api::json::decode(&t, false))
+    {
         Some(Ok(Value::Map(m))) => m,
         _ => Vec::new(),
     }
@@ -118,48 +145,129 @@ fn load_saved(s: &PluginState) -> Vec<(String, Value)> {
 
 fn save(s: &PluginState) {
     let text = crate::api::json::encode_pretty(&s.settings.values());
-    if let Err(e) = std::fs::create_dir_all(&s.data_dir).and_then(|_| std::fs::write(s.data_dir.join(SETTINGS_FILE), text)) {
+    if let Err(e) = std::fs::create_dir_all(&s.data_dir)
+        .and_then(|_| std::fs::write(s.data_dir.join(SETTINGS_FILE), text))
+    {
         log::warn!("{} settings not saved: {e}", s.tag);
     }
 }
 
 /// The settings panel: one control per setting, and a button that closes it.
 fn panel(s: &Settings) -> Panel {
-    let el = |id: Option<String>, kind: Kind| Element { id, color: None, grow: false, clickable: false, kind };
-    let text = |t: &str, size: f32, weight: ui::Weight| Kind::Text { text: t.to_string(), size, weight, align: ui::Align::Left, wrap: true };
-    let mut children = vec![el(None, Kind::Row {
-        children: vec![
-            Element { grow: true, ..el(None, text(&s.title, 16.0, ui::Weight::Bold)) },
-            el(Some("__close".into()), Kind::Button { text: String::new(), icon: Some("close".into()) }),
-        ],
-        gap: 8.0,
-        align: ui::RowAlign::Start,
-    })];
+    let el = |id: Option<String>, kind: Kind| Element {
+        id,
+        color: None,
+        grow: false,
+        clickable: false,
+        kind,
+    };
+    let text = |t: &str, size: f32, weight: ui::Weight| Kind::Text {
+        text: t.to_string(),
+        size,
+        weight,
+        align: ui::Align::Left,
+        wrap: true,
+    };
+    let mut children = vec![el(
+        None,
+        Kind::Row {
+            children: vec![
+                Element {
+                    grow: true,
+                    ..el(None, text(&s.title, 16.0, ui::Weight::Bold))
+                },
+                el(
+                    Some("__close".into()),
+                    Kind::Button {
+                        text: String::new(),
+                        icon: Some("close".into()),
+                    },
+                ),
+            ],
+            gap: 8.0,
+            align: ui::RowAlign::Start,
+        },
+    )];
     for st in &s.list {
         let id = Some(st.key.clone());
         match &st.kind {
-            SettingKind::Bool => children.push(el(id, Kind::Checkbox { text: st.label.clone(), checked: st.value.truthy() })),
+            SettingKind::Bool => children.push(el(
+                id,
+                Kind::Checkbox {
+                    text: st.label.clone(),
+                    checked: st.value.truthy(),
+                },
+            )),
             SettingKind::Number { min, max, step } => {
                 let v = st.value.as_f64().unwrap_or(*min as f64);
-                children.push(el(None, Kind::Row {
-                    children: vec![Element { grow: true, ..el(None, text(&st.label, 13.0, ui::Weight::Regular)) }, el(None, Kind::Badge { text: crate::api::value::lua_number(v).trim_end_matches(".0").to_string(), text_color: None, weight: ui::Weight::Medium })],
-                    gap: 8.0,
-                    align: ui::RowAlign::Start,
-                }));
-                children.push(el(id, Kind::Slider { value: v as f32, min: *min, max: *max, step: *step }));
+                children.push(el(
+                    None,
+                    Kind::Row {
+                        children: vec![
+                            Element {
+                                grow: true,
+                                ..el(None, text(&st.label, 13.0, ui::Weight::Regular))
+                            },
+                            el(
+                                None,
+                                Kind::Badge {
+                                    text: crate::api::value::lua_number(v)
+                                        .trim_end_matches(".0")
+                                        .to_string(),
+                                    text_color: None,
+                                    weight: ui::Weight::Medium,
+                                },
+                            ),
+                        ],
+                        gap: 8.0,
+                        align: ui::RowAlign::Start,
+                    },
+                ));
+                children.push(el(
+                    id,
+                    Kind::Slider {
+                        value: v as f32,
+                        min: *min,
+                        max: *max,
+                        step: *step,
+                    },
+                ));
             }
             SettingKind::Text => {
                 children.push(el(None, text(&st.label, 13.0, ui::Weight::Regular)));
-                children.push(el(id, Kind::Input { text: st.value.to_text().unwrap_or_default(), placeholder: String::new(), max: 200 }));
+                children.push(el(
+                    id,
+                    Kind::Input {
+                        text: st.value.to_text().unwrap_or_default(),
+                        placeholder: String::new(),
+                        max: 200,
+                    },
+                ));
             }
             SettingKind::Choice(c) => {
                 children.push(el(None, text(&st.label, 13.0, ui::Weight::Regular)));
-                let sel = c.iter().position(|x| Some(x.as_str()) == st.value.as_str()).unwrap_or(0);
-                children.push(el(id, Kind::Tabs { tabs: c.clone(), selected: sel }));
+                let sel = c
+                    .iter()
+                    .position(|x| Some(x.as_str()) == st.value.as_str())
+                    .unwrap_or(0);
+                children.push(el(
+                    id,
+                    Kind::Tabs {
+                        tabs: c.clone(),
+                        selected: sel,
+                    },
+                ));
             }
         }
     }
-    Panel { anchor: ui::Anchor::Center, width: 360.0, accent: Some(Rgba([232, 160, 48, 255])), draggable: true, children, ..Panel::default() }
+    Panel {
+        anchor: ui::Anchor::Center,
+        width: 360.0,
+        accent: Some(Rgba([232, 160, 48, 255])),
+        draggable: true,
+        children,
+        ..Panel::default()
+    }
 }
 
 fn show(s: &mut PluginState, on: bool) {
@@ -175,12 +283,19 @@ fn show(s: &mut PluginState, on: bool) {
 /// A control of the settings panel changed (from the runtime's frame).
 pub fn setting_changed(ctx: &mut Ctx<'_>, key: &str, value: Value) -> Result<(), CallError> {
     let s = ctx.state();
-    let Some(st) = s.settings.list.iter_mut().find(|x| x.key == key) else { return Ok(()) };
+    let Some(st) = s.settings.list.iter_mut().find(|x| x.key == key) else {
+        return Ok(());
+    };
     let value = match &st.kind {
-        SettingKind::Choice(c) => value.as_i64().and_then(|i| c.get((i - 1).max(0) as usize)).map(|t| Value::Str(t.clone())),
+        SettingKind::Choice(c) => value
+            .as_i64()
+            .and_then(|i| c.get((i - 1).max(0) as usize))
+            .map(|t| Value::Str(t.clone())),
         k => fit(k, &value),
     };
-    let Some(value) = value.filter(|v| *v != st.value) else { return Ok(()) };
+    let Some(value) = value.filter(|v| *v != st.value) else {
+        return Ok(());
+    };
     st.value = value.clone();
     let number = matches!(st.kind, SettingKind::Number { .. });
     save(s);
@@ -203,7 +318,12 @@ fn mail(c: &mut Ctx<'_>, to: Option<String>, topic: String, data: Value) -> Resu
         return Err(ApiError("a function cannot be sent".into()));
     }
     let s = c.state();
-    s.hub.post(Mail { from: s.name.clone(), to, topic, data });
+    s.hub.post(Mail {
+        from: s.name.clone(),
+        to,
+        topic,
+        data,
+    });
     Ok(())
 }
 

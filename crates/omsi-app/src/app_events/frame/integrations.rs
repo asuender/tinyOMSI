@@ -22,14 +22,25 @@ impl App {
                 if let Some(d) = self.integrations.discord.as_ref() {
                     let bus = self.player.as_ref().map(|p| {
                         let definition = &p.vehicle.ty.def;
-                        let short = omsi_launcher_lib::vehicle_type_label(&definition.type_name, &definition.path);
-                        let full = omsi_launcher_lib::display_bus_name(&format!("{} {short}", definition.manufacturer));
+                        let short = omsi_launcher_lib::vehicle_type_label(
+                            &definition.type_name,
+                            &definition.path,
+                        );
+                        let full = omsi_launcher_lib::display_bus_name(&format!(
+                            "{} {short}",
+                            definition.manufacturer
+                        ));
                         (short, full)
                     });
-                    let duty = self.session.duty.as_ref().map(|d| (d.line.as_str(), d.tour.as_str()));
+                    let duty = self
+                        .session
+                        .duty
+                        .as_ref()
+                        .map(|d| (d.line.as_str(), d.tour.as_str()));
                     d.set(crate::discord::Presence::for_game(
                         self.world.as_ref().map(|w| w.global.name.as_str()),
-                        bus.as_ref().map(|(short, full)| (short.as_str(), full.as_str())),
+                        bus.as_ref()
+                            .map(|(short, full)| (short.as_str(), full.as_str())),
                         duty,
                         self.net.lan.is_some(),
                     ));
@@ -43,7 +54,11 @@ impl App {
             steam.client.run_callbacks();
         }
         // the plugins' frame, with the bus's scripts done
-        let mut plugins = self.integrations.plugins.take().unwrap_or_else(crate::plugins::load);
+        let mut plugins = self
+            .integrations
+            .plugins
+            .take()
+            .unwrap_or_else(crate::plugins::load);
         if !plugins.is_empty() {
             self.plugin_watch(&mut plugins);
         }
@@ -98,7 +113,9 @@ impl App {
         let hear_tickets = plugins.hear_tickets();
         self.integrations.plugins = Some(plugins);
         // OMSI_WATCH_VARS=a,b: every change of those variables of the player's bus
-        if let (Some(p), Some(list)) = (self.player.as_ref(), omsi_cfg::flags::OMSI_WATCH_VARS.var()) {
+        if let (Some(p), Some(list)) =
+            (self.player.as_ref(), omsi_cfg::flags::OMSI_WATCH_VARS.var())
+        {
             thread_local!(static LAST: std::cell::RefCell<std::collections::HashMap<String, f32>> = Default::default());
             LAST.with(|last| {
                 let mut last = last.borrow_mut();
@@ -126,14 +143,30 @@ impl App {
             h.ticket_asks_heard(&dropped);
         }
         if let (Some(h), Some(p)) = (self.session.humans.as_mut(), self.player.as_ref()) {
-            let hurt = steps::people_in_career(&mut self.session.career, h, p, self.settings.collision_pedestrians);
+            let hurt = steps::people_in_career(
+                &mut self.session.career,
+                h,
+                p,
+                self.settings.collision_pedestrians,
+            );
             for (name, price) in h.take_sales() {
-                let args = vec![omsi_plugin::InfoValue::Text(name.trim().to_string()), crate::plugins::num_f32(price)];
-                crate::plugins::queue_event(&mut self.integrations.plugin_events, "ticket_sold", args);
+                let args = vec![
+                    omsi_plugin::InfoValue::Text(name.trim().to_string()),
+                    crate::plugins::num_f32(price),
+                ];
+                crate::plugins::queue_event(
+                    &mut self.integrations.plugin_events,
+                    "ticket_sold",
+                    args,
+                );
             }
             if hurt > 0 {
                 self.service_msg = Some(("Pedestrian knocked down!".into(), 6.0));
-                crate::plugins::queue_event(&mut self.integrations.plugin_events, "pedestrian", vec![omsi_plugin::InfoValue::Num(hurt as f64)]);
+                crate::plugins::queue_event(
+                    &mut self.integrations.plugin_events,
+                    "pedestrian",
+                    vec![omsi_plugin::InfoValue::Num(hurt as f64)],
+                );
             }
         }
     }

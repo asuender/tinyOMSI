@@ -22,9 +22,9 @@ use std::time::Instant;
 use crate::profile_keys::{ProfKey, ProfileTimes};
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod access_tests;
+#[cfg(test)]
+mod tests;
 
 /// Where in the frame a stage belongs, roughly in the order of the frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -208,8 +208,14 @@ pub(crate) fn log_order() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     if omsi_cfg::flags::OMSI_FRAME_ORDER.is_set() {
         ONCE.call_once(|| {
-            log::info!("{}", describe("window frame", crate::app_events::WINDOW_FRAME));
-            log::info!("{}", describe("offscreen step", crate::offscreen::OFFSCREEN_STEP));
+            log::info!(
+                "{}",
+                describe("window frame", crate::app_events::WINDOW_FRAME)
+            );
+            log::info!(
+                "{}",
+                describe("offscreen step", crate::offscreen::OFFSCREEN_STEP)
+            );
         });
     }
 }

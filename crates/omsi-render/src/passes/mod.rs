@@ -171,7 +171,10 @@ pub(crate) struct FrameCtx<'a> {
 impl FrameCtx<'_> {
     /// where the 3D picture is drawn: the scaled target, or the window's own
     pub(crate) fn scene_view(&self) -> &wgpu::TextureView {
-        self.scene_target.as_ref().map(|t| &t.0).unwrap_or(self.target)
+        self.scene_target
+            .as_ref()
+            .map(|t| &t.0)
+            .unwrap_or(self.target)
     }
 }
 
@@ -190,7 +193,10 @@ pub(crate) struct StageClock {
 
 impl StageClock {
     pub(crate) fn new(with_overlays: bool) -> StageClock {
-        StageClock { t: std::time::Instant::now(), with_overlays }
+        StageClock {
+            t: std::time::Instant::now(),
+            with_overlays,
+        }
     }
 
     pub(crate) fn stage(&mut self, r: &Renderer, window: &'static str, mirror: &'static str) {

@@ -12,7 +12,11 @@ use super::*;
 use omsi_script::{Op, VarId};
 
 /// What a car's scripts read of its place in the train, in the order [`CarRun`] sets them.
-const PLACE_IN_TRAIN: [&str; 3] = ["train_frontcoupling", "train_backcoupling", "train_me_reverse"];
+const PLACE_IN_TRAIN: [&str; 3] = [
+    "train_frontcoupling",
+    "train_backcoupling",
+    "train_me_reverse",
+];
 
 fn is_place_var(name: &str) -> bool {
     let name = name.trim();
@@ -22,13 +26,24 @@ fn is_place_var(name: &str) -> bool {
 /// Whether a coupled part needs a [`CarRun`]: its program reads its place in the train, or
 /// an animation, visibility or lamp of its model does.
 pub(super) fn uses_place_in_train(ty: &VehicleType) -> bool {
-    let read_by_program = PLACE_IN_TRAIN.iter().filter_map(|n| ty.program.var(n)).any(|id| ty.program.reads(id));
+    let read_by_program = PLACE_IN_TRAIN
+        .iter()
+        .filter_map(|n| ty.program.var(n))
+        .any(|id| ty.program.reads(id));
     read_by_program
         || ty.model.meshes.iter().any(|mesh| {
             let mut names = mesh.animations.iter().map(|a| a.variable.as_str());
             names.any(is_place_var)
-                || mesh.visible.as_ref().is_some_and(|(name, _)| is_place_var(name))
-                || mesh.light_enh.iter().map(|lamp| &lamp.variable).chain(mesh.light_enh_2.iter().map(|lamp| &lamp.variable)).any(|v| is_place_var(v))
+                || mesh
+                    .visible
+                    .as_ref()
+                    .is_some_and(|(name, _)| is_place_var(name))
+                || mesh
+                    .light_enh
+                    .iter()
+                    .map(|lamp| &lamp.variable)
+                    .chain(mesh.light_enh_2.iter().map(|lamp| &lamp.variable))
+                    .any(|v| is_place_var(v))
         })
 }
 
@@ -46,7 +61,11 @@ pub(super) fn set_couplings(parts: &mut [TrailerPart]) {
 fn stored_vars(p: &Program) -> Vec<bool> {
     let mut stored = vec![false; p.var_names.len()];
     let mut visited = vec![false; p.blocks.len()];
-    let mut pending: Vec<usize> = [&p.init, &p.frame, &p.frame_ai].into_iter().flatten().map(|&b| b as usize).collect();
+    let mut pending: Vec<usize> = [&p.init, &p.frame, &p.frame_ai]
+        .into_iter()
+        .flatten()
+        .map(|&b| b as usize)
+        .collect();
     while let Some(block) = pending.pop() {
         match visited.get_mut(block) {
             Some(v) if !*v => *v = true,
@@ -75,7 +94,13 @@ impl omsi_script::Host for SilentHost<'_> {
     fn sys_var(&mut self, v: omsi_script::SysVar) -> f32 {
         omsi_script::Host::sys_var(self.0, v)
     }
-    fn callback(&mut self, name: &str, id: omsi_script::NameId, stacks: &mut omsi_script::Stacks, state: &mut State) {
+    fn callback(
+        &mut self,
+        name: &str,
+        id: omsi_script::NameId,
+        stacks: &mut omsi_script::Stacks,
+        state: &mut State,
+    ) {
         if name.trim().eq_ignore_ascii_case("givechangecoin") {
             // (its coin index taken off the stack, as the call does)
             stacks.pop();
@@ -119,12 +144,20 @@ impl CarRun {
     /// train (`place`, as [`TrailerPart::place_in_train`] gives it) set, {init} run.
     pub(super) fn start(ty: &VehicleType, lead: &mut VehicleInstance, place: [f32; 3]) -> CarRun {
         let prog = ty.program.clone();
-        let names: HashMap<String, VarId> =
-            prog.var_names.iter().zip(0..).map(|(name, slot)| (name.to_ascii_lowercase(), slot)).collect();
+        let names: HashMap<String, VarId> = prog
+            .var_names
+            .iter()
+            .zip(0..)
+            .map(|(name, slot)| (name.to_ascii_lowercase(), slot))
+            .collect();
         let mut state = State::new(&prog);
         // strings come from the leading vehicle too (its number, its destination)
         for (slot, name) in prog.str_var_names.iter().enumerate() {
-            let lead_str = lead.ty.program.str_var(name).and_then(|k| lead.state.str_vars.get(k as usize));
+            let lead_str = lead
+                .ty
+                .program
+                .str_var(name)
+                .and_then(|k| lead.state.str_vars.get(k as usize));
             if let Some(text) = lead_str {
                 state.str_vars[slot] = text.clone();
             }
@@ -140,8 +173,11 @@ impl CarRun {
             place_slots: [None; 3],
         };
         run.sync_names(lead);
-        let starting: Vec<(VarId, VarId)> =
-            run.names.iter().filter_map(|(name, &slot)| lead.var_index.get(name).map(|&from| (slot, from))).collect();
+        let starting: Vec<(VarId, VarId)> = run
+            .names
+            .iter()
+            .filter_map(|(name, &slot)| lead.var_index.get(name).map(|&from| (slot, from)))
+            .collect();
         for (slot, from) in starting {
             run.state.vars[slot as usize] = lead.state.vars[from as usize];
         }
@@ -219,14 +255,20 @@ mod tests {
 
     /// Lamp variables of the test car, in the order of its lamps: front white, front red,
     /// rear white, rear red.
-    const LAMPS: [&str; 4] = ["lamp_front_white", "lamp_front_red", "lamp_rear_white", "lamp_rear_red"];
+    const LAMPS: [&str; 4] = [
+        "lamp_front_white",
+        "lamp_front_red",
+        "lamp_rear_white",
+        "lamp_rear_red",
+    ];
 
     /// A multiple-unit car: each free end shows white where the car leads and red where it
     /// trails, from its own place in the train.
     fn unit_car() -> Arc<VehicleType> {
         static MADE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let n = MADE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("omsi-car-run-test-{}-{n}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("omsi-car-run-test-{}-{n}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let script = dir.join("cab_ends.osc");
         let list = dir.join("cab_ends_varlist.txt");
@@ -250,7 +292,11 @@ mod tests {
             names.push_str(extra);
         }
         std::fs::write(&list, names).unwrap();
-        let program = omsi_script::compile(&CompileInput { varlists: vec![list], scripts: vec![script], ..Default::default() });
+        let program = omsi_script::compile(&CompileInput {
+            varlists: vec![list],
+            scripts: vec![script],
+            ..Default::default()
+        });
         std::fs::remove_dir_all(&dir).ok();
         assert!(program.errors.is_empty(), "{:?}", program.errors);
         let mut ty = super::super::tests::coupling_test_type(Some(-4.0));
@@ -259,13 +305,20 @@ mod tests {
         let lamp_at = |i: usize| omsi_model::LightEnh2 {
             pos: [0.4, if i < 2 { 7.5 } else { -7.5 }, 1.2],
             omni: true,
-            color: if i % 2 == 0 { [250.0, 250.0, 240.0] } else { [250.0, 20.0, 10.0] },
+            color: if i % 2 == 0 {
+                [250.0, 250.0, 240.0]
+            } else {
+                [250.0, 20.0, 10.0]
+            },
             size: 0.15,
             factor: 1.0,
             variable: LAMPS[i].to_string(),
             ..Default::default()
         };
-        t.model.meshes = vec![omsi_model::MeshDef { light_enh_2: (0..4).map(lamp_at).collect(), ..Default::default() }];
+        t.model.meshes = vec![omsi_model::MeshDef {
+            light_enh_2: (0..4).map(lamp_at).collect(),
+            ..Default::default()
+        }];
         ty
     }
 
@@ -288,7 +341,10 @@ mod tests {
     #[test]
     fn turned_cars_light_the_end_they_stand_at() {
         let car = unit_car();
-        let mut v = VehicleInstance::new(car.clone(), crate::host::VehicleHost::new(Default::default()));
+        let mut v = VehicleInstance::new(
+            car.clone(),
+            crate::host::VehicleHost::new(Default::default()),
+        );
         for turned in [true, false, true] {
             v.attach_trailer_ex(car.clone(), turned);
         }
@@ -299,13 +355,25 @@ mod tests {
         }
         assert_eq!(lit(&v.trailers[0].light_fade), [false; 4]);
         assert_eq!(lit(&v.trailers[1].light_fade), [false; 4]);
-        assert_eq!(lit(&v.trailers[2].light_fade), [false, true, false, false], "tail car, turned round");
+        assert_eq!(
+            lit(&v.trailers[2].light_fade),
+            [false, true, false, false],
+            "tail car, turned round"
+        );
         assert_eq!(v.trailers[2].run_var("train_backcoupling"), Some(1.0));
-        assert_eq!(v.var("lamp_front_red"), Some(0.0), "the head car's values stay its own");
+        assert_eq!(
+            v.var("lamp_front_red"),
+            Some(0.0),
+            "the head car's values stay its own"
+        );
         v.detach_last_trailer();
         v.detach_last_trailer();
         run_frames(&mut v, 4);
-        assert_eq!(lit(&v.trailers[0].light_fade), [false, true, false, false], "second car is the tail now");
+        assert_eq!(
+            lit(&v.trailers[0].light_fade),
+            [false, true, false, false],
+            "second car is the tail now"
+        );
         assert_eq!(lit(&v.light_fade), [true, false, false, false]);
     }
 

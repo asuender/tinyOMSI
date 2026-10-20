@@ -78,7 +78,10 @@ impl Schedule {
 
     /// The vehicle sets a choice is drawn with: the vehicle, its rear sections, a train's
     /// further cars.
-    pub(super) fn choice_sets(c: &Choice, traffic: &mut Traffic) -> Vec<(Arc<VehicleType>, Option<usize>)> {
+    pub(super) fn choice_sets(
+        c: &Choice,
+        traffic: &mut Traffic,
+    ) -> Vec<(Arc<VehicleType>, Option<usize>)> {
         let mut out = vec![(c.ty.clone(), c.scheme)];
         for (t, _) in traffic.trailer_chain(&c.ty) {
             let s = c.scheme.filter(|i| *i < t.paint_schemes.len());
@@ -95,9 +98,19 @@ impl Schedule {
             let mut all: Vec<Arc<VehicleType>> = vec![c.ty.clone()];
             all.extend(traffic.trailer_chain(&c.ty).into_iter().map(|(t, _)| t));
             for (t, rev) in cars.iter().skip(1) {
-                all.extend(traffic.coupled_chain(t, *rev, false).into_iter().map(|(t, _)| t));
+                all.extend(
+                    traffic
+                        .coupled_chain(t, *rev, false)
+                        .into_iter()
+                        .map(|(t, _)| t),
+                );
                 all.push(t.clone());
-                all.extend(traffic.coupled_chain(t, *rev, true).into_iter().map(|(t, _)| t));
+                all.extend(
+                    traffic
+                        .coupled_chain(t, *rev, true)
+                        .into_iter()
+                        .map(|(t, _)| t),
+                );
             }
             for t in all {
                 out.push((t.clone(), None));
@@ -171,7 +184,12 @@ impl Schedule {
             .iter()
             .map(|(t, s)| (t.def.path.clone(), *s))
             .chain(self.fleet_reading.keys().cloned())
-            .chain(traffic.random_sets().into_iter().map(|(t, s)| (t.def.path.clone(), s)))
+            .chain(
+                traffic
+                    .random_sets()
+                    .into_iter()
+                    .map(|(t, s)| (t.def.path.clone(), s)),
+            )
             .collect();
         // (OMSI_FLEET_IDLE=<s> shortens the wait, for tests)
         let idle = omsi_cfg::flags::OMSI_FLEET_IDLE

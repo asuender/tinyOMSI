@@ -24,8 +24,16 @@ pub fn status() -> Value {
             Status::Checking => json!({ "state": "checking" }),
             Status::UpToDate => json!({ "state": "up_to_date" }),
             Status::Available(r) => json!({ "state": "available", "release": release_json(&r) }),
-            Status::Downloaded(r) => json!({ "state": "available", "release": release_json(&r), "downloaded": true }),
-            Status::Downloading { release, done, total } => json!({ "state": "downloading", "release": release_json(&release), "done": done, "total": total }),
+            Status::Downloaded(r) => {
+                json!({ "state": "available", "release": release_json(&r), "downloaded": true })
+            }
+            Status::Downloading {
+                release,
+                done,
+                total,
+            } => {
+                json!({ "state": "downloading", "release": release_json(&release), "done": done, "total": total })
+            }
             Status::Installing(r) => json!({ "state": "installing", "release": release_json(&r) }),
             Status::Restarting(r) => json!({ "state": "restarting", "release": release_json(&r) }),
             Status::Failed(msg) => json!({ "state": "failed", "message": msg }),
@@ -55,7 +63,11 @@ pub fn check(again: bool) -> Value {
 }
 
 pub fn install(p: &dyn crate::Platform) -> Value {
-    if !omsi_launcher_lib::IN_PROCESS_GAMES && omsi_launcher_lib::instances::list().iter().any(|i| i.running) {
+    if !omsi_launcher_lib::IN_PROCESS_GAMES
+        && omsi_launcher_lib::instances::list()
+            .iter()
+            .any(|i| i.running)
+    {
         let mut v = status();
         v["refused"] = json!("game");
         return v;

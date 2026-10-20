@@ -25,9 +25,9 @@ use glam::{DVec2, DVec3, Quat, Vec2, Vec3};
 use omsi_vehicle::Vehicle;
 
 mod body;
-mod tyre;
 #[cfg(test)]
 mod tests;
+mod tyre;
 
 use tyre::{track_walls, tread_step, tyre_line};
 
@@ -247,7 +247,11 @@ impl RigidWheel {
             self.locked = false;
         }
         if !self.slipping {
-            let wanted = if c.v_long.abs() > STANDING { c.drive - c.brake * c.v_long.signum() } else { f_long_wanted };
+            let wanted = if c.v_long.abs() > STANDING {
+                c.drive - c.brake * c.v_long.signum()
+            } else {
+                f_long_wanted
+            };
             if wanted.abs() > mu_n * 1.02 && mu_n > 0.0 && !no_slip {
                 self.slipping = true;
                 self.locked = false;
@@ -268,7 +272,9 @@ impl RigidWheel {
             }
             if !self.locked {
                 let before = self.spin;
-                self.spin += h * self.inertia_inv * (c.drive - sign(self.spin) * c.brake - sign(slide_before) * mu_n);
+                self.spin += h
+                    * self.inertia_inv
+                    * (c.drive - sign(self.spin) * c.brake - sign(slide_before) * mu_n);
                 if before != 0.0 && sign(before) != sign(self.spin) && c.brake > 0.0 {
                     self.spin = 0.0;
                     self.locked = true;
@@ -277,7 +283,11 @@ impl RigidWheel {
             let slide_after = self.spin * r - c.v_long;
             // gripping again: the wheel's speed crossed the ground's (or both stand)
             // (a slide that only now begins - zero before - has crossed nothing)
-            if sign(slide_after) * sign(slide_before) < 0.0 || (c.v_long.abs() < STANDING && self.spin.abs() * r < STANDING && c.drive.abs() <= c.brake.max(mu_n)) {
+            if sign(slide_after) * sign(slide_before) < 0.0
+                || (c.v_long.abs() < STANDING
+                    && self.spin.abs() * r < STANDING
+                    && c.drive.abs() <= c.brake.max(mu_n))
+            {
                 self.slipping = false;
                 self.locked = false;
                 self.spin = ground;
@@ -296,7 +306,12 @@ impl RigidWheel {
 /// The static load on each wheel of each axle (N): the weight shared so that the axle loads
 /// balance the centre of gravity (a least-squares split when there are more than two axles).
 pub fn wheel_rest_loads(def: &Vehicle) -> Vec<f32> {
-    let mass = if def.mass < 100.0 { def.mass * 1000.0 } else { def.mass }.max(500.0);
+    let mass = if def.mass < 100.0 {
+        def.mass * 1000.0
+    } else {
+        def.mass
+    }
+    .max(500.0);
     let cog_y = def.cog.map(|c| c[1]).unwrap_or(0.0);
     let g = 9.81;
     let n = (def.axles.len() * 2).max(1) as f32;
@@ -310,7 +325,10 @@ pub fn wheel_rest_loads(def: &Vehicle) -> Vec<f32> {
     } else {
         (mass * g / n, 0.0)
     };
-    def.axles.iter().map(|x| (a + b * x.long).max(mass * g / n * 0.2)).collect()
+    def.axles
+        .iter()
+        .map(|x| (a + b * x.long).max(mass * g / n * 0.2))
+        .collect()
 }
 
 /// A wheel on the ground in one substep, before its tyre forces are settled.

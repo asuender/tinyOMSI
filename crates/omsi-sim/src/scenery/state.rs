@@ -64,7 +64,14 @@ pub struct SceneryObject {
 
 impl SceneryObject {
     /// `night_map_mode`: the type's `[NightMapMode]`.
-    pub fn new(key: u64, map_id: i64, pos: DVec3, tile: (i32, i32), inst: SceneryInstance, night_map_mode: i32) -> SceneryObject {
+    pub fn new(
+        key: u64,
+        map_id: i64,
+        pos: DVec3,
+        tile: (i32, i32),
+        inst: SceneryInstance,
+        night_map_mode: i32,
+    ) -> SceneryObject {
         SceneryObject {
             key,
             map_id,
@@ -131,7 +138,10 @@ pub struct OwnedSceneryInputs {
 }
 
 impl OwnedSceneryInputs {
-    pub fn as_inputs<'a>(&'a self, phase_of: &'a dyn Fn(usize, usize) -> (f32, f32)) -> SceneryInputs<'a> {
+    pub fn as_inputs<'a>(
+        &'a self,
+        phase_of: &'a dyn Fn(usize, usize) -> (f32, f32),
+    ) -> SceneryInputs<'a> {
         SceneryInputs {
             clock: self.clock.as_ref(),
             time: self.time,
@@ -185,7 +195,9 @@ pub struct SceneryShow {
 /// [`SceneryInstance::var`] reads it from the object).
 pub fn var_in(program: &omsi_script::Program, vars: &[f32], name: &str) -> Option<f32> {
     // (no values: an object whose variables the view was not to read)
-    program.var(name).and_then(|i| vars.get(i as usize).copied())
+    program
+        .var(name)
+        .and_then(|i| vars.get(i as usize).copied())
 }
 
 /// The commands of one step and what the timetable is asked for.
@@ -331,7 +343,10 @@ impl SceneryState {
     /// A newly placed object goes to the end of the list (its index is returned); it runs
     /// from the next step when it is within reach of the camera's cell.
     pub fn push(&mut self, o: SceneryObject) -> u32 {
-        debug_assert!(self.objects.last().is_none_or(|l| l.key < o.key), "scenery objects come in key order");
+        debug_assert!(
+            self.objects.last().is_none_or(|l| l.key < o.key),
+            "scenery objects come in key order"
+        );
         self.generation += 1;
         let i = self.objects.len() as u32;
         self.by_id.entry(o.map_id).or_insert(i);
@@ -393,7 +408,11 @@ impl SceneryState {
             // silenced below, in order with the rest)
             let was = std::mem::take(&mut self.candidates);
             self.candidates.extend(
-                self.objects.iter().enumerate().filter(|(_, o)| near_cell(o.pos, cell)).map(|(i, _)| i as u32),
+                self.objects
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, o)| near_cell(o.pos, cell))
+                    .map(|(i, _)| i as u32),
             );
             let fresh = self.cell.is_none();
             self.cell = Some(cell);
@@ -405,7 +424,8 @@ impl SceneryState {
                         j += 1;
                     }
                     if self.candidates.get(j) != Some(&i) {
-                        out.cmds.push(SceneryCmd::Silence(self.objects[i as usize].key));
+                        out.cmds
+                            .push(SceneryCmd::Silence(self.objects[i as usize].key));
                     }
                 }
             } else {
@@ -415,7 +435,8 @@ impl SceneryState {
                     if self.candidates.get(j) == Some(&i) {
                         j += 1;
                     } else {
-                        out.cmds.push(SceneryCmd::Silence(self.objects[i as usize].key));
+                        out.cmds
+                            .push(SceneryCmd::Silence(self.objects[i as usize].key));
                     }
                 }
             }
@@ -425,7 +446,9 @@ impl SceneryState {
             let mut rest = self.objects.iter_mut();
             let mut next = 0u32;
             for &i in &self.candidates {
-                let o = rest.nth((i - next) as usize).expect("candidate in the list");
+                let o = rest
+                    .nth((i - next) as usize)
+                    .expect("candidate in the list");
                 next = i + 1;
                 let dist = (o.pos - inputs.center).length();
                 if dist > SCRIPT_RANGE {
@@ -450,7 +473,8 @@ impl SceneryState {
         // the frame waited on a latch for busy or unscheduled workers - 20-70 ms frames
         // standing still on a city map - for 4 ms of scripts)
         let clock = inputs.clock;
-        let helpers = omsi_cfg::par::helpers_for(self.scripts_work, SCRIPTS_SECS_PER_HELPER).min(jobs.len().saturating_sub(1));
+        let helpers = omsi_cfg::par::helpers_for(self.scripts_work, SCRIPTS_SECS_PER_HELPER)
+            .min(jobs.len().saturating_sub(1));
         omsi_cfg::par::frame_each(&mut jobs, helpers, |(o, vars, _, _)| {
             o.inst.update_on(dt, vars, clock);
         });
@@ -464,7 +488,8 @@ impl SceneryState {
             let mut texts = Vec::new();
             if !o.text_vars.is_empty() {
                 let _ = o.inst.take_refresh_strings();
-                for (k, (name, last)) in o.text_vars.iter().zip(o.text_last.iter_mut()).enumerate() {
+                for (k, (name, last)) in o.text_vars.iter().zip(o.text_last.iter_mut()).enumerate()
+                {
                     let text = o.inst.str_var(name);
                     if last.as_deref() != Some(text) {
                         *last = Some(text.to_string());
@@ -472,9 +497,17 @@ impl SceneryState {
                     }
                 }
             }
-            let pages = if o.has_pages && *dist < inputs.pages_near { o.inst.update_html_textures() } else { Vec::new() };
+            let pages = if o.has_pages && *dist < inputs.pages_near {
+                o.inst.update_html_textures()
+            } else {
+                Vec::new()
+            };
             let fired = std::mem::take(&mut o.inst.host.fired_triggers);
-            let var_span = if o.needs_vars { copy_span(&mut out.vars, &o.inst.state.vars) } else { (0, 0) };
+            let var_span = if o.needs_vars {
+                copy_span(&mut out.vars, &o.inst.state.vars)
+            } else {
+                (0, 0)
+            };
             let mesh_span = copy_span(&mut out.transforms, &o.inst.mesh_transforms);
             out.visible.extend_from_slice(&o.inst.mesh_visible);
             out.cmds.push(SceneryCmd::Show(SceneryShow {
@@ -502,7 +535,12 @@ impl SceneryState {
 
 /// What object `o` is given this frame (in order: the light programs and the boards are
 /// read here), and what it asks the timetable for.
-fn gather(o: &mut SceneryObject, dist: f64, inputs: &SceneryInputs, out: &mut SceneryOutputs) -> SceneryVars {
+fn gather(
+    o: &mut SceneryObject,
+    dist: f64,
+    inputs: &SceneryInputs,
+    out: &mut SceneryOutputs,
+) -> SceneryVars {
     // the object's own hours ([NightMapMode]): in use, and lit while in use and the
     // daylight under its own threshold (0.6, or 0.3-0.75 with a [NightMapMode])
     let in_use = o.use_.in_use(inputs.time, inputs.day);
@@ -517,7 +555,9 @@ fn gather(o: &mut SceneryObject, dist: f64, inputs: &SceneryInputs, out: &mut Sc
         traffic_light_phase: light
             .map(|(c, li)| (inputs.phase_of)(c, li).0)
             .unwrap_or(crate::traffic::UNLINKED_PHASE as f32),
-        traffic_light_approach: light.map(|(c, li)| (inputs.phase_of)(c, li).1).unwrap_or(0.0),
+        traffic_light_approach: light
+            .map(|(c, li)| (inputs.phase_of)(c, li).1)
+            .unwrap_or(0.0),
         switch: None,
     };
     // a departure display: the buses due at its stop
@@ -531,7 +571,9 @@ fn gather(o: &mut SceneryObject, dist: f64, inputs: &SceneryInputs, out: &mut Sc
         match inputs.by_stop.get(&stop) {
             Some(l)
                 if arrivals.len() == l.len()
-                    && arrivals.iter().zip(l).all(|(a, (line, terminus, _))| a.line == *line && a.terminus == *terminus) =>
+                    && arrivals.iter().zip(l).all(|(a, (line, terminus, _))| {
+                        a.line == *line && a.terminus == *terminus
+                    }) =>
             {
                 for (a, (_, _, t)) in arrivals.iter_mut().zip(l) {
                     a.due = (t - now) as f32;
@@ -540,7 +582,11 @@ fn gather(o: &mut SceneryObject, dist: f64, inputs: &SceneryInputs, out: &mut Sc
             Some(l) => {
                 *arrivals = l
                     .iter()
-                    .map(|(line, terminus, t)| Arrival { line: line.clone(), terminus: terminus.clone(), due: (t - now) as f32 })
+                    .map(|(line, terminus, t)| Arrival {
+                        line: line.clone(),
+                        terminus: terminus.clone(),
+                        due: (t - now) as f32,
+                    })
                     .collect();
             }
             None => arrivals.clear(),
@@ -574,7 +620,11 @@ fn cell_of(p: DVec3) -> (i64, i64) {
 /// Whether an object at `p` can come within range of a camera anywhere in `cell` (a metre
 /// to spare for the rounding).
 fn near_cell(p: DVec3, cell: (i64, i64)) -> bool {
-    let c = DVec3::new((cell.0 as f64 + 0.5) * CELL, (cell.1 as f64 + 0.5) * CELL, 0.0);
+    let c = DVec3::new(
+        (cell.0 as f64 + 0.5) * CELL,
+        (cell.1 as f64 + 0.5) * CELL,
+        0.0,
+    );
     let reach = SCRIPT_RANGE + CELL * std::f64::consts::FRAC_1_SQRT_2 + 1.0;
     let d = p - c;
     // (height is part of the distance the range is measured in; leaving it out keeps more)
@@ -588,15 +638,24 @@ mod tests {
     use std::sync::Arc;
 
     fn object(map_id: i64, pos: DVec3, tile: (i32, i32)) -> SceneryObject {
-        let inst = SceneryInstance::new(Arc::new(Program::default()), &[], SimClock::default(), &[]);
-        SceneryObject::new(KEY.fetch_add(1, std::sync::atomic::Ordering::Relaxed), map_id, pos, tile, inst, 0)
+        let inst =
+            SceneryInstance::new(Arc::new(Program::default()), &[], SimClock::default(), &[]);
+        SceneryObject::new(
+            KEY.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            map_id,
+            pos,
+            tile,
+            inst,
+            0,
+        )
     }
 
     static KEY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
     fn step(s: &mut SceneryState, center: DVec3) -> (Vec<u32>, Vec<u32>) {
         let phase = |_: usize, _: usize| (0.0, 0.0);
-        let (controllers, by_stop, departures) = (HashMap::new(), HashMap::new(), Default::default());
+        let (controllers, by_stop, departures) =
+            (HashMap::new(), HashMap::new(), Default::default());
         let inputs = SceneryInputs {
             clock: None,
             time: 0.0,
@@ -611,7 +670,12 @@ mod tests {
             pages_near: 60.0,
         };
         s.step(1.0 / 30.0, &inputs, &mut StepTimes::default());
-        let index: HashMap<u64, u32> = s.objects().iter().enumerate().map(|(i, o)| (o.key, i as u32)).collect();
+        let index: HashMap<u64, u32> = s
+            .objects()
+            .iter()
+            .enumerate()
+            .map(|(i, o)| (o.key, i as u32))
+            .collect();
         let out = s.outputs();
         let (mut shown, mut silenced) = (Vec::new(), Vec::new());
         for c in &out.cmds {
@@ -623,7 +687,10 @@ mod tests {
                 SceneryCmd::Show(s) => shown.push(index[&s.key]),
             }
         }
-        assert!(silenced.windows(2).all(|w| w[0] < w[1]) && shown.windows(2).all(|w| w[0] < w[1]), "in object order");
+        assert!(
+            silenced.windows(2).all(|w| w[0] < w[1]) && shown.windows(2).all(|w| w[0] < w[1]),
+            "in object order"
+        );
         (shown, silenced)
     }
 
@@ -634,7 +701,9 @@ mod tests {
         let mut s = SceneryState::default();
         let mut seed = 7u64;
         let mut rnd = || {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             ((seed >> 11) as f64 / (1u64 << 53) as f64) * 4000.0 - 2000.0
         };
         for i in 0..3000 {
@@ -645,7 +714,11 @@ mod tests {
         for k in 0..400 {
             let t = k as f64;
             // (along a road, then a jump across the map, then back)
-            let center = if k == 200 { DVec3::new(1500.0, -1500.0, 3.0) } else { DVec3::new(-1500.0 + t * 7.3, (t * 0.05).sin() * 600.0, 2.0) };
+            let center = if k == 200 {
+                DVec3::new(1500.0, -1500.0, 3.0)
+            } else {
+                DVec3::new(-1500.0 + t * 7.3, (t * 0.05).sin() * 600.0, 2.0)
+            };
             if k == 300 {
                 s.drop_tile((2, 0), |_, _| {});
                 last.clear();
@@ -654,11 +727,19 @@ mod tests {
                 s.push(object(99_999, center + DVec3::new(10.0, 0.0, 0.0), (9, 9)));
             }
             let (shown, silenced) = step(&mut s, center);
-            let expected: Vec<u32> =
-                s.objects().iter().enumerate().filter(|(_, o)| !((o.pos - center).length() > SCRIPT_RANGE)).map(|(i, _)| i as u32).collect();
+            let expected: Vec<u32> = s
+                .objects()
+                .iter()
+                .enumerate()
+                .filter(|(_, o)| !((o.pos - center).length() > SCRIPT_RANGE))
+                .map(|(i, _)| i as u32)
+                .collect();
             assert_eq!(shown, expected, "step {k}");
             for i in &last {
-                assert!(shown.contains(i) || silenced.contains(i), "step {k}: object {i} went out of range unheard");
+                assert!(
+                    shown.contains(i) || silenced.contains(i),
+                    "step {k}: object {i} went out of range unheard"
+                );
             }
             last = shown;
         }

@@ -16,8 +16,18 @@ pub struct EventDef {
     pub since: &'static str,
 }
 
-const fn ev(name: &'static str, args: &'static [&'static str], since: &'static str, doc: &'static str) -> EventDef {
-    EventDef { name, args, doc, since }
+const fn ev(
+    name: &'static str,
+    args: &'static [&'static str],
+    since: &'static str,
+    doc: &'static str,
+) -> EventDef {
+    EventDef {
+        name,
+        args,
+        doc,
+        since,
+    }
 }
 
 const OLD: &str = "0.1.5";
@@ -170,129 +180,342 @@ pub fn probe(ctx: &mut Ctx<'_>) -> Result<(), CallError> {
 }
 
 fn bus_probes(ctx: &mut Ctx<'_>) -> Result<(), CallError> {
-    changed!(ctx, doors, ["door", "doors"], {
-        let io = ctx.io();
-        (io.bus_doors().iter().map(|d| *d > 0.05).collect::<Vec<bool>>(), io.bus_doors_open().unwrap_or(false))
-    }, |old, new| {
-        for (i, (a, b)) in old.0.iter().zip(&new.0).enumerate() {
-            if a != b {
-                runtime::dispatch(ctx, "door", vec![Value::Int(i as i64 + 1), Value::Bool(*b)])?;
+    changed!(
+        ctx,
+        doors,
+        ["door", "doors"],
+        {
+            let io = ctx.io();
+            (
+                io.bus_doors()
+                    .iter()
+                    .map(|d| *d > 0.05)
+                    .collect::<Vec<bool>>(),
+                io.bus_doors_open().unwrap_or(false),
+            )
+        },
+        |old, new| {
+            for (i, (a, b)) in old.0.iter().zip(&new.0).enumerate() {
+                if a != b {
+                    runtime::dispatch(
+                        ctx,
+                        "door",
+                        vec![Value::Int(i as i64 + 1), Value::Bool(*b)],
+                    )?;
+                }
+            }
+            if old.1 != new.1 {
+                runtime::dispatch(ctx, "doors", vec![Value::Bool(new.1)])?;
             }
         }
-        if old.1 != new.1 {
-            runtime::dispatch(ctx, "doors", vec![Value::Bool(new.1)])?;
+    );
+    changed!(
+        ctx,
+        engine,
+        ["engine_start", "engine_stop"],
+        ctx.io().bus_engine().is_some_and(|e| e.0),
+        |_old, new| {
+            runtime::dispatch(
+                ctx,
+                if new { "engine_start" } else { "engine_stop" },
+                Vec::new(),
+            )?;
         }
-    });
-    changed!(ctx, engine, ["engine_start", "engine_stop"], ctx.io().bus_engine().is_some_and(|e| e.0), |_old, new| {
-        runtime::dispatch(ctx, if new { "engine_start" } else { "engine_stop" }, Vec::new())?;
-    });
-    changed!(ctx, gear, ["gear"], ctx.io().bus_gear().map(|g| g.round() as i64), |old, new| {
-        runtime::dispatch(ctx, "gear", vec![Value::opt(new), Value::opt(old)])?;
-    });
-    changed!(ctx, indicator, ["indicator"], ctx.io().bus_indicator().unwrap_or(0), |old, new| {
-        runtime::dispatch(ctx, "indicator", vec![indicator_name(new).into(), indicator_name(old).into()])?;
-    });
-    changed!(ctx, headlights, ["headlights"], ctx.io().bus_headlights().unwrap_or(0), |old, new| {
-        runtime::dispatch(ctx, "headlights", vec![Value::Int(new as i64), Value::Int(old as i64)])?;
-    });
-    changed!(ctx, horn, ["horn"], var_of(ctx, &["cockpit_hupe", "cockpit_hupe_swheel", "horn"]).is_some_and(|v| v > 0.5), |_old, new| {
-        runtime::dispatch(ctx, "horn", vec![Value::Bool(new)])?;
-    });
-    changed!(ctx, handbrake, ["handbrake"], var_of(ctx, &["bremse_feststell", "parking_brake"]).is_some_and(|v| v > 0.5), |_old, new| {
-        runtime::dispatch(ctx, "handbrake", vec![Value::Bool(new)])?;
-    });
-    changed!(ctx, request, ["stop_request"], var_of(ctx, &["haltewunsch", "stop_request"]).is_some_and(|v| v > 0.5), |_old, new| {
-        runtime::dispatch(ctx, "stop_request", vec![Value::Bool(new)])?;
-    });
-    changed!(ctx, passengers, ["passengers"], ctx.io().bus_passengers().map_or(0, |p| p.0), |old, new| {
-        runtime::dispatch(ctx, "passengers", vec![Value::Int(new as i64), Value::Int(old as i64)])?;
-    });
-    changed!(ctx, destination, ["destination"], info_of(ctx, "destination"), |old, new| {
-        runtime::dispatch(ctx, "destination", vec![new, old])?;
-    });
-    changed!(ctx, coupled, ["coupled"], ctx.io().bus_trailers().unwrap_or(0), |old, new| {
-        runtime::dispatch(ctx, "coupled", vec![Value::Int(new as i64), Value::Int(old as i64)])?;
-    });
+    );
+    changed!(
+        ctx,
+        gear,
+        ["gear"],
+        ctx.io().bus_gear().map(|g| g.round() as i64),
+        |old, new| {
+            runtime::dispatch(ctx, "gear", vec![Value::opt(new), Value::opt(old)])?;
+        }
+    );
+    changed!(
+        ctx,
+        indicator,
+        ["indicator"],
+        ctx.io().bus_indicator().unwrap_or(0),
+        |old, new| {
+            runtime::dispatch(
+                ctx,
+                "indicator",
+                vec![indicator_name(new).into(), indicator_name(old).into()],
+            )?;
+        }
+    );
+    changed!(
+        ctx,
+        headlights,
+        ["headlights"],
+        ctx.io().bus_headlights().unwrap_or(0),
+        |old, new| {
+            runtime::dispatch(
+                ctx,
+                "headlights",
+                vec![Value::Int(new as i64), Value::Int(old as i64)],
+            )?;
+        }
+    );
+    changed!(
+        ctx,
+        horn,
+        ["horn"],
+        var_of(ctx, &["cockpit_hupe", "cockpit_hupe_swheel", "horn"]).is_some_and(|v| v > 0.5),
+        |_old, new| {
+            runtime::dispatch(ctx, "horn", vec![Value::Bool(new)])?;
+        }
+    );
+    changed!(
+        ctx,
+        handbrake,
+        ["handbrake"],
+        var_of(ctx, &["bremse_feststell", "parking_brake"]).is_some_and(|v| v > 0.5),
+        |_old, new| {
+            runtime::dispatch(ctx, "handbrake", vec![Value::Bool(new)])?;
+        }
+    );
+    changed!(
+        ctx,
+        request,
+        ["stop_request"],
+        var_of(ctx, &["haltewunsch", "stop_request"]).is_some_and(|v| v > 0.5),
+        |_old, new| {
+            runtime::dispatch(ctx, "stop_request", vec![Value::Bool(new)])?;
+        }
+    );
+    changed!(
+        ctx,
+        passengers,
+        ["passengers"],
+        ctx.io().bus_passengers().map_or(0, |p| p.0),
+        |old, new| {
+            runtime::dispatch(
+                ctx,
+                "passengers",
+                vec![Value::Int(new as i64), Value::Int(old as i64)],
+            )?;
+        }
+    );
+    changed!(
+        ctx,
+        destination,
+        ["destination"],
+        info_of(ctx, "destination"),
+        |old, new| {
+            runtime::dispatch(ctx, "destination", vec![new, old])?;
+        }
+    );
+    changed!(
+        ctx,
+        coupled,
+        ["coupled"],
+        ctx.io().bus_trailers().unwrap_or(0),
+        |old, new| {
+            runtime::dispatch(
+                ctx,
+                "coupled",
+                vec![Value::Int(new as i64), Value::Int(old as i64)],
+            )?;
+        }
+    );
     Ok(())
 }
 
 fn duty_probes(ctx: &mut Ctx<'_>) -> Result<(), CallError> {
-    let wants = ["stop_arrive", "stop_depart", "trip_start", "duty_start", "duty_end"].iter().any(|e| runtime::hears(ctx, e));
+    let wants = [
+        "stop_arrive",
+        "stop_depart",
+        "trip_start",
+        "duty_start",
+        "duty_end",
+    ]
+    .iter()
+    .any(|e| runtime::hears(ctx, e));
     let duty = if wants { ctx.io().duty() } else { None };
     // the stop the bus stands at
-    changed!(ctx, stop, ["stop_arrive", "stop_depart"], StopSeen {
-        at: duty.as_ref().filter(|d| d.at_stop).and_then(|d| d.current.stops.get(d.next).map(|s| (s.name.trim().to_string(), s.id, d.next + 1)))
-    }, |old, new| {
-        let delay = duty.as_ref().map_or(0.0, |d| d.delay);
-        if let Some((name, id, n)) = old.at.clone() {
-            runtime::dispatch(ctx, "stop_depart", vec![name.into(), Value::Int(id), Value::Int(n as i64), Value::Num(delay)])?;
+    changed!(
+        ctx,
+        stop,
+        ["stop_arrive", "stop_depart"],
+        StopSeen {
+            at: duty.as_ref().filter(|d| d.at_stop).and_then(|d| d
+                .current
+                .stops
+                .get(d.next)
+                .map(|s| (s.name.trim().to_string(), s.id, d.next + 1)))
+        },
+        |old, new| {
+            let delay = duty.as_ref().map_or(0.0, |d| d.delay);
+            if let Some((name, id, n)) = old.at.clone() {
+                runtime::dispatch(
+                    ctx,
+                    "stop_depart",
+                    vec![
+                        name.into(),
+                        Value::Int(id),
+                        Value::Int(n as i64),
+                        Value::Num(delay),
+                    ],
+                )?;
+            }
+            if let Some((name, id, n)) = new.at.clone() {
+                runtime::dispatch(
+                    ctx,
+                    "stop_arrive",
+                    vec![
+                        name.into(),
+                        Value::Int(id),
+                        Value::Int(n as i64),
+                        Value::Num(delay),
+                    ],
+                )?;
+            }
         }
-        if let Some((name, id, n)) = new.at.clone() {
-            runtime::dispatch(ctx, "stop_arrive", vec![name.into(), Value::Int(id), Value::Int(n as i64), Value::Num(delay)])?;
+    );
+    changed!(
+        ctx,
+        trip,
+        ["trip_start"],
+        duty.as_ref().map(|d| (
+            d.current.name.trim().to_string(),
+            d.current.terminus.trim().to_string(),
+            d.trip
+        )),
+        |_old, new| {
+            if let Some((name, terminus, n)) = new {
+                runtime::dispatch(
+                    ctx,
+                    "trip_start",
+                    vec![Value::Int(n as i64 + 1), name.into(), terminus.into()],
+                )?;
+            }
         }
-    });
-    changed!(ctx, trip, ["trip_start"], duty.as_ref().map(|d| (d.current.name.trim().to_string(), d.current.terminus.trim().to_string(), d.trip)), |_old, new| {
-        if let Some((name, terminus, n)) = new {
-            runtime::dispatch(ctx, "trip_start", vec![Value::Int(n as i64 + 1), name.into(), terminus.into()])?;
+    );
+    changed!(
+        ctx,
+        duty,
+        ["duty_start", "duty_end"],
+        duty.as_ref()
+            .map(|d| (d.line.trim().to_string(), d.tour.trim().to_string())),
+        |old, new| {
+            if let Some((l, t)) = old {
+                runtime::dispatch(ctx, "duty_end", vec![l.into(), t.into()])?;
+            }
+            if let Some((l, t)) = new {
+                runtime::dispatch(ctx, "duty_start", vec![l.into(), t.into()])?;
+            }
         }
-    });
-    changed!(ctx, duty, ["duty_start", "duty_end"], duty.as_ref().map(|d| (d.line.trim().to_string(), d.tour.trim().to_string())), |old, new| {
-        if let Some((l, t)) = old {
-            runtime::dispatch(ctx, "duty_end", vec![l.into(), t.into()])?;
-        }
-        if let Some((l, t)) = new {
-            runtime::dispatch(ctx, "duty_start", vec![l.into(), t.into()])?;
-        }
-    });
+    );
     Ok(())
 }
 
 fn world_probes(ctx: &mut Ctx<'_>) -> Result<(), CallError> {
-    let clock = if ["minute", "hour", "day"].iter().any(|e| runtime::hears(ctx, e)) { ctx.io().clock() } else { None };
-    changed!(ctx, minute, ["minute", "hour", "day"], clock.as_ref().map_or((0, 0, (0, 0, 0)), |c| {
-        let t = c.time.rem_euclid(86400.0) as i64;
-        (t / 3600, t / 60 % 60, (c.year, c.month, c.day))
-    }), |old, new| {
-        if clock.is_some() {
-            if new.2 != old.2 {
-                runtime::dispatch(ctx, "day", vec![Value::Int(new.2 .0 as i64), Value::Int(new.2 .1 as i64), Value::Int(new.2 .2 as i64)])?;
+    let clock = if ["minute", "hour", "day"]
+        .iter()
+        .any(|e| runtime::hears(ctx, e))
+    {
+        ctx.io().clock()
+    } else {
+        None
+    };
+    changed!(
+        ctx,
+        minute,
+        ["minute", "hour", "day"],
+        clock.as_ref().map_or((0, 0, (0, 0, 0)), |c| {
+            let t = c.time.rem_euclid(86400.0) as i64;
+            (t / 3600, t / 60 % 60, (c.year, c.month, c.day))
+        }),
+        |old, new| {
+            if clock.is_some() {
+                if new.2 != old.2 {
+                    runtime::dispatch(
+                        ctx,
+                        "day",
+                        vec![
+                            Value::Int(new.2 .0 as i64),
+                            Value::Int(new.2 .1 as i64),
+                            Value::Int(new.2 .2 as i64),
+                        ],
+                    )?;
+                }
+                if new.0 != old.0 {
+                    runtime::dispatch(ctx, "hour", vec![Value::Int(new.0)])?;
+                }
+                if (new.0, new.1) != (old.0, old.1) {
+                    runtime::dispatch(ctx, "minute", vec![Value::Int(new.0), Value::Int(new.1)])?;
+                }
             }
-            if new.0 != old.0 {
-                runtime::dispatch(ctx, "hour", vec![Value::Int(new.0)])?;
-            }
-            if (new.0, new.1) != (old.0, old.1) {
-                runtime::dispatch(ctx, "minute", vec![Value::Int(new.0), Value::Int(new.1)])?;
-            }
         }
-    });
-    changed!(ctx, tile, ["tile"], (info_of(ctx, "tile_x"), info_of(ctx, "tile_y")), |old, new| {
-        if !new.0.is_nil() {
-            runtime::dispatch(ctx, "tile", vec![new.0, new.1, old.0, old.1])?;
-        }
-    });
-    changed!(ctx, weather, ["weather"], ctx.io().weather().map(|w| (w.name, w.precip_kind, w.snow_cover, w.clouds)), |_old, new| {
-        if let Some((name, ..)) = new {
-            runtime::dispatch(ctx, "weather", vec![name.into()])?;
-        }
-    });
-    let light = if runtime::hears(ctx, "light_ahead") || runtime::hears(ctx, "red_light") { ctx.io().traffic_light_ahead(80.0) } else { None };
-    changed!(ctx, light, ["light_ahead", "red_light"], light.as_ref().map(|l| (l.aspect, l.distance)), |old, new| {
-        // (the distance moves every frame: only a new aspect, or a light that came or went, is news)
-        let aspect = |x: &Option<(&'static str, f64)>| x.map(|l| l.0);
-        let speed = { let io = ctx.io(); io.var("Velocity").map(|v| v.abs() as f64).unwrap_or(0.0) };
-        if let (Some((a, d)), None) = (old, new) {
-            if matches!(a, "red" | "red_yellow") && d < 15.0 && speed > 5.0 {
-                runtime::dispatch(ctx, "red_light", vec![Value::Num(speed)])?;
+    );
+    changed!(
+        ctx,
+        tile,
+        ["tile"],
+        (info_of(ctx, "tile_x"), info_of(ctx, "tile_y")),
+        |old, new| {
+            if !new.0.is_nil() {
+                runtime::dispatch(ctx, "tile", vec![new.0, new.1, old.0, old.1])?;
             }
         }
-        if aspect(&old) != aspect(&new) || (new.is_some() && old.is_some_and(|o| o.1 + 5.0 < new.unwrap().1)) {
-            runtime::dispatch(ctx, "light_ahead", vec![Value::opt(new.map(|l| l.0)), Value::opt(new.map(|l| (l.1 * 10.0).round() / 10.0))])?;
+    );
+    changed!(
+        ctx,
+        weather,
+        ["weather"],
+        ctx.io()
+            .weather()
+            .map(|w| (w.name, w.precip_kind, w.snow_cover, w.clouds)),
+        |_old, new| {
+            if let Some((name, ..)) = new {
+                runtime::dispatch(ctx, "weather", vec![name.into()])?;
+            }
         }
-    });
+    );
+    let light = if runtime::hears(ctx, "light_ahead") || runtime::hears(ctx, "red_light") {
+        ctx.io().traffic_light_ahead(80.0)
+    } else {
+        None
+    };
+    changed!(
+        ctx,
+        light,
+        ["light_ahead", "red_light"],
+        light.as_ref().map(|l| (l.aspect, l.distance)),
+        |old, new| {
+            // (the distance moves every frame: only a new aspect, or a light that came or went, is news)
+            let aspect = |x: &Option<(&'static str, f64)>| x.map(|l| l.0);
+            let speed = {
+                let io = ctx.io();
+                io.var("Velocity").map(|v| v.abs() as f64).unwrap_or(0.0)
+            };
+            if let (Some((a, d)), None) = (old, new) {
+                if matches!(a, "red" | "red_yellow") && d < 15.0 && speed > 5.0 {
+                    runtime::dispatch(ctx, "red_light", vec![Value::Num(speed)])?;
+                }
+            }
+            if aspect(&old) != aspect(&new)
+                || (new.is_some() && old.is_some_and(|o| o.1 + 5.0 < new.unwrap().1))
+            {
+                runtime::dispatch(
+                    ctx,
+                    "light_ahead",
+                    vec![
+                        Value::opt(new.map(|l| l.0)),
+                        Value::opt(new.map(|l| (l.1 * 10.0).round() / 10.0)),
+                    ],
+                )?;
+            }
+        }
+    );
     // (the frame's own distance kept, without firing: see above)
     let limit = if runtime::hears(ctx, "speed_limit") {
         let io = ctx.io();
-        io.position().and_then(|p| io.map_lane(p[0], p[1])).filter(|l| l.distance < 6.0).map(|l| l.speed_limit_kmh.round() as i64)
+        io.position()
+            .and_then(|p| io.map_lane(p[0], p[1]))
+            .filter(|l| l.distance < 6.0)
+            .map(|l| l.speed_limit_kmh.round() as i64)
     } else {
         None
     };

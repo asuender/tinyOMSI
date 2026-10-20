@@ -42,7 +42,8 @@ pub(crate) fn weekday(code: i32) -> i32 {
     if m < 3 {
         y -= 1;
     }
-    let sunday0 = (y + y / 4 - y / 100 + y / 400 + t[((m - 1).clamp(0, 11)) as usize] + d).rem_euclid(7);
+    let sunday0 =
+        (y + y / 4 - y / 100 + y / 400 + t[((m - 1).clamp(0, 11)) as usize] + d).rem_euclid(7);
     (sunday0 + 6) % 7
 }
 
@@ -56,10 +57,18 @@ pub(crate) fn days_of(mask: i32) -> String {
         0x3f => "Mon-Sat".to_string(),
         0x60 => "Sat-Sun".to_string(),
         0 => String::new(),
-        w => (0..7).filter(|i| w & (1 << i) != 0).map(|i| names[i]).collect::<Vec<_>>().join(", "),
+        w => (0..7)
+            .filter(|i| w & (1 << i) != 0)
+            .map(|i| names[i])
+            .collect::<Vec<_>>()
+            .join(", "),
     };
     if mask & (1 << 7) != 0 && week != 0x7f {
-        out.push_str(if out.is_empty() { "holidays" } else { " & holidays" });
+        out.push_str(if out.is_empty() {
+            "holidays"
+        } else {
+            " & holidays"
+        });
     }
     match (mask & (1 << 8) != 0, mask & (1 << 9) != 0) {
         (true, false) => out.push_str(", school days"),

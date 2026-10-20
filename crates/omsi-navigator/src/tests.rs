@@ -17,7 +17,10 @@ fn centre_panel_map_click_and_drag_use_window_coordinates() {
     let mid = n.map_point(2900.0, 500.0).expect("on the map");
     assert!((mid - n.city.center).length() < 0.05, "{mid:?}");
     let east = n.map_point(3000.0, 500.0).expect("on the map") - n.city.center;
-    assert!((east.x - 200.0).abs() < 0.5 && east.y.abs() < 0.5, "{east:?}");
+    assert!(
+        (east.x - 200.0).abs() < 0.5 && east.y.abs() < 0.5,
+        "{east:?}"
+    );
     assert_eq!(n.map_point(1000.0, 500.0), None);
 }
 /// A press and a small wobble is a click (the city map), a longer move drags the
@@ -35,7 +38,10 @@ fn the_navigator_is_dragged_by_the_mouse() {
     assert!(n.panel_move(100.0 + 610.0, 700.0 - 295.0));
     assert_eq!(n.panel_release(), Some(true));
     let at = n.at.unwrap();
-    assert!((at[0] - 0.5).abs() < 1e-3 && (at[1] - 0.5).abs() < 1e-3, "{at:?}");
+    assert!(
+        (at[0] - 0.5).abs() < 1e-3 && (at[1] - 0.5).abs() < 1e-3,
+        "{at:?}"
+    );
     let back = placed_at(&n.placement()).unwrap();
     assert!((back[0] - 0.5).abs() < 1e-3 && (back[1] - 0.5).abs() < 1e-3);
     // (dragged past the window's edge: held inside it)
@@ -53,24 +59,42 @@ fn the_navigator_is_dragged_by_the_mouse() {
 fn the_navigator_keeps_where_it_was_dragged_on_a_phone_and_clear_of_the_information_bar() {
     let mut n = Navigator::new(true, 0.85, "bottom-left");
     let (screen, size) = ((1280.0, 720.0), (300.0, 250.0));
-    assert_eq!(n.panel_origin(screen, size, true, None, None), (490.0, 13.0));
-    assert_eq!(n.panel_origin(screen, size, true, Some([311.0, 20.0, 898.0, 69.0]), None), (490.0, 76.0));
-    assert_eq!(n.panel_origin(screen, size, false, Some([311.0, 20.0, 898.0, 69.0]), None), (13.0, 457.0));
+    assert_eq!(
+        n.panel_origin(screen, size, true, None, None),
+        (490.0, 13.0)
+    );
+    assert_eq!(
+        n.panel_origin(screen, size, true, Some([311.0, 20.0, 898.0, 69.0]), None),
+        (490.0, 76.0)
+    );
+    assert_eq!(
+        n.panel_origin(screen, size, false, Some([311.0, 20.0, 898.0, 69.0]), None),
+        (13.0, 457.0)
+    );
     n.corner = "top-left".into();
-    assert_eq!(n.panel_origin(screen, size, false, Some([330.0, 20.0, 950.0, 69.0]), None), (13.0, 13.0));
-    assert_eq!(n.panel_origin(screen, size, false, Some([300.0, 20.0, 980.0, 69.0]), None), (13.0, 76.0));
+    assert_eq!(
+        n.panel_origin(screen, size, false, Some([330.0, 20.0, 950.0, 69.0]), None),
+        (13.0, 13.0)
+    );
+    assert_eq!(
+        n.panel_origin(screen, size, false, Some([300.0, 20.0, 980.0, 69.0]), None),
+        (13.0, 76.0)
+    );
     // a finger's drag: there, on the phone as on the computer
     n.panel_rect = [490.0, 13.0, 790.0, 263.0];
     n.panel_press(600.0, 100.0);
     assert!(n.panel_move(600.0 - 490.0, 100.0 + 457.0));
     assert_eq!(n.panel_release(), Some(true));
     assert_eq!(n.panel_origin(screen, size, true, None, None), (0.0, 470.0));
-    assert_eq!(n.panel_origin(screen, size, false, None, None), (0.0, 470.0));
+    assert_eq!(
+        n.panel_origin(screen, size, false, None, None),
+        (0.0, 470.0)
+    );
 }
 
 use super::*;
-use omsi_sim::traffic::LaneKey;
 use omsi_sim::traffic::Lane;
+use omsi_sim::traffic::LaneKey;
 
 #[test]
 fn stop_request_icon_reserves_space_only_while_active() {
@@ -86,7 +110,10 @@ fn stop_request_icon_reserves_space_only_while_active() {
                 if requested {
                     assert!(!ui.verts.is_empty(), "the stop sign must render");
                     assert!(ui.verts.iter().all(|v| v.color == STOP_REQUEST.0));
-                    assert!(ui.verts.iter().all(|v| v.pos[0] > text.right() && v.pos[0] <= row.right()));
+                    assert!(ui
+                        .verts
+                        .iter()
+                        .all(|v| v.pos[0] > text.right() && v.pos[0] <= row.right()));
                     assert!((text.w - (row.w - 38.0 * scale)).abs() < 0.01);
                 } else {
                     assert!(ui.verts.is_empty());
@@ -98,7 +125,11 @@ fn stop_request_icon_reserves_space_only_while_active() {
 }
 
 fn straight(a: (f64, f64), b: (f64, f64)) -> Lane {
-    omsi_sim::traffic::LaneBuilder::polyline(vec![DVec3::new(a.0, a.1, 0.0), DVec3::new(b.0, b.1, 0.0)], LaneKind::Street, 3.0)
+    omsi_sim::traffic::LaneBuilder::polyline(
+        vec![DVec3::new(a.0, a.1, 0.0), DVec3::new(b.0, b.1, 0.0)],
+        LaneKind::Street,
+        3.0,
+    )
 }
 
 /// A square block: the route goes north then east; the bus turned west by mistake at
@@ -106,22 +137,39 @@ fn straight(a: (f64, f64), b: (f64, f64)) -> Lane {
 #[test]
 fn a_way_back_joins_the_route_ahead() {
     let lanes = vec![
-        straight((0.0, 0.0), (0.0, 100.0)),     // 0 north (route)
-        straight((0.0, 100.0), (100.0, 100.0)), // 1 east (route)
-        straight((100.0, 100.0), (200.0, 100.0)), // 2 east (route)
-        straight((0.0, 100.0), (-100.0, 100.0)), // 3 west (the mistake)
+        straight((0.0, 0.0), (0.0, 100.0)),         // 0 north (route)
+        straight((0.0, 100.0), (100.0, 100.0)),     // 1 east (route)
+        straight((100.0, 100.0), (200.0, 100.0)),   // 2 east (route)
+        straight((0.0, 100.0), (-100.0, 100.0)),    // 3 west (the mistake)
         straight((-100.0, 100.0), (-100.0, 200.0)), // 4 north
         straight((-100.0, 200.0), (100.0, 200.0)),  // 5 east
         straight((100.0, 200.0), (100.0, 100.0)),   // 6 south, back to the route's corner
     ];
-    let mut net = Network { lanes, ..Default::default() };
+    let mut net = Network {
+        lanes,
+        ..Default::default()
+    };
     net.link(1.5);
     // (square corners: joined by hand, `link` wants a junction's curves)
-    for (a, n) in [(0, vec![1, 3]), (1, vec![2]), (3, vec![4]), (4, vec![5]), (5, vec![6]), (6, vec![2])] {
+    for (a, n) in [
+        (0, vec![1, 3]),
+        (1, vec![2]),
+        (3, vec![4]),
+        (4, vec![5]),
+        (5, vec![6]),
+        (6, vec![2]),
+    ] {
         net.lanes[a].next = n;
     }
     let route = [0usize, 1, 2];
-    let (path, join) = way_back(&net, DVec3::new(-40.0, 100.0, 0.0), 270.0, &route[1..], 6000.0).expect("a way");
+    let (path, join) = way_back(
+        &net,
+        DVec3::new(-40.0, 100.0, 0.0),
+        270.0,
+        &route[1..],
+        6000.0,
+    )
+    .expect("a way");
     assert_eq!(path.first(), Some(&3));
     assert!(path.contains(&6), "{path:?}");
     // round the block back to the route's second corner: it goes on east on lane 2
@@ -135,22 +183,34 @@ fn a_way_back_joins_the_route_ahead() {
 #[test]
 fn a_way_back_does_not_lead_back_along_the_route() {
     let lanes = vec![
-        straight((0.0, 0.0), (100.0, 0.0)),    // 0 route
-        straight((100.0, 0.0), (200.0, 0.0)),  // 1 route
-        straight((200.0, 0.0), (300.0, 0.0)),  // 2 route
-        straight((300.0, 0.0), (400.0, 0.0)),  // 3 route
+        straight((0.0, 0.0), (100.0, 0.0)),     // 0 route
+        straight((100.0, 0.0), (200.0, 0.0)),   // 1 route
+        straight((200.0, 0.0), (300.0, 0.0)),   // 2 route
+        straight((300.0, 0.0), (400.0, 0.0)),   // 3 route
         straight((100.0, 50.0), (200.0, 50.0)), // 4 the road beside, the bus on it
         straight((200.0, 50.0), (300.0, 50.0)), // 5
         straight((300.0, 50.0), (300.0, 0.0)),  // 6 down onto lane 3
         straight((200.0, 50.0), (100.0, 0.0)),  // 7 a short cut back onto lane 1
     ];
-    let mut net = Network { lanes, ..Default::default() };
-    for (a, n) in [(0, vec![1]), (1, vec![2]), (2, vec![3]), (4, vec![5, 7]), (5, vec![6]), (6, vec![3]), (7, vec![1])] {
+    let mut net = Network {
+        lanes,
+        ..Default::default()
+    };
+    for (a, n) in [
+        (0, vec![1]),
+        (1, vec![2]),
+        (2, vec![3]),
+        (4, vec![5, 7]),
+        (5, vec![6]),
+        (6, vec![3]),
+        (7, vec![1]),
+    ] {
         net.lanes[a].next = n;
     }
     net.build_grid();
     let route = [1usize, 2, 3];
-    let (path, join) = way_back(&net, DVec3::new(150.0, 50.0, 0.0), 90.0, &route, 6000.0).expect("a way");
+    let (path, join) =
+        way_back(&net, DVec3::new(150.0, 50.0, 0.0), 90.0, &route, 6000.0).expect("a way");
     assert_eq!(route[join], 3, "{path:?} join {join}");
     assert!(!path.contains(&7), "{path:?}");
 }
@@ -160,22 +220,30 @@ fn a_way_back_does_not_lead_back_along_the_route() {
 #[test]
 fn a_way_may_change_lanes() {
     let lanes = vec![
-        straight((0.0, 0.0), (0.0, 100.0)),    // 0 right lane, the bus
-        straight((-3.5, 0.0), (-3.5, 100.0)),  // 1 left lane
-        straight((0.0, 100.0), (0.0, 200.0)),  // 2 straight on from the right lane
+        straight((0.0, 0.0), (0.0, 100.0)),       // 0 right lane, the bus
+        straight((-3.5, 0.0), (-3.5, 100.0)),     // 1 left lane
+        straight((0.0, 100.0), (0.0, 200.0)),     // 2 straight on from the right lane
         straight((-3.5, 100.0), (-100.0, 100.0)), // 3 left turn from the left lane
         straight((-100.0, 100.0), (-200.0, 100.0)), // 4 the route
     ];
-    let mut net = Network { lanes, ..Default::default() };
+    let mut net = Network {
+        lanes,
+        ..Default::default()
+    };
     for (a, n) in [(0, vec![2]), (1, vec![3]), (3, vec![4])] {
         net.lanes[a].next = n;
     }
     net.lanes[0].left = Some(1);
     net.lanes[1].right = Some(0);
     net.build_grid();
-    let (path, join) = way_back(&net, DVec3::new(0.0, 20.0, 0.0), 0.0, &[4], 6000.0).expect("a way");
+    let (path, join) =
+        way_back(&net, DVec3::new(0.0, 20.0, 0.0), 0.0, &[4], 6000.0).expect("a way");
     assert_eq!(join, 0);
-    assert_eq!(path, vec![1, 3], "the bus's own lane is left for the one beside it");
+    assert_eq!(
+        path,
+        vec![1, 3],
+        "the bus's own lane is left for the one beside it"
+    );
 }
 
 #[test]
@@ -184,7 +252,12 @@ fn projection_puts_the_look_at_point_in_the_middle() {
     let l = Layer::world(view, 0.7, [0.0, 0.0, 400.0, 300.0], [0.0; 4], 0.0, 1.0);
     let p = project(l.view_proj, [0.0, 0.0, 400.0, 300.0], Vec3::ZERO).unwrap();
     assert!((p - Vec2::new(200.0, 150.0)).length() < 0.5, "{p}");
-    let ahead = project(l.view_proj, [0.0, 0.0, 400.0, 300.0], Vec3::new(0.0, 30.0, 0.0)).unwrap();
+    let ahead = project(
+        l.view_proj,
+        [0.0, 0.0, 400.0, 300.0],
+        Vec3::new(0.0, 30.0, 0.0),
+    )
+    .unwrap();
     assert!(ahead.y < 150.0, "ahead is up the picture: {ahead}");
 }
 
@@ -193,7 +266,10 @@ fn editor_only_lanes_do_not_become_gps_roads() {
     let visible = straight((0.0, 0.0), (100.0, 0.0));
     let mut hidden = straight((0.0, 30.0), (100.0, 30.0));
     hidden.invisible = true;
-    let net = Network { lanes: vec![visible.clone(), hidden], ..Default::default() };
+    let net = Network {
+        lanes: vec![visible.clone(), hidden],
+        ..Default::default()
+    };
     let drawn = visible_road_lanes(&net);
     assert_eq!(drawn.len(), 1);
     assert_eq!(drawn[0].1.points, visible.points);
@@ -208,13 +284,23 @@ fn separate_asphalt_meshes_corroborate_invisible_traffic_splines() {
     let mut bridge = straight((0.0, 0.0), (100.0, 0.0));
     bridge.points.iter_mut().for_each(|p| p.z = 8.0);
     bridge.invisible = true;
-    let mut net = Network { lanes: vec![on_road, helper, bridge], ..Default::default() };
+    let mut net = Network {
+        lanes: vec![on_road, helper, bridge],
+        ..Default::default()
+    };
     let surface = (vec![DVec3::ZERO, DVec3::new(100.0, 0.0, 0.0)], 8.0);
     confirm_road_surfaces(&mut net, &[surface.clone()]);
     assert!(!net.lanes[0].invisible);
     assert!(net.lanes[1].invisible);
-    assert!(net.lanes[2].invisible, "asphalt below a bridge must not corroborate its paths");
-    assert_eq!(road_geometry(&net).len(), 1, "surface evidence must not draw a second road");
+    assert!(
+        net.lanes[2].invisible,
+        "asphalt below a bridge must not corroborate its paths"
+    );
+    assert_eq!(
+        road_geometry(&net).len(),
+        1,
+        "surface evidence must not draw a second road"
+    );
 }
 
 #[test]
@@ -223,17 +309,30 @@ fn adjacent_spline_lanes_form_carriageways_without_filling_the_median() {
     for (path, offset) in [-10.0f32, -7.0, 7.0, 10.0].into_iter().enumerate() {
         let mut lane = straight((offset as f64, 0.0), (offset as f64, 100.0));
         lane.source = 1;
-        lane.key = Some(LaneKey { tile: (0, 0), id: 42, path: path as u16 });
+        lane.key = Some(LaneKey {
+            tile: (0, 0),
+            id: 42,
+            path: path as u16,
+        });
         lane.offset = offset;
-        if offset < 0.0 { lane.points.reverse(); lane.reversed = true; }
+        if offset < 0.0 {
+            lane.points.reverse();
+            lane.reversed = true;
+        }
         lanes.push(lane);
     }
-    let net = Network { lanes, ..Default::default() };
+    let net = Network {
+        lanes,
+        ..Default::default()
+    };
     let roads = road_geometry(&net);
     assert_eq!(roads.len(), 2);
     assert_eq!(roads[0].width, 6.0);
     assert_eq!(roads[1].width, 6.0);
-    assert_eq!(roads[0].points, vec![DVec3::new(-8.5, 0.0, 0.0), DVec3::new(-8.5, 100.0, 0.0)]);
+    assert_eq!(
+        roads[0].points,
+        vec![DVec3::new(-8.5, 0.0, 0.0), DVec3::new(-8.5, 100.0, 0.0)]
+    );
     assert_eq!(roads[1].points[0].x, 8.5);
     // Display geometry must not replace or move the graph used by routing.
     assert_eq!(net.lanes.len(), 4);
@@ -243,20 +342,40 @@ fn adjacent_spline_lanes_form_carriageways_without_filling_the_median() {
 #[test]
 fn opposite_directions_draw_once_even_when_reverse_is_first() {
     let mut a = straight((0.0, 0.0), (0.0, 100.0));
-    a.key = Some(LaneKey { tile: (0, 0), id: 42, path: 0 });
+    a.key = Some(LaneKey {
+        tile: (0, 0),
+        id: 42,
+        path: 0,
+    });
     let mut b = a.clone();
     b.points.reverse();
     b.reversed = true;
-    let net = Network { lanes: vec![b, a], ..Default::default() };
+    let net = Network {
+        lanes: vec![b, a],
+        ..Default::default()
+    };
     assert_eq!(visible_road_lanes(&net).len(), 1);
 }
 
 #[test]
 fn junction_helpers_between_roads_remain_connected() {
-    let mut lanes = vec![straight((0.0, 0.0), (0.0, 40.0)), straight((0.0, 40.0), (0.0, 50.0)), straight((0.0, 50.0), (0.0, 60.0)), straight((0.0, 60.0), (0.0, 100.0)), straight((30.0, 0.0), (30.0, 100.0))];
-    lanes[0].next = vec![1]; lanes[1].next = vec![2]; lanes[2].next = vec![3];
-    for i in [1, 2, 4] { lanes[i].invisible = true; }
-    let mut net = Network { lanes, ..Default::default() };
+    let mut lanes = vec![
+        straight((0.0, 0.0), (0.0, 40.0)),
+        straight((0.0, 40.0), (0.0, 50.0)),
+        straight((0.0, 50.0), (0.0, 60.0)),
+        straight((0.0, 60.0), (0.0, 100.0)),
+        straight((30.0, 0.0), (30.0, 100.0)),
+    ];
+    lanes[0].next = vec![1];
+    lanes[1].next = vec![2];
+    lanes[2].next = vec![3];
+    for i in [1, 2, 4] {
+        lanes[i].invisible = true;
+    }
+    let mut net = Network {
+        lanes,
+        ..Default::default()
+    };
     confirm_road_surfaces(&mut net, &[]);
     assert!(!net.lanes[1].invisible && !net.lanes[2].invisible);
     assert!(net.lanes[4].invisible);
@@ -265,17 +384,30 @@ fn junction_helpers_between_roads_remain_connected() {
 
 #[test]
 fn placement_gaps_are_bridged_only_where_the_graph_connects() {
-    let mut lanes = vec![straight((0.0, 0.0), (0.0, 40.0)), straight((0.0, 41.0), (0.0, 80.0)), straight((2.0, 41.0), (2.0, 80.0))];
+    let mut lanes = vec![
+        straight((0.0, 0.0), (0.0, 40.0)),
+        straight((0.0, 41.0), (0.0, 80.0)),
+        straight((2.0, 41.0), (2.0, 80.0)),
+    ];
     lanes[0].next = vec![1];
-    let roads = road_geometry(&Network { lanes, ..Default::default() });
+    let roads = road_geometry(&Network {
+        lanes,
+        ..Default::default()
+    });
     assert_eq!(roads.len(), 4);
-    assert_eq!(roads[3].points, vec![DVec3::new(0.0, 40.0, 0.0), DVec3::new(0.0, 41.0, 0.0)]);
+    assert_eq!(
+        roads[3].points,
+        vec![DVec3::new(0.0, 40.0, 0.0), DVec3::new(0.0, 41.0, 0.0)]
+    );
 }
 
 #[test]
 fn paved_areas_without_driving_paths_do_not_draw_streets() {
     let mut net = Network::default();
-    confirm_road_surfaces(&mut net, &[(vec![DVec3::ZERO, DVec3::new(100.0, 0.0, 0.0)], 20.0)]);
+    confirm_road_surfaces(
+        &mut net,
+        &[(vec![DVec3::ZERO, DVec3::new(100.0, 0.0, 0.0)], 20.0)],
+    );
     assert!(road_geometry(&net).is_empty());
 }
 
@@ -283,11 +415,18 @@ fn paved_areas_without_driving_paths_do_not_draw_streets() {
 fn stacked_paths_on_one_spline_are_not_merged() {
     let mut a = straight((0.0, 0.0), (0.0, 100.0));
     a.source = 1;
-    a.key = Some(LaneKey { tile: (0, 0), id: 42, path: 0 });
+    a.key = Some(LaneKey {
+        tile: (0, 0),
+        id: 42,
+        path: 0,
+    });
     let mut b = a.clone();
     b.key.as_mut().unwrap().path = 1;
     b.points.iter_mut().for_each(|p| p.z = 8.0);
-    let roads = road_geometry(&Network { lanes: vec![a, b], ..Default::default() });
+    let roads = road_geometry(&Network {
+        lanes: vec![a, b],
+        ..Default::default()
+    });
     assert_eq!(roads.len(), 2);
     assert_eq!(roads[0].points[0].z, 0.0);
     assert_eq!(roads[1].points[0].z, 8.0);
@@ -296,7 +435,10 @@ fn stacked_paths_on_one_spline_are_not_merged() {
 #[test]
 fn crowded_stop_markers_and_labels_do_not_overlap() {
     let p = Vec2::new(200.0, 200.0);
-    let markers = spaced_markers([(0, p), (1, p + Vec2::X * 5.0), (2, p + Vec2::X * 35.0)], 20.0);
+    let markers = spaced_markers(
+        [(0, p), (1, p + Vec2::X * 5.0), (2, p + Vec2::X * 35.0)],
+        20.0,
+    );
     assert_eq!(markers.iter().map(|m| m.0).collect::<Vec<_>>(), vec![0, 2]);
     let win = Rect::new(0.0, 0.0, 600.0, 400.0);
     let first = stop_label_rect(p, 150.0, 1.0, win, &[]).unwrap();
@@ -337,10 +479,16 @@ fn a_line_is_ticked_and_unticked_and_a_double_click_opens_it() {
     // a click on a name ticks it; a second one within a moment opens its data
     n.time = 10.0;
     n.lines_click(LinesHit::Focus(1));
-    assert_eq!((n.city.lines.selected.clone(), n.city.lines.focus), (vec![1], None));
+    assert_eq!(
+        (n.city.lines.selected.clone(), n.city.lines.focus),
+        (vec![1], None)
+    );
     n.time = 10.2;
     n.lines_click(LinesHit::Focus(1));
-    assert_eq!((n.city.lines.selected.clone(), n.city.lines.focus), (vec![1], Some(1)));
+    assert_eq!(
+        (n.city.lines.selected.clone(), n.city.lines.focus),
+        (vec![1], Some(1))
+    );
     // a line that does not exist is left alone
     n.lines_click(LinesHit::Toggle(99));
     assert_eq!(n.city.lines.selected, vec![1]);
@@ -359,7 +507,14 @@ fn select_all_ticks_what_is_on_show_and_clears_it_the_second_time() {
 fn the_route_of_the_line_in_focus_is_picked() {
     let mut n = with_example_lines();
     n.debug_lines("E1;1");
-    assert_eq!((n.city.lines.open, n.city.lines.selected.clone(), n.city.lines.focus), (true, vec![0], Some(0)));
+    assert_eq!(
+        (
+            n.city.lines.open,
+            n.city.lines.selected.clone(),
+            n.city.lines.focus
+        ),
+        (true, vec![0], Some(0))
+    );
     assert_eq!(n.city.lines.route.get(&0), Some(&1));
     n.lines_click(LinesHit::RoutePick(0));
     assert_eq!(n.city.lines.route.get(&0), Some(&0));
@@ -387,13 +542,20 @@ fn the_terrain_view_leaves_out_the_land_use_and_draws_the_contour_lines() {
     surface::build_contours(&mut faint, &layers, DVec2::ZERO, pal, 0.2);
     assert!(!strong.verts.is_empty());
     assert_eq!(strong.verts.len(), faint.verts.len());
-    assert!(strong.verts.iter().zip(&faint.verts).any(|(a, b)| a.color != b.color));
+    assert!(strong
+        .verts
+        .iter()
+        .zip(&faint.verts)
+        .any(|(a, b)| a.color != b.color));
 }
 
 #[test]
 fn the_terrain_view_needs_a_button_a_package_with_relief_and_has_a_band_for_each_zoom() {
     let mut n = with_example_lines();
-    assert!(n.contour_band().is_none(), "off until the button is pressed");
+    assert!(
+        n.contour_band().is_none(),
+        "off until the button is pressed"
+    );
     n.show_contours = true;
     n.city.mpp = 2.0;
     assert_eq!(n.contour_band().map(|b| b.1), Some(0));
@@ -409,8 +571,26 @@ fn the_terrain_view_needs_a_button_a_package_with_relief_and_has_a_band_for_each
 #[test]
 fn the_turned_view_has_the_chosen_direction_up_on_the_screen() {
     let (w, h) = (1000.0f32, 600.0f32);
-    let top = |phi: f64| Navigator::unproject(&Navigator::city_cam(2.0, 0.0, phi, w, h), w, h, w * 0.5, 0.0).unwrap();
-    let centre = |phi: f64| Navigator::unproject(&Navigator::city_cam(2.0, 0.0, phi, w, h), w, h, w * 0.5, h * 0.5).unwrap();
+    let top = |phi: f64| {
+        Navigator::unproject(
+            &Navigator::city_cam(2.0, 0.0, phi, w, h),
+            w,
+            h,
+            w * 0.5,
+            0.0,
+        )
+        .unwrap()
+    };
+    let centre = |phi: f64| {
+        Navigator::unproject(
+            &Navigator::city_cam(2.0, 0.0, phi, w, h),
+            w,
+            h,
+            w * 0.5,
+            h * 0.5,
+        )
+        .unwrap()
+    };
     // as drawn: north (+y) is up; the middle of the view is the point looked at, however the view is turned
     assert!(top(0.0).y > 100.0 && top(0.0).x.abs() < 1e-3);
     assert!(centre(1.234).length() < 1e-3);
@@ -419,7 +599,10 @@ fn the_turned_view_has_the_chosen_direction_up_on_the_screen() {
     assert!(east.x > 100.0 && east.y.abs() < 1e-2, "{east:?}");
     // half a turn: south is up; the same distance from the middle whichever way it is turned
     let south = top(std::f64::consts::PI);
-    assert!(south.y < -100.0 && (south.length() - top(0.0).length()).abs() < 1e-2, "{south:?}");
+    assert!(
+        south.y < -100.0 && (south.length() - top(0.0).length()).abs() < 1e-2,
+        "{south:?}"
+    );
 }
 
 #[test]
@@ -452,7 +635,10 @@ fn the_timetable_is_read_on_a_worker_and_the_frame_does_not_wait_for_it() {
     assert!(got.is_some(), "the worker answers");
     // (kept: asked again, it is the same and no worker runs)
     assert!(n.times_job.is_none());
-    assert!(std::sync::Arc::ptr_eq(&got.unwrap(), &n.line_times().unwrap()));
+    assert!(std::sync::Arc::ptr_eq(
+        &got.unwrap(),
+        &n.line_times().unwrap()
+    ));
     // a new date is read again, on a worker
     n.date = 19910101;
     let again = n.line_times();
@@ -507,18 +693,29 @@ fn the_heights_of_the_contours_are_made_on_a_worker_and_only_with_the_terrain_on
     n.terrain_labels(&mut ui, &at, win, 1.0, &mut Vec::new());
     assert_eq!(n.marks_started, n.surface_version + 1);
     let began = std::time::Instant::now();
-    while sf.contour_marks_ready().is_none() && began.elapsed() < std::time::Duration::from_secs(10) {
+    while sf.contour_marks_ready().is_none() && began.elapsed() < std::time::Duration::from_secs(10)
+    {
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    assert!(sf.contour_marks_ready().is_some_and(|m| !m.is_empty()), "the worker made the marks");
+    assert!(
+        sf.contour_marks_ready().is_some_and(|m| !m.is_empty()),
+        "the worker made the marks"
+    );
     let before = ui.verts.len();
     n.terrain_labels(&mut ui, &at, win, 1.0, &mut Vec::new());
-    assert!(ui.verts.len() > before, "the heights are written once they are there");
+    assert!(
+        ui.verts.len() > before,
+        "the heights are written once they are there"
+    );
     // none over what the map has written already: with the whole window taken, no height is written
     let all = vec![Rect::new(-1.0e5, -1.0e5, 2.0e5, 2.0e5)];
     let before = ui.verts.len();
     n.terrain_labels(&mut ui, &at, win, 1.0, &mut all.clone());
-    assert_eq!(ui.verts.len(), before, "the heights step aside for what is already there");
+    assert_eq!(
+        ui.verts.len(),
+        before,
+        "the heights step aside for what is already there"
+    );
 }
 
 #[test]
@@ -529,7 +726,10 @@ fn opening_a_line_does_not_read_the_timetable_but_pressing_the_button_does() {
     assert!(n.city.lines.open && !n.city.lines.sheet);
     // (the button asks only whether it has been read)
     assert!(n.line_times_read().is_none());
-    assert!(n.times_job.is_none(), "no worker for a line that is only opened");
+    assert!(
+        n.times_job.is_none(),
+        "no worker for a line that is only opened"
+    );
     // the button: the sheet opens, and asking for it starts the worker
     n.lines_click(LinesHit::Sheet);
     assert!(n.city.lines.sheet);
@@ -547,6 +747,10 @@ fn the_compass_keeps_clear_of_the_open_lines_panel() {
     // the panel open (its left edge as the city map lays it out: the column at w - 52, 12 px of gap, 332 px wide)
     let left = (w - 52.0 * s) - 12.0 * s - 332.0 * s;
     let beside = orient::compass_centre(w, h, s, Some(left));
-    assert!(beside.x + r <= left, "the disc ends before the panel begins: {} vs {left}", beside.x + r);
+    assert!(
+        beside.x + r <= left,
+        "the disc ends before the panel begins: {} vs {left}",
+        beside.x + r
+    );
     assert_eq!(beside.y, free.y, "only moved sideways");
 }

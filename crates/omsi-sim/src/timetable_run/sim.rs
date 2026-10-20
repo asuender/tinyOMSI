@@ -118,7 +118,11 @@ pub struct Choice {
 pub type TrainCars = Vec<(Arc<VehicleType>, bool)>;
 
 /// A depot's vehicle: its type, its fleet from the ailists, its depot file.
-pub type DepotVehicle = (Arc<VehicleType>, Vec<omsi_map::DepotEntry>, Option<Arc<omsi_vehicle::Hof>>);
+pub type DepotVehicle = (
+    Arc<VehicleType>,
+    Vec<omsi_map::DepotEntry>,
+    Option<Arc<omsi_vehicle::Hof>>,
+);
 
 pub struct ScheduleSim {
     pub data: TimetableData,

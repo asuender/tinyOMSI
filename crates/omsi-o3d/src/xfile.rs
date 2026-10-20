@@ -54,7 +54,10 @@ impl Token<'_> {
 enum Source<'a> {
     Text(&'a str),
     /// little-endian binary tokens; `doubles` when the header gives 64-bit floats
-    Binary { data: &'a [u8], doubles: bool },
+    Binary {
+        data: &'a [u8],
+        doubles: bool,
+    },
 }
 
 #[derive(Clone, Copy, Default)]
@@ -80,13 +83,15 @@ fn is_space(b: u8) -> bool {
 
 /// Names and strings of OMSI content are Windows-1252.
 fn ansi(bytes: &[u8]) -> Cow<'_, str> {
-    encoding_rs::WINDOWS_1252.decode_without_bom_handling(bytes).0
+    encoding_rs::WINDOWS_1252
+        .decode_without_bom_handling(bytes)
+        .0
 }
 
 /// The keywords binary templates use for member types (token values 40 to 52).
 const TYPE_WORDS: [&str; 13] = [
-    "WORD", "DWORD", "FLOAT", "DOUBLE", "CHAR", "UCHAR", "SWORD", "SDWORD", "void", "string", "unicode", "cstring",
-    "array",
+    "WORD", "DWORD", "FLOAT", "DOUBLE", "CHAR", "UCHAR", "SWORD", "SDWORD", "void", "string",
+    "unicode", "cstring", "array",
 ];
 
 impl<'a> Tok<'a> {
@@ -122,7 +127,10 @@ impl<'a> Tok<'a> {
         }
         let first = *b.get(p)?;
         if first == b'"' {
-            let end = b[p + 1..].iter().position(|&c| c == b'"').map_or(b.len(), |i| p + 1 + i);
+            let end = b[p + 1..]
+                .iter()
+                .position(|&c| c == b'"')
+                .map_or(b.len(), |i| p + 1 + i);
             self.cur.at = (end + 1).min(b.len());
             return Some(Token::Quoted(Cow::Borrowed(&s[p + 1..end])));
         }
@@ -175,7 +183,9 @@ impl<'a> Tok<'a> {
                     let n = u32::from_le_bytes(self.take(data)?);
                     let width = if id == 7 && doubles { 8 } else { 4 };
                     if n as usize > self.left() / width {
-                        return self.fail(format!("binary .x list of {n} numbers is longer than the file"));
+                        return self.fail(format!(
+                            "binary .x list of {n} numbers is longer than the file"
+                        ));
                     }
                     self.cur.list_left = n;
                     self.cur.list_floats = id == 7;
@@ -213,7 +223,10 @@ impl<'a> Tok<'a> {
 
     fn fail<T>(&mut self, why: String) -> Option<T> {
         self.broken.get_or_insert(why);
-        self.cur = Cursor { at: usize::MAX, ..Cursor::default() };
+        self.cur = Cursor {
+            at: usize::MAX,
+            ..Cursor::default()
+        };
         None
     }
 
@@ -267,7 +280,9 @@ impl<'a> Tok<'a> {
                     let parsed = w.parse::<f64>();
                     return parsed.map_err(|_| O3dError::XFile(format!("{w:?} is not a number")));
                 }
-                Some(other) => return Err(O3dError::XFile(format!("expected a number, got {other:?}"))),
+                Some(other) => {
+                    return Err(O3dError::XFile(format!("expected a number, got {other:?}")))
+                }
             }
         }
     }
@@ -292,7 +307,10 @@ impl<'a> Tok<'a> {
                         return Ok(v);
                     }
                     // some exporters write the signed value
-                    return w.parse::<i32>().map(|v| v as u32).map_err(|_| O3dError::XFile(format!("bad DWORD {w}")));
+                    return w
+                        .parse::<i32>()
+                        .map(|v| v as u32)
+                        .map_err(|_| O3dError::XFile(format!("bad DWORD {w}")));
                 }
                 Some(Token::Float(v)) => return Ok(v as u32),
                 other => return Err(O3dError::XFile(format!("expected a DWORD, got {other:?}"))),
@@ -344,13 +362,26 @@ pub fn parse_x(bytes: &[u8]) -> Result<Mesh, O3dError> {
         text = ansi(bytes);
         Source::Text(&text)
     } else if format == *b"bin " {
-        Source::Binary { data: bytes, doubles: bytes[12..16] == *b"0064" }
+        Source::Binary {
+            data: bytes,
+            doubles: bytes[12..16] == *b"0064",
+        }
     } else if format == *b"tzip" || format == *b"bzip" {
         return Err(O3dError::XFile("compressed .x not supported".into()));
     } else {
-        return Err(O3dError::XFile(format!(".x of the kind {:?} not supported", String::from_utf8_lossy(&format))));
+        return Err(O3dError::XFile(format!(
+            ".x of the kind {:?} not supported",
+            String::from_utf8_lossy(&format)
+        )));
     };
-    let mut t = Tok { src, cur: Cursor { at: 16, ..Cursor::default() }, broken: None };
+    let mut t = Tok {
+        src,
+        cur: Cursor {
+            at: 16,
+            ..Cursor::default()
+        },
+        broken: None,
+    };
     let mut ctx = Ctx {
         mesh: Mesh {
             transform: Mat4::IDENTITY,
@@ -423,11 +454,15 @@ fn skip_object(t: &mut Tok, first: &Token) -> Result<(), O3dError> {
 
 fn parse_frame(t: &mut Tok, ctx: &mut Ctx, parent: Mat4, depth: usize) -> Result<(), O3dError> {
     if depth > MAX_FRAME_DEPTH {
-        return Err(O3dError::XFile(format!("frames nested more than {MAX_FRAME_DEPTH} deep")));
+        return Err(O3dError::XFile(format!(
+            "frames nested more than {MAX_FRAME_DEPTH} deep"
+        )));
     }
     let mut xform = parent;
     loop {
-        let tok = t.next().ok_or_else(|| O3dError::XFile("eof in frame".into()))?;
+        let tok = t
+            .next()
+            .ok_or_else(|| O3dError::XFile("eof in frame".into()))?;
         match tok.key() {
             "}" => return Ok(()),
             "FrameTransformMatrix" => {
@@ -506,7 +541,9 @@ fn parse_mesh(t: &mut Tok, ctx: &mut Ctx, xform: Mat4) -> Result<(), O3dError> {
     let mut mats: Vec<Material> = Vec::new();
     let mut material_refs: Vec<(usize, String)> = Vec::new();
     loop {
-        let tok = t.next().ok_or_else(|| O3dError::XFile("eof in mesh".into()))?;
+        let tok = t
+            .next()
+            .ok_or_else(|| O3dError::XFile("eof in mesh".into()))?;
         match tok.key() {
             "}" => break,
             "MeshNormals" => {
@@ -561,7 +598,9 @@ fn parse_mesh(t: &mut Tok, ctx: &mut Ctx, xform: Mat4) -> Result<(), O3dError> {
                     }
                 }
                 loop {
-                    let tk = t.next().ok_or_else(|| O3dError::XFile("eof in matlist".into()))?;
+                    let tk = t
+                        .next()
+                        .ok_or_else(|| O3dError::XFile("eof in matlist".into()))?;
                     match tk.key() {
                         "}" => break,
                         "Material" => {
@@ -580,9 +619,13 @@ fn parse_mesh(t: &mut Tok, ctx: &mut Ctx, xform: Mat4) -> Result<(), O3dError> {
                             loop {
                                 match t.next() {
                                     Some(Token::Mark(b'}')) => break,
-                                    Some(Token::Word(w)) if name.is_none() => name = Some(w.into_owned()),
+                                    Some(Token::Word(w)) if name.is_none() => {
+                                        name = Some(w.into_owned())
+                                    }
                                     Some(Token::Mark(b'{')) | None => {
-                                        return Err(O3dError::XFile("unclosed material reference".into()));
+                                        return Err(O3dError::XFile(
+                                            "unclosed material reference".into(),
+                                        ));
                                     }
                                     Some(_) => by_guid = true,
                                 }
@@ -590,7 +633,11 @@ fn parse_mesh(t: &mut Tok, ctx: &mut Ctx, xform: Mat4) -> Result<(), O3dError> {
                             match name {
                                 Some(name) => material_refs.push((mats.len(), name)),
                                 None if by_guid => {}
-                                None => return Err(O3dError::XFile("missing material reference name".into())),
+                                None => {
+                                    return Err(O3dError::XFile(
+                                        "missing material reference name".into(),
+                                    ))
+                                }
                             }
                             mats.push(Material::default());
                         }
@@ -605,12 +652,19 @@ fn parse_mesh(t: &mut Tok, ctx: &mut Ctx, xform: Mat4) -> Result<(), O3dError> {
         mats.push(Material::default());
     }
     for i in 0..nv {
-        ctx.mesh.vertices.push(Vertex { position: positions[i], normal: normals[i], uv: uvs[i] });
+        ctx.mesh.vertices.push(Vertex {
+            position: positions[i],
+            normal: normals[i],
+            uv: uvs[i],
+        });
     }
     for (fi, f) in faces.iter().enumerate() {
         let m = base_m + face_mats[fi].min(mats.len() as u16 - 1);
         for k in 1..f.len().saturating_sub(1) {
-            ctx.mesh.triangles.push(Triangle { indices: [base_v + f[0], base_v + f[k], base_v + f[k + 1]], material: m });
+            ctx.mesh.triangles.push(Triangle {
+                indices: [base_v + f[0], base_v + f[k], base_v + f[k + 1]],
+                material: m,
+            });
         }
     }
     let material_base = ctx.mesh.materials.len();
@@ -646,7 +700,11 @@ fn read_vertex_declaration(t: &mut Tok) -> Result<VertexDeclaration, O3dError> {
     let mut elements = Vec::with_capacity(declared.min(t.left()));
     while elements.len() < declared {
         let [kind, _method, usage, usage_index] = t.bits32_n::<4>()?;
-        elements.push(VertexElement { kind, usage, usage_index });
+        elements.push(VertexElement {
+            kind,
+            usage,
+            usage_index,
+        });
     }
     let size = t.bits32()? as usize;
     let mut buffer = Vec::with_capacity(size.min(t.left()));
@@ -737,7 +795,10 @@ impl VertexDeclaration {
         let mut stride = 0;
         for element in &self.elements {
             let Some(bytes) = element_bytes(element.kind) else {
-                log::warn!(".x DeclData: unknown vertex element type {}; left out", element.kind);
+                log::warn!(
+                    ".x DeclData: unknown vertex element type {}; left out",
+                    element.kind
+                );
                 return;
             };
             offsets.push(stride);
@@ -810,12 +871,12 @@ fn parse_material(t: &mut Tok) -> Result<(Option<String>, Material), O3dError> {
 mod tests {
     use super::*;
 
-
     #[test]
     #[ignore = "requires installed traffic-light assets; set OMSI_ROOT or OMSI_TEST_CONTENT"]
     fn installed_traffic_light_material_references() {
-        let Some(root) =
-            omsi_cfg::flags::OMSI_ROOT.live_os().or_else(|| omsi_cfg::flags::OMSI_TEST_CONTENT.live_os())
+        let Some(root) = omsi_cfg::flags::OMSI_ROOT
+            .live_os()
+            .or_else(|| omsi_cfg::flags::OMSI_TEST_CONTENT.live_os())
         else {
             eprintln!("skipped: set OMSI_ROOT or OMSI_TEST_CONTENT to the installed content root");
             return;
@@ -972,12 +1033,20 @@ Frame Root {\n FrameTransformMatrix {\n 1.0, 0.0, 0.0, 0.0,\n 0.0,-0.0, 1.0, 0.0
         let p: Vec<Vec3> = m.vertices.iter().map(|v| v.position).collect();
         // Blender (x, y, z) -> child: (x, y, z)·M = (-2y, 2x, 2z) + (-0.5, 5.5, 1.3), then the
         // root swaps y and z.
-        let want = [Vec3::new(-0.5, 1.3, 7.5), Vec3::new(-2.5, 1.3, 5.5), Vec3::new(-0.5, 3.3, 5.5)];
+        let want = [
+            Vec3::new(-0.5, 1.3, 7.5),
+            Vec3::new(-2.5, 1.3, 5.5),
+            Vec3::new(-0.5, 3.3, 5.5),
+        ];
         for (a, b) in p.iter().zip(want) {
             assert!((*a - b).length() < 1e-5, "{p:?}");
         }
         // the +x normal turns to Blender +y, D3D +z
-        assert!((m.vertices[0].normal - Vec3::Z).length() < 1e-5, "{:?}", m.vertices[0].normal);
+        assert!(
+            (m.vertices[0].normal - Vec3::Z).length() < 1e-5,
+            "{:?}",
+            m.vertices[0].normal
+        );
     }
 
     #[test]
@@ -995,7 +1064,13 @@ Frame Root {\n FrameTransformMatrix {\n 1.0, 0.0, 0.0, 0.0,\n 0.0,-0.0, 1.0, 0.0
             x.push_str(&"}".repeat(n));
             x
         };
-        assert_eq!(parse_x(deep(MAX_FRAME_DEPTH).as_bytes()).unwrap().triangles.len(), 1);
+        assert_eq!(
+            parse_x(deep(MAX_FRAME_DEPTH).as_bytes())
+                .unwrap()
+                .triangles
+                .len(),
+            1
+        );
         assert!(parse_x(deep(MAX_FRAME_DEPTH + 1).as_bytes()).is_err());
         assert!(parse_x(deep(200_000).as_bytes()).is_err());
     }
@@ -1008,9 +1083,21 @@ Frame Root {\n FrameTransformMatrix {\n 1.0, 0.0, 0.0, 0.0,\n 0.0,-0.0, 1.0, 0.0
         let m = parse_x(x.as_bytes()).unwrap();
         let p: Vec<Vec3> = m.vertices.iter().map(|v| v.position).collect();
         // v * child: (x, y, z) -> (2x + 0.5, -2z + 0.25, 2y + 1.5); then y and z swap
-        assert!((p[0] - Vec3::new(0.5, 1.5, 0.25)).length() < 1e-5, "{:?}", p[0]);
-        assert!((p[1] - Vec3::new(2.5, 1.5, 0.25)).length() < 1e-5, "{:?}", p[1]);
-        assert!((p[2] - Vec3::new(0.5, 3.5, 0.25)).length() < 1e-5, "{:?}", p[2]);
+        assert!(
+            (p[0] - Vec3::new(0.5, 1.5, 0.25)).length() < 1e-5,
+            "{:?}",
+            p[0]
+        );
+        assert!(
+            (p[1] - Vec3::new(2.5, 1.5, 0.25)).length() < 1e-5,
+            "{:?}",
+            p[1]
+        );
+        assert!(
+            (p[2] - Vec3::new(0.5, 3.5, 0.25)).length() < 1e-5,
+            "{:?}",
+            p[2]
+        );
     }
 
     /// A frame that scales unevenly (the Ruede Trafohaus: 1.5 x 0.75 x 0.85) keeps the
@@ -1023,7 +1110,11 @@ Frame Root {\n FrameTransformMatrix {\n 1.0, 0.0, 0.0, 0.0,\n 0.0,-0.0, 1.0, 0.0
         let [a, b, c] = [0, 1, 2].map(|i| m.vertices[i].position);
         let face = (b - a).cross(c - a).normalize();
         for v in &m.vertices {
-            assert!(v.normal.normalize().dot(face).abs() > 0.9999, "{:?} vs {face:?}", v.normal);
+            assert!(
+                v.normal.normalize().dot(face).abs() > 0.9999,
+                "{:?} vs {face:?}",
+                v.normal
+            );
         }
     }
 }
@@ -1054,8 +1145,15 @@ mod binary_tests {
 
     impl XBin {
         fn new(wide: bool) -> Self {
-            let header: &[u8] = if wide { b"xof 0303bin 0064" } else { b"xof 0303bin 0032" };
-            XBin { buf: header.to_vec(), wide }
+            let header: &[u8] = if wide {
+                b"xof 0303bin 0064"
+            } else {
+                b"xof 0303bin 0032"
+            };
+            XBin {
+                buf: header.to_vec(),
+                wide,
+            }
         }
         fn token(&mut self, id: u16) -> &mut Self {
             self.buf.extend_from_slice(&id.to_le_bytes());
@@ -1110,16 +1208,26 @@ mod binary_tests {
         x.token(41).name("nVertices").token(20).close();
         x.name("Material").name("RoofTiles").open();
         x.float_list(&[0.8, 0.3, 0.2, 1.0, 12.0, 0.1, 0.1, 0.1, 0.0, 0.0, 0.0]);
-        x.name("TextureFilename").open().string("ziegel_braun.tga").close();
+        x.name("TextureFilename")
+            .open()
+            .string("ziegel_braun.tga")
+            .close();
         x.close();
         x.name("Frame").name("Roof").open();
         x.name("FrameTransformMatrix").open();
-        x.float_list(&[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 4.0, 0.0, 0.0, 1.0]);
+        x.float_list(&[
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 4.0, 0.0, 0.0, 1.0,
+        ]);
         x.close();
         x.name("Mesh").name("Panel").open();
-        x.int_list(&[4]).float_list(&[0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 2.0, 3.0, 0.0, 0.0, 3.0, 0.0]);
+        x.int_list(&[4])
+            .float_list(&[0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 2.0, 3.0, 0.0, 0.0, 3.0, 0.0]);
         x.int_list(&[1, 4, 0, 1, 2, 3]);
-        x.name("MeshTextureCoords").open().int_list(&[4]).float_list(&[0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]).close();
+        x.name("MeshTextureCoords")
+            .open()
+            .int_list(&[4])
+            .float_list(&[0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
+            .close();
         x.name("MeshMaterialList").open().int_list(&[1, 1, 0]);
         x.open().name("RoofTiles").close();
         x.close();
@@ -1151,7 +1259,10 @@ mod binary_tests {
               Mesh Panel { 4; 0;0;0;, 2;0;0;, 2;3;0;, 0;3;0;; 1; 4;0,1,2,3;;\n\
                 MeshTextureCoords { 4; 0;1;, 1;1;, 1;0;, 0;0;; }\n\
                 MeshMaterialList { 1; 1; 0;; { RoofTiles } } } }\n";
-        let (a, b) = (parse_x(text.as_bytes()).unwrap(), parse_x(&roof_panel(false)).unwrap());
+        let (a, b) = (
+            parse_x(text.as_bytes()).unwrap(),
+            parse_x(&roof_panel(false)).unwrap(),
+        );
         assert_eq!(a.vertices, b.vertices);
         assert_eq!(a.triangles, b.triangles);
         assert_eq!(a.materials, b.materials);
@@ -1162,9 +1273,8 @@ mod binary_tests {
     #[test]
     fn vertex_declaration_supplies_normals_and_uvs() {
         let f = |v: f32| v.to_bits().to_string();
-        let vertex = |n: [f32; 3], uv: [f32; 2]| {
-            [n[0], n[1], n[2], uv[0], uv[1], 9.0, 9.0].map(f).join(",")
-        };
+        let vertex =
+            |n: [f32; 3], uv: [f32; 2]| [n[0], n[1], n[2], uv[0], uv[1], 9.0, 9.0].map(f).join(",");
         let data = [
             vertex([0.0, 0.0, 1.0], [0.25, 0.75]),
             vertex([0.0, 1.0, 0.0], [0.5, 0.5]),
@@ -1180,7 +1290,11 @@ mod binary_tests {
         let got: Vec<(Vec3, Vec2)> = m.vertices.iter().map(|v| (v.normal, v.uv)).collect();
         assert_eq!(
             got,
-            [(Vec3::Z, Vec2::new(0.25, 0.75)), (Vec3::Y, Vec2::new(0.5, 0.5)), (Vec3::X, Vec2::new(1.0, 0.0))]
+            [
+                (Vec3::Z, Vec2::new(0.25, 0.75)),
+                (Vec3::Y, Vec2::new(0.5, 0.5)),
+                (Vec3::X, Vec2::new(1.0, 0.0))
+            ]
         );
     }
 
@@ -1191,7 +1305,9 @@ mod binary_tests {
         x.int_list(&[2]).float_list(&[0.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
         x.int_list(&[1, 3, 0, 1, 1]);
         // DEC3N normal, D3DCOLOR diffuse (not used), FLOAT16_2 texcoord 0
-        x.name("DeclData").open().int_list(&[3, 14, 0, 3, 0, 4, 0, 10, 0, 15, 0, 5, 0]);
+        x.name("DeclData")
+            .open()
+            .int_list(&[3, 14, 0, 3, 0, 4, 0, 10, 0, 15, 0, 5, 0]);
         let up = 511 << 20;
         let minus_x = 0x201;
         let uv_a = 0x3800 | (0x3400 << 16); // 0.5, 0.25
@@ -1199,7 +1315,10 @@ mod binary_tests {
         x.int_list(&[6, up, 0xff00_00ff, uv_a, minus_x, 0xffff_ffff, uv_b]);
         x.close().close();
         let [a, b] = [0, 1].map(|i| parse_x(&x.buf).unwrap().vertices[i]);
-        assert!(a.normal.abs_diff_eq(Vec3::Z, 1e-6) && b.normal.abs_diff_eq(-Vec3::X, 1e-6), "{a:?} {b:?}");
+        assert!(
+            a.normal.abs_diff_eq(Vec3::Z, 1e-6) && b.normal.abs_diff_eq(-Vec3::X, 1e-6),
+            "{a:?} {b:?}"
+        );
         assert_eq!((a.uv, b.uv), (Vec2::new(0.5, 0.25), Vec2::X));
     }
 
@@ -1207,17 +1326,35 @@ mod binary_tests {
     fn packed_element_types_widen_like_direct3d() {
         let near = |a: Vec4, b: Vec4| (a - b).length() < 1e-4;
         // SHORT2N: -32768 clamps to -1
-        assert!(near(unpack_element(9, &[0x8000_7fff]).unwrap(), Vec4::new(1.0, -1.0, 0.0, 1.0)));
+        assert!(near(
+            unpack_element(9, &[0x8000_7fff]).unwrap(),
+            Vec4::new(1.0, -1.0, 0.0, 1.0)
+        ));
         // UBYTE4N
-        assert!(near(unpack_element(8, &[0x00ff_33ff]).unwrap(), Vec4::new(1.0, 0.2, 1.0, 0.0)));
+        assert!(near(
+            unpack_element(8, &[0x00ff_33ff]).unwrap(),
+            Vec4::new(1.0, 0.2, 1.0, 0.0)
+        ));
         // D3DCOLOR is stored as ARGB
-        assert!(near(unpack_element(4, &[0x80ff_0000]).unwrap(), Vec4::new(1.0, 0.0, 0.0, 128.0 / 255.0)));
+        assert!(near(
+            unpack_element(4, &[0x80ff_0000]).unwrap(),
+            Vec4::new(1.0, 0.0, 0.0, 128.0 / 255.0)
+        ));
         // USHORT2N
-        assert!(near(unpack_element(11, &[0xffff_0000]).unwrap(), Vec4::new(0.0, 1.0, 0.0, 1.0)));
+        assert!(near(
+            unpack_element(11, &[0xffff_0000]).unwrap(),
+            Vec4::new(0.0, 1.0, 0.0, 1.0)
+        ));
         // UDEC3
-        assert!(near(unpack_element(13, &[3 | (2 << 10) | (1 << 20)]).unwrap(), Vec4::new(3.0, 2.0, 1.0, 1.0)));
+        assert!(near(
+            unpack_element(13, &[3 | (2 << 10) | (1 << 20)]).unwrap(),
+            Vec4::new(3.0, 2.0, 1.0, 1.0)
+        ));
         // SHORT4 keeps its integers
-        assert!(near(unpack_element(7, &[0xfffe_0005, 0x0001_0000]).unwrap(), Vec4::new(5.0, -2.0, 0.0, 1.0)));
+        assert!(near(
+            unpack_element(7, &[0xfffe_0005, 0x0001_0000]).unwrap(),
+            Vec4::new(5.0, -2.0, 0.0, 1.0)
+        ));
         assert_eq!(unpack_element(99, &[0]), None);
         assert_eq!(element_bytes(17), Some(0));
     }
@@ -1238,13 +1375,16 @@ mod binary_tests {
         };
         x.name("Material").name("Glass");
         guid(&mut x);
-        x.open().float_list(&[0.2, 0.4, 0.6, 0.5, 30.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]).close();
+        x.open()
+            .float_list(&[0.2, 0.4, 0.6, 0.5, 30.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
+            .close();
         x.name("Frame").name("Window");
         guid(&mut x);
         x.open().name("Mesh");
         guid(&mut x);
         x.open();
-        x.int_list(&[3]).float_list(&[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
+        x.int_list(&[3])
+            .float_list(&[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
         x.int_list(&[2, 3, 0, 1, 2, 3, 0, 2, 1]);
         x.name("MeshMaterialList").open().int_list(&[2, 2, 0, 1]);
         x.open();
@@ -1283,25 +1423,34 @@ mod binary_tests {
     #[test]
     #[ignore = "requires installed content; set OMSI_TEST_CONTENT or OMSI_ROOT"]
     fn installed_binary_x_files_load() {
-        let Some(root) =
-            omsi_cfg::flags::OMSI_TEST_CONTENT.live_os().or_else(|| omsi_cfg::flags::OMSI_ROOT.live_os())
+        let Some(root) = omsi_cfg::flags::OMSI_TEST_CONTENT
+            .live_os()
+            .or_else(|| omsi_cfg::flags::OMSI_ROOT.live_os())
         else {
             eprintln!("skipped: set OMSI_TEST_CONTENT or OMSI_ROOT to the installed content root");
             return;
         };
         fn walk(dir: &std::path::Path, found: &mut Vec<std::path::PathBuf>) {
-            let Ok(entries) = std::fs::read_dir(dir) else { return };
+            let Ok(entries) = std::fs::read_dir(dir) else {
+                return;
+            };
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
                     walk(&path, found);
-                } else if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("x")) {
+                } else if path
+                    .extension()
+                    .is_some_and(|e| e.eq_ignore_ascii_case("x"))
+                {
                     found.push(path);
                 }
             }
         }
         let mut files = Vec::new();
-        walk(&std::path::PathBuf::from(root).join("Sceneryobjects"), &mut files);
+        walk(
+            &std::path::PathBuf::from(root).join("Sceneryobjects"),
+            &mut files,
+        );
         let mut binary = 0;
         for file in files {
             let bytes = std::fs::read(&file).unwrap();
@@ -1310,7 +1459,11 @@ mod binary_tests {
             }
             binary += 1;
             let mesh = parse_x(&bytes).unwrap_or_else(|e| panic!("{}: {e}", file.display()));
-            assert!(!mesh.triangles.is_empty(), "{} has no faces", file.display());
+            assert!(
+                !mesh.triangles.is_empty(),
+                "{} has no faces",
+                file.display()
+            );
         }
         eprintln!("{binary} binary .x files loaded");
     }

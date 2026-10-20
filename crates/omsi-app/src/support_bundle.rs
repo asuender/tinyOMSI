@@ -10,7 +10,9 @@
 
 use serde_json::{json, Value};
 
-pub(crate) use omsi_platform::support_bundle::{clean_json, content_name, export, redact_label, session_dir};
+pub(crate) use omsi_platform::support_bundle::{
+    clean_json, content_name, export, redact_label, session_dir,
+};
 
 /// The session a snapshot is of: map, bus, line and tour.
 pub(crate) type Session<'a> = (&'a str, Option<&'a str>, Option<&'a str>, Option<&'a str>);
@@ -22,7 +24,10 @@ pub(crate) fn snapshot(
     session: Option<Session>,
     source: &str,
 ) -> Value {
-    let info = omsi_render::ADAPTER_INFO.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let info = omsi_render::ADAPTER_INFO
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
     let graphics = renderer.map(|r| {
         let limits = r.device.limits();
         json!({
@@ -44,18 +49,27 @@ pub(crate) fn snapshot(
     });
     // (what the game's renderer ended up with after its fallbacks; the launcher's own
     // renderer draws with other settings, so it says nothing of the game's)
-    let effective = renderer.filter(|_| source == "game").map(|r| json!({
-        "msaa": r.options.msaa, "ssao": r.options.ssao,
-        "render_scale": r.options.render_scale, "shadow_size": r.options.shadow_size,
-        "basic_pipelines": omsi_render::basic_pipelines(),
-    }));
-    let controllers: Option<Vec<Value>> = devices.map(|d| d.into_iter().map(|d| {
-        json!({"name": redact_label(&d.name), "vid_pid": d.hardware_id,
+    let effective = renderer.filter(|_| source == "game").map(|r| {
+        json!({
+            "msaa": r.options.msaa, "ssao": r.options.ssao,
+            "render_scale": r.options.render_scale, "shadow_size": r.options.shadow_size,
+            "basic_pipelines": omsi_render::basic_pipelines(),
+        })
+    });
+    let controllers: Option<Vec<Value>> = devices.map(|d| {
+        d.into_iter()
+            .map(|d| {
+                json!({"name": redact_label(&d.name), "vid_pid": d.hardware_id,
             "axes": d.axes.len(), "buttons": d.buttons, "gamepad": d.gamepad,
             "ffb_capable": d.ff_capable, "ffb_effect_available": d.ff})
-    }).collect());
-    let roots: Vec<Value> = omsi_cfg::content_roots().iter().enumerate()
-        .map(|(i, _)| json!({"alias": format!("root-{}", i + 1), "priority": i})).collect();
+            })
+            .collect()
+    });
+    let roots: Vec<Value> = omsi_cfg::content_roots()
+        .iter()
+        .enumerate()
+        .map(|(i, _)| json!({"alias": format!("root-{}", i + 1), "priority": i}))
+        .collect();
     let archives: Vec<Value> = omsi_cfg::vfs::mounts().iter().enumerate().map(|(i, a)| {
         json!({"alias": format!("archive-{}", i + 1), "files": a.file_count(), "bytes": a.total_size()})
     }).collect();
@@ -87,18 +101,43 @@ pub(crate) fn snapshot(
 /// graphics device is lost), so that an export after it ended - or crashed - still says
 /// what it ran with. Snapshots of games the launcher no longer lists are removed.
 pub(crate) fn record(app: &crate::App) {
-    let Some(id) = omsi_cfg::flags::OMSI_INSTANCE.var().filter(|id| !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')) else { return };
-    let mut value = snapshot(app.renderer.as_ref(), &app.settings, app.input.controllers.as_ref().map(|c| c.connected()),
-        Some((&app.args.map, app.args.bus.as_deref(), app.args.line.as_deref(), app.args.tour.as_deref())), "game");
+    let Some(id) = omsi_cfg::flags::OMSI_INSTANCE.var().filter(|id| {
+        !id.is_empty()
+            && id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    }) else {
+        return;
+    };
+    let mut value = snapshot(
+        app.renderer.as_ref(),
+        &app.settings,
+        app.input.controllers.as_ref().map(|c| c.connected()),
+        Some((
+            &app.args.map,
+            app.args.bus.as_deref(),
+            app.args.line.as_deref(),
+            app.args.tour.as_deref(),
+        )),
+        "game",
+    );
     if let (Some(r), Some(scene)) = (app.renderer.as_ref(), app.scene.as_ref()) {
-        value["gpu_memory_bytes"] = json!({"textures": r.texture_bytes(scene), "meshes": r.mesh_bytes(scene)});
+        value["gpu_memory_bytes"] =
+            json!({"textures": r.texture_bytes(scene), "meshes": r.mesh_bytes(scene)});
     }
     let dir = session_dir();
     let _ = std::fs::create_dir_all(&dir);
-    let listed: Vec<String> = omsi_launcher_lib::list_instances().into_iter().map(|i| i.id).collect();
+    let listed: Vec<String> = omsi_launcher_lib::list_instances()
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
     for e in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
         let p = e.path();
-        let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string();
+        let stem = p
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default()
+            .to_string();
         if stem != id && !listed.contains(&stem) {
             let _ = std::fs::remove_file(p);
         }
@@ -113,4 +152,3 @@ pub(crate) fn record(app: &crate::App) {
         }
     }
 }
-

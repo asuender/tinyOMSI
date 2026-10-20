@@ -5,8 +5,16 @@ use super::*;
 
 impl Renderer {
     // --- depth prepass + ambient occlusion (single-sampled, camera projection)
-    pub(crate) fn encode_depth_prepass(&self, prepass_encoder: &mut wgpu::CommandEncoder, scene: &Scene, f: &FrameCtx, prepass_batches: &[Batch], timers: &mut PassTimers) {
-        let (camera, aspect, width, height, ao_on) = (f.camera, f.aspect, f.width, f.height, f.ao_on);
+    pub(crate) fn encode_depth_prepass(
+        &self,
+        prepass_encoder: &mut wgpu::CommandEncoder,
+        scene: &Scene,
+        f: &FrameCtx,
+        prepass_batches: &[Batch],
+        timers: &mut PassTimers,
+    ) {
+        let (camera, aspect, width, height, ao_on) =
+            (f.camera, f.aspect, f.width, f.height, f.ao_on);
         if f.prepass_on {
             let proj = f.projection.unwrap_or_else(|| {
                 Mat4::perspective_rh(camera.fov_deg.to_radians(), aspect, camera.far, camera.near)
@@ -36,7 +44,11 @@ impl Renderer {
                         }),
                         stencil_ops: None,
                     }),
-                    timestamp_writes: pass_timer(timers.set.as_ref(), &mut timers.timed, "depth prepass"),
+                    timestamp_writes: pass_timer(
+                        timers.set.as_ref(),
+                        &mut timers.timed,
+                        "depth prepass",
+                    ),
                     occlusion_query_set: None,
                     multiview_mask: None,
                 });
@@ -64,7 +76,11 @@ impl Renderer {
                         },
                     })],
                     depth_stencil_attachment: None,
-                    timestamp_writes: pass_timer(timers.set.as_ref(), &mut timers.timed, pass_label),
+                    timestamp_writes: pass_timer(
+                        timers.set.as_ref(),
+                        &mut timers.timed,
+                        pass_label,
+                    ),
                     occlusion_query_set: None,
                     multiview_mask: None,
                 });
@@ -77,12 +93,20 @@ impl Renderer {
 
     // --- the enhanced sky cube: a slice of a face a frame (all six faces the first time and
     // for a new sky), drawn in the window's frame only (see `SkySched`)
-    pub(crate) fn encode_sky_cube(&mut self, prepass_encoder: &mut wgpu::CommandEncoder, scene: &Scene, f: &FrameCtx, probe_redraw: bool, timers: &mut PassTimers) {
+    pub(crate) fn encode_sky_cube(
+        &mut self,
+        prepass_encoder: &mut wgpu::CommandEncoder,
+        scene: &Scene,
+        f: &FrameCtx,
+        probe_redraw: bool,
+        timers: &mut PassTimers,
+    ) {
         let (enhanced, lead_view) = (f.enhanced, f.lead_view);
         if !(enhanced && (lead_view || probe_redraw)) {
             return;
         }
-        let (Some(probe), Some(sky_bg)) = (self.tone.probe.as_mut(), scene.sky_bind_group.as_ref()) else {
+        let (Some(probe), Some(sky_bg)) = (self.tone.probe.as_mut(), scene.sky_bind_group.as_ref())
+        else {
             return;
         };
         // (face, round, the old picture's share, rows, into the cube for the next eye): a
@@ -92,7 +116,10 @@ impl Renderer {
         let mut draws: Vec<(u32, u32, f64, (u32, u32), bool)> = Vec::new();
         if full {
             probe.sched.cancel_staging();
-            draws.extend((0..6).flat_map(|f| (0..SKY_CUBE_ROUNDS).map(move |r| (f, r, r as f64 / (r as f64 + 1.0), (0, SKY_CUBE_SIZE), false))));
+            draws.extend((0..6).flat_map(|f| {
+                (0..SKY_CUBE_ROUNDS)
+                    .map(move |r| (f, r, r as f64 / (r as f64 + 1.0), (0, SKY_CUBE_SIZE), false))
+            }));
         } else {
             if std::mem::take(&mut probe.sched.swap) {
                 // the cube filled for the eye the frame's uniform has: over the one in use
@@ -100,22 +127,51 @@ impl Renderer {
                     prepass_encoder.copy_texture_to_texture(
                         staging.as_image_copy(),
                         probe.cube_tex.as_image_copy(),
-                        wgpu::Extent3d { width: SKY_CUBE_SIZE, height: SKY_CUBE_SIZE, depth_or_array_layers: 6 },
+                        wgpu::Extent3d {
+                            width: SKY_CUBE_SIZE,
+                            height: SKY_CUBE_SIZE,
+                            depth_or_array_layers: 6,
+                        },
                     );
                 }
             }
             if lead_view {
                 let round = (probe.cube_round / 6) % SKY_CUBE_ROUNDS;
                 let (mut next, mut rounds) = (probe.cube_next, probe.cube_round);
-                for s in probe.sched.plan(&mut next, &mut rounds, if f.env.sky_cube_every_frame { SLICE_EVERY } else { f.dt }).into_iter().flatten() {
+                for s in probe
+                    .sched
+                    .plan(
+                        &mut next,
+                        &mut rounds,
+                        if f.env.sky_cube_every_frame {
+                            SLICE_EVERY
+                        } else {
+                            f.dt
+                        },
+                    )
+                    .into_iter()
+                    .flatten()
+                {
                     let history = if s.staging { 0.0 } else { SKY_CUBE_HISTORY };
-                    draws.push((s.face, round, history, slice_rows(s.first, s.count), s.staging));
+                    draws.push((
+                        s.face,
+                        round,
+                        history,
+                        slice_rows(s.first, s.count),
+                        s.staging,
+                    ));
                 }
                 (probe.cube_next, probe.cube_round) = (next, rounds);
             } else {
                 // (a view of its own before the window's first frame: a whole face)
                 let round = (probe.cube_round / 6) % SKY_CUBE_ROUNDS;
-                draws.push((probe.cube_next, round, SKY_CUBE_HISTORY, (0, SKY_CUBE_SIZE), false));
+                draws.push((
+                    probe.cube_next,
+                    round,
+                    SKY_CUBE_HISTORY,
+                    (0, SKY_CUBE_SIZE),
+                    false,
+                ));
                 probe.cube_next = (probe.cube_next + 1) % 6;
                 probe.cube_round = probe.cube_round.wrapping_add(1);
             }
@@ -124,7 +180,11 @@ impl Renderer {
         if draws.iter().any(|d| d.4) && probe.sched.staging.is_none() {
             let tex = self.device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("sky cube, next eye"),
-                size: wgpu::Extent3d { width: SKY_CUBE_SIZE, height: SKY_CUBE_SIZE, depth_or_array_layers: 6 },
+                size: wgpu::Extent3d {
+                    width: SKY_CUBE_SIZE,
+                    height: SKY_CUBE_SIZE,
+                    depth_or_array_layers: 6,
+                },
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
@@ -161,21 +221,38 @@ impl Renderer {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         // (a slice keeps the rest of its face)
-                        load: if history > 0.0 || !whole { wgpu::LoadOp::Load } else { wgpu::LoadOp::Clear(wgpu::Color::BLACK) },
+                        load: if history > 0.0 || !whole {
+                            wgpu::LoadOp::Load
+                        } else {
+                            wgpu::LoadOp::Clear(wgpu::Color::BLACK)
+                        },
                         store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
-                timestamp_writes: if single { pass_timer(timers.set.as_ref(), &mut timers.timed, "sky cube") } else { None },
+                timestamp_writes: if single {
+                    pass_timer(timers.set.as_ref(), &mut timers.timed, "sky cube")
+                } else {
+                    None
+                },
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
             pass.set_pipeline(&probe.cube_pipeline);
-            pass.set_blend_constant(wgpu::Color { r: history, g: history, b: history, a: history });
+            pass.set_blend_constant(wgpu::Color {
+                r: history,
+                g: history,
+                b: history,
+                a: history,
+            });
             if !whole {
                 pass.set_scissor_rect(0, y0, SKY_CUBE_SIZE, rows);
             }
-            pass.set_bind_group(0, &probe.cube_bind_groups[(f * SKY_CUBE_ROUNDS + round) as usize], &[]);
+            pass.set_bind_group(
+                0,
+                &probe.cube_bind_groups[(f * SKY_CUBE_ROUNDS + round) as usize],
+                &[],
+            );
             pass.set_bind_group(1, sky_bg, &[]);
             pass.draw(0..3, 0..1);
         }
@@ -183,7 +260,13 @@ impl Renderer {
 
     // --- the reflection probe of the enhanced path: the sky into the six faces, then
     // each blurrier level from the sharper ones (three faces a pass)
-    pub(crate) fn encode_probe(&self, prepass_encoder: &mut wgpu::CommandEncoder, scene: &Scene, probe_redraw: bool, timers: &mut PassTimers) {
+    pub(crate) fn encode_probe(
+        &self,
+        prepass_encoder: &mut wgpu::CommandEncoder,
+        scene: &Scene,
+        probe_redraw: bool,
+        timers: &mut PassTimers,
+    ) {
         if probe_redraw {
             if let (Some(probe), Some(sky_bg)) =
                 (self.tone.probe.as_ref(), scene.sky_bind_group.as_ref())

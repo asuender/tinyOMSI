@@ -43,7 +43,8 @@ impl ProgramIds {
 
 impl VehicleInstance {
     pub(super) fn program_ids(&self) -> &ProgramIds {
-        self.program_ids.get_or_init(|| ProgramIds::of(&self.ty.program))
+        self.program_ids
+            .get_or_init(|| ProgramIds::of(&self.ty.program))
     }
 }
 
@@ -60,8 +61,14 @@ mod tests {
         let ids = v.program_ids();
         assert_eq!(ids.refresh_strings, p.var("Refresh_Strings"));
         assert_eq!(ids.driver_seat, p.var("Driver_Seat_VertTransl"));
-        assert_eq!(ids.owns_cabin_temp, p.var("Cabinair_Temp").is_some_and(|i| p.stores(i)));
-        assert_eq!(ids.owns_cabin_rel_hum, p.var("Cabinair_relHum").is_some_and(|i| p.stores(i)));
+        assert_eq!(
+            ids.owns_cabin_temp,
+            p.var("Cabinair_Temp").is_some_and(|i| p.stores(i))
+        );
+        assert_eq!(
+            ids.owns_cabin_rel_hum,
+            p.var("Cabinair_relHum").is_some_and(|i| p.stores(i))
+        );
         assert_eq!(ids.snd_radio_text, p.str_var("Snd_Radio_Text"));
         assert_eq!(ids.magnitola, p.str_var("magnitola_1"));
         assert_eq!(ids.mp3_freq, p.str_var("mp3_freq"));

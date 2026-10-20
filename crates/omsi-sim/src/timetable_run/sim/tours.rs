@@ -8,15 +8,33 @@ impl ScheduleSim {
     /// the duty, stop number in the trip, name, departure there in seconds). Passing stations
     /// are left out.
     pub fn tour_stops(&self, line: &str, tour: &str) -> Vec<(usize, usize, String, f64)> {
-        let Some(l) = self.data.lines.iter().find(|l| l.name.eq_ignore_ascii_case(line)) else { return Vec::new() };
-        let Some(t) = l.tours.iter().find(|t| t.number.eq_ignore_ascii_case(tour)) else { return Vec::new() };
+        let Some(l) = self
+            .data
+            .lines
+            .iter()
+            .find(|l| l.name.eq_ignore_ascii_case(line))
+        else {
+            return Vec::new();
+        };
+        let Some(t) = l.tours.iter().find(|t| t.number.eq_ignore_ascii_case(tour)) else {
+            return Vec::new();
+        };
         let mut out = Vec::new();
         let mut k = 0;
         for tt in &t.trips {
-            let Some(ti) = self.data.trips.iter().position(|x| x.name.eq_ignore_ascii_case(&tt.trip)) else { continue };
+            let Some(ti) = self
+                .data
+                .trips
+                .iter()
+                .position(|x| x.name.eq_ignore_ascii_case(&tt.trip))
+            else {
+                continue;
+            };
             let trip = &self.data.trips[ti];
             let departure = tt.departure as f64 * 60.0;
-            let times = &self.times[ti][usize::try_from(tt.profile).unwrap_or(0).min(self.times[ti].len() - 1)];
+            let times = &self.times[ti][usize::try_from(tt.profile)
+                .unwrap_or(0)
+                .min(self.times[ti].len() - 1)];
             for (i, id) in trip_stations(trip).iter().enumerate() {
                 if !times.stops.get(i).copied().unwrap_or(true) {
                     continue;
@@ -28,7 +46,17 @@ impl ScheduleSim {
                     .find(|b| b.object_id == *id)
                     .map(|b| b.name.clone())
                     .filter(|n| !n.trim().is_empty())
-                    .or_else(|| trip.stations.is_empty().then(|| trip.stations_legacy.get(i).and_then(|r| r.get(2)).map(|n| n.trim().to_string())).flatten())
+                    .or_else(|| {
+                        trip.stations
+                            .is_empty()
+                            .then(|| {
+                                trip.stations_legacy
+                                    .get(i)
+                                    .and_then(|r| r.get(2))
+                                    .map(|n| n.trim().to_string())
+                            })
+                            .flatten()
+                    })
                     .unwrap_or_else(|| format!("{}", i + 1));
                 out.push((k, i, name, departure + times.stations[i].1));
             }
@@ -61,13 +89,22 @@ impl ScheduleSim {
                 None => order.push((s.0, s.3, s.3)),
             }
         }
-        order.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal).then(a.0.cmp(&b.0)));
+        order.sort_by(|a, b| {
+            a.1.partial_cmp(&b.1)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(a.0.cmp(&b.0))
+        });
         order.iter().position(|o| o.2 >= now - 60.0).unwrap_or(0)
     }
 
     /// All the stops of the trip in position `pos` of the tour's trips in order of the time
     /// they leave. The trip number in the entries is the one `tour_stops` gives it.
-    pub fn tour_trip_stops(&self, line: &str, tour: &str, pos: usize) -> Vec<(usize, usize, String, f64)> {
+    pub fn tour_trip_stops(
+        &self,
+        line: &str,
+        tour: &str,
+        pos: usize,
+    ) -> Vec<(usize, usize, String, f64)> {
         let all = self.tour_stops(line, tour);
         let mut order: Vec<(usize, f64)> = Vec::new();
         for s in &all {
@@ -75,8 +112,14 @@ impl ScheduleSim {
                 order.push((s.0, s.3));
             }
         }
-        order.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal).then(a.0.cmp(&b.0)));
-        let Some(&(k, _)) = order.get(pos) else { return Vec::new() };
+        order.sort_by(|a, b| {
+            a.1.partial_cmp(&b.1)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(a.0.cmp(&b.0))
+        });
+        let Some(&(k, _)) = order.get(pos) else {
+            return Vec::new();
+        };
         all.into_iter().filter(|s| s.0 == k).collect()
     }
 
@@ -84,13 +127,29 @@ impl ScheduleSim {
     /// of the day): the first trip with a stop still to come (a minute of grace), and only
     /// that trip's stops from there on. A tour with nothing left today lists its first trip
     /// whole. Same entries and numbering as `tour_stops`.
-    pub fn tour_stops_from(&self, line: &str, tour: &str, now: f64) -> Vec<(usize, usize, String, f64)> {
+    pub fn tour_stops_from(
+        &self,
+        line: &str,
+        tour: &str,
+        now: f64,
+    ) -> Vec<(usize, usize, String, f64)> {
         let all = self.tour_stops(line, tour);
         let limit = now - 60.0;
-        let Some(k) = all.iter().find(|s| s.3 >= limit).map(|s| s.0).or_else(|| all.first().map(|s| s.0)) else { return Vec::new() };
+        let Some(k) = all
+            .iter()
+            .find(|s| s.3 >= limit)
+            .map(|s| s.0)
+            .or_else(|| all.first().map(|s| s.0))
+        else {
+            return Vec::new();
+        };
         let trip: Vec<_> = all.into_iter().filter(|s| s.0 == k).collect();
         let rest: Vec<_> = trip.iter().filter(|s| s.3 >= limit).cloned().collect();
-        if rest.is_empty() { trip } else { rest }
+        if rest.is_empty() {
+            trip
+        } else {
+            rest
+        }
     }
 
     /// The player drives this tour (line and tour as `player_duty` names them): OMSI leaves
@@ -127,10 +186,16 @@ impl ScheduleSim {
         let added: Vec<(String, String)> = tours.difference(&self.lan_tours).cloned().collect();
         let removed: Vec<(String, String)> = self.lan_tours.difference(&tours).cloned().collect();
         self.lan_tours = tours;
-        let of = |d: &Departure, t: &(String, String)| d.line.eq_ignore_ascii_case(&t.0) && d.tour.eq_ignore_ascii_case(&t.1);
+        let of = |d: &Departure, t: &(String, String)| {
+            d.line.eq_ignore_ascii_case(&t.0) && d.tour.eq_ignore_ascii_case(&t.1)
+        };
         for t in &removed {
             let later: Vec<usize> = (0..self.departures.len())
-                .filter(|&i| of(&self.departures[i], t) && self.departures[i].time > self.last_tod && !self.is_player_tour(i))
+                .filter(|&i| {
+                    of(&self.departures[i], t)
+                        && self.departures[i].time > self.last_tod
+                        && !self.is_player_tour(i)
+                })
                 .collect();
             for &i in &later {
                 self.departures[i].spawned = false;
@@ -138,7 +203,9 @@ impl ScheduleSim {
             log::info!("timetable: line {} tour {} is no LAN player's any more: its {} later departures run again", t.0, t.1, later.len());
         }
         if !added.is_empty() {
-            let mine: Vec<bool> = (0..self.departures.len()).map(|i| self.is_player_tour(i)).collect();
+            let mine: Vec<bool> = (0..self.departures.len())
+                .map(|i| self.is_player_tour(i))
+                .collect();
             for (d, m) in self.departures.iter_mut().zip(&mine) {
                 if *m {
                     d.spawned = true;
@@ -157,7 +224,11 @@ impl ScheduleSim {
     /// Does a player drive departure `i` (we, or another LAN player)?
     pub(super) fn is_player_tour(&self, i: usize) -> bool {
         if let Some(d) = self.departures.get(i) {
-            if self.lan_tours.iter().any(|t| d.line.eq_ignore_ascii_case(&t.0) && d.tour.eq_ignore_ascii_case(&t.1)) {
+            if self
+                .lan_tours
+                .iter()
+                .any(|t| d.line.eq_ignore_ascii_case(&t.0) && d.tour.eq_ignore_ascii_case(&t.1))
+            {
                 return true;
             }
         }
@@ -165,11 +236,14 @@ impl ScheduleSim {
             (Some((line, tour)), Some(d)) => {
                 d.line.eq_ignore_ascii_case(line)
                     && d.tour.eq_ignore_ascii_case(tour)
-                    && self.player_departure.map(|t| {
-                        // (yesterday's night trips a day earlier: 00:30 is the trip of 24:30)
-                        let dt = (d.time - t).rem_euclid(DAY);
-                        dt < 30.0 || dt > DAY - 30.0
-                    }).unwrap_or(true)
+                    && self
+                        .player_departure
+                        .map(|t| {
+                            // (yesterday's night trips a day earlier: 00:30 is the trip of 24:30)
+                            let dt = (d.time - t).rem_euclid(DAY);
+                            dt < 30.0 || dt > DAY - 30.0
+                        })
+                        .unwrap_or(true)
             }
             _ => false,
         }
@@ -305,7 +379,11 @@ impl ScheduleSim {
         // taken (#1576). A tour that runs every night is yesterday's too while today's has not
         // begun: at 03:25 the 22:00 tour's trip of 27:30 is the one at 03:30, not tomorrow's
         // (#2166).
-        if (!self.tour_runs_on(t, self.day_bits) || trips[0].departure > now) && self.tour_runs_on(t, self.yesterday_bits()) && trips.iter().any(|p| p.departure >= DAY) && trips.last().is_some_and(|p| p.end - DAY > now) {
+        if (!self.tour_runs_on(t, self.day_bits) || trips[0].departure > now)
+            && self.tour_runs_on(t, self.yesterday_bits())
+            && trips.iter().any(|p| p.departure >= DAY)
+            && trips.last().is_some_and(|p| p.end - DAY > now)
+        {
             for p in &mut trips {
                 p.departure -= DAY;
                 p.end -= DAY;
@@ -314,19 +392,24 @@ impl ScheduleSim {
                     s.dep -= DAY;
                 }
             }
-            log::info!("player duty: line {} tour {} is yesterday's night tour, under way past midnight", l.name, t.number);
+            log::info!(
+                "player duty: line {} tour {} is yesterday's night tour, under way past midnight",
+                l.name,
+                t.number
+            );
         }
         let (line_name, tour_name) = (l.name.clone(), t.number.clone());
-        let trip_index = match trip.map(str::trim).filter(|t| !t.is_empty()) {
-            Some(pick) => chosen_trip(&trips, pick).ok_or_else(|| {
-                format!(
+        let trip_index =
+            match trip.map(str::trim).filter(|t| !t.is_empty()) {
+                Some(pick) => chosen_trip(&trips, pick).ok_or_else(|| {
+                    format!(
                     "line {line_name} tour {tour_name} has no trip '{pick}': its {} trips leave {}",
                     trips.len(),
                     trips.iter().map(|t| hhmm(t.departure)).collect::<Vec<_>>().join(", ")
                 )
-            })?,
-            None => starting_trip(&trips, now),
-        };
+                })?,
+                None => starting_trip(&trips, now),
+            };
         let hm = hhmm;
         // A picked trip is the duty, one way to its terminus, as a trip chosen in OMSI is;
         // the rest of the tour only with `--whole-tour`.
@@ -336,7 +419,8 @@ impl ScheduleSim {
             (trips, trip_index, 0)
         };
         // the AI leaves the player what the player drives: the tour, or just the one trip
-        self.player_departure = (trips.len() == 1 && trip.is_some() && !whole_tour).then(|| trips[0].departure);
+        self.player_departure =
+            (trips.len() == 1 && trip.is_some() && !whole_tour).then(|| trips[0].departure);
         let reserved = self.reserve_tour(&line_name, &tour_name);
         let current = &trips[trip_index];
         log::info!(
@@ -377,7 +461,11 @@ impl ScheduleSim {
         let mut out: Vec<String> = Vec::new();
         for t in trips.iter().filter(|t| t.line.trim().is_empty()) {
             let stops: Vec<&str> = t.stops.iter().map(|s| s.name.as_str()).collect();
-            if !out.contains(&t.name) && hofs.iter().any(|h| ibis::serves_unnumbered(h, &t.terminus, &stops)) {
+            if !out.contains(&t.name)
+                && hofs
+                    .iter()
+                    .any(|h| ibis::serves_unnumbered(h, &t.terminus, &stops))
+            {
                 log::info!("player duty: trip {} has no line number, but the depot file runs it as a public trip (line 000)", t.name);
                 out.push(t.name.clone());
             }

@@ -58,7 +58,11 @@ fn the_cab_is_heard_by_how_far_in_the_eyes_are() {
     let xf = v.world_transform();
     let at = |x: f32, y: f32| xf.transform_point3(glam::Vec3::new(x, y, bb[5])).as_dvec3();
     let wall = bb[3] + bb[0] * 0.5;
-    assert_eq!(super::inside_amount(&v, at(wall + 1.0, bb[4])), 0.0, "outside");
+    assert_eq!(
+        super::inside_amount(&v, at(wall + 1.0, bb[4])),
+        0.0,
+        "outside"
+    );
     assert_eq!(super::inside_amount(&v, at(bb[3], bb[4])), 1.0, "the aisle");
     let half = super::inside_amount(&v, at(wall - super::CAB_SOUND_DEPTH * 0.5, bb[4]));
     assert!((half - 0.5).abs() < 0.02, "{half}");
@@ -69,7 +73,10 @@ fn the_cab_is_heard_by_how_far_in_the_eyes_are() {
 #[test]
 fn embankments_stop_a_step_above_the_footing() {
     let kerb = |_: f64, y: f64| Some(if y >= 0.0 { 0.12 } else { 0.0 });
-    assert!(ground_gradient(kerb, DVec2::new(3.0, 0.02), 0.12) <= MAX_WALK_GRADIENT, "a kerb is no embankment");
+    assert!(
+        ground_gradient(kerb, DVec2::new(3.0, 0.02), 0.12) <= MAX_WALK_GRADIENT,
+        "a kerb is no embankment"
+    );
     let slope = |deg: f64| move |_: f64, y: f64| Some(y.max(0.0) * deg.to_radians().tan());
     let walk_north = |ground: &dyn Fn(f64, f64) -> Option<f64>| {
         let (mut y, mut z) = (-0.8, 0.0);
@@ -91,7 +98,10 @@ fn embankments_stop_a_step_above_the_footing() {
     let embankment = walk_north(&slope(55.0));
     // (its foot, within the half span the gradient is taken over, still gives footing)
     let foot_allowance = GRADIENT_HALF_SPAN * 55f64.to_radians().tan();
-    assert!(embankment > STEP && embankment < STEP + foot_allowance, "climbed to {embankment:.2} m");
+    assert!(
+        embankment > STEP && embankment < STEP + foot_allowance,
+        "climbed to {embankment:.2} m"
+    );
     assert!(walk_north(&slope(20.0)) > 1.5, "the path");
 }
 

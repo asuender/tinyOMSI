@@ -15,7 +15,11 @@ fn reference(out: &mut Vec<String>, program: &Program, name: &str, string: bool)
     out.push(format!(
         "{}:{name}",
         if resolved {
-            if string { "s" } else { "f" }
+            if string {
+                "s"
+            } else {
+                "f"
+            }
         } else {
             "u"
         }

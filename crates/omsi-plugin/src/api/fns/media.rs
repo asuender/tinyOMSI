@@ -14,11 +14,22 @@ const MAX_VOICES: usize = 32;
 fn project(c: &mut Ctx<'_>, at: [f64; 3]) -> Option<[f64; 2]> {
     let cam = c.io().camera()?;
     let [sw, sh, _] = c.state().ui().screen();
-    let (yaw, pitch) = ((cam.yaw as f64).to_radians(), (cam.pitch as f64).to_radians());
+    let (yaw, pitch) = (
+        (cam.yaw as f64).to_radians(),
+        (cam.pitch as f64).to_radians(),
+    );
     // the camera's axes: yaw 0 looks north (+y), clockwise; pitch up positive
-    let fwd = [yaw.sin() * pitch.cos(), yaw.cos() * pitch.cos(), pitch.sin()];
+    let fwd = [
+        yaw.sin() * pitch.cos(),
+        yaw.cos() * pitch.cos(),
+        pitch.sin(),
+    ];
     let right = [yaw.cos(), -yaw.sin(), 0.0];
-    let up = [-yaw.sin() * pitch.sin(), -yaw.cos() * pitch.sin(), pitch.cos()];
+    let up = [
+        -yaw.sin() * pitch.sin(),
+        -yaw.cos() * pitch.sin(),
+        pitch.cos(),
+    ];
     let d = [at[0] - cam.pos[0], at[1] - cam.pos[1], at[2] - cam.pos[2]];
     let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     let z = dot(d, fwd);
@@ -60,18 +71,30 @@ fn sound_opts(c: &mut Ctx<'_>, t: Option<&Value>) -> Result<Sound, ApiError> {
 
 /// A key combination: `"F10"`, `"Ctrl+KeyH"`, `"Shift+Alt+Digit1"`.
 fn hotkey(spec: &str, cb: u64) -> Result<Hotkey, ApiError> {
-    let mut h = Hotkey { key: String::new(), ctrl: false, shift: false, alt: false, cb };
+    let mut h = Hotkey {
+        key: String::new(),
+        ctrl: false,
+        shift: false,
+        alt: false,
+        cb,
+    };
     for part in spec.split('+').map(str::trim) {
         match part.to_ascii_lowercase().as_str() {
             "ctrl" | "control" => h.ctrl = true,
             "shift" => h.shift = true,
             "alt" => h.alt = true,
             _ if h.key.is_empty() && !part.is_empty() => h.key = part.to_string(),
-            _ => return Err(ApiError(format!("omsi.input.hotkey: \"{spec}\" is no key combination (\"Ctrl+KeyH\")"))),
+            _ => {
+                return Err(ApiError(format!(
+                    "omsi.input.hotkey: \"{spec}\" is no key combination (\"Ctrl+KeyH\")"
+                )))
+            }
         }
     }
     if h.key.is_empty() {
-        return Err(ApiError(format!("omsi.input.hotkey: \"{spec}\" has no key")));
+        return Err(ApiError(format!(
+            "omsi.input.hotkey: \"{spec}\" has no key"
+        )));
     }
     Ok(h)
 }

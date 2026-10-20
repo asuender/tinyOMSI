@@ -36,7 +36,11 @@ pub fn lighting_from(d: &Daylight, fog_range: f32) -> Lighting {
         fog_density: density,
         sky_color: d.sky,
         night: d.night,
-        night_maps: Some(if d.lamps_on || d.night >= 0.5 { 1.0 } else { 0.0 }),
+        night_maps: Some(if d.lamps_on || d.night >= 0.5 {
+            1.0
+        } else {
+            0.0
+        }),
         sun_azimuth: d.azimuth_rad,
         sky_weights: d.sky_weights,
         envir_tint: d.envir_tint,
@@ -113,7 +117,9 @@ pub fn apply_weather(
         // (the snowy grey only as bright as the daylight: a fixed 0.86 made a winter night
         // in fog a pale grey dusk in the classic picture and in every mirror)
         let day = 1.0 - 0.93 * l.night.clamp(0.0, 1.0);
-        l.fog_color = l.fog_color.lerp(Vec3::new(0.86, 0.88, 0.92) * day, 0.4 * snow);
+        l.fog_color = l
+            .fog_color
+            .lerp(Vec3::new(0.86, 0.88, 0.92) * day, 0.4 * snow);
     }
     l.snow = snow;
 }
@@ -142,7 +148,14 @@ pub fn vehicle_lights(
             None => v.body_rotation(),
         }
     };
-    crate::model_lights_extend(&ty.model, &mesh_xf, v.position, &value_of, &v.light_fade, coronas);
+    crate::model_lights_extend(
+        &ty.model,
+        &mesh_xf,
+        v.position,
+        &value_of,
+        &v.light_fade,
+        coronas,
+    );
     // An articulated vehicle is one visual bus, but its rear section has its own
     // `[light_enh_2]`/corona declarations and animated meshes.  The old collector only
     // visited the leading section, which made rear lamps, destination lights and section-
@@ -156,13 +169,23 @@ pub fn vehicle_lights(
                 None => t.body_rotation(),
             }
         };
-        let car_value = |name: &str| -> f32 { t.run_var(name.trim()).unwrap_or_else(|| value_of(name)) };
-        crate::model_lights_extend(&t.ty.model, &part_mesh_xf, t.position, &car_value, &t.light_fade, coronas);
+        let car_value =
+            |name: &str| -> f32 { t.run_var(name.trim()).unwrap_or_else(|| value_of(name)) };
+        crate::model_lights_extend(
+            &t.ty.model,
+            &part_mesh_xf,
+            t.position,
+            &car_value,
+            &t.light_fade,
+            coronas,
+        );
     }
     let body = v.body_rotation();
     // headlights: the spotlight selected by Spot_Select
     // (OMSI_SPOT_SELECT=n: that spotlight on, for checking the headlights in a picture)
-    let forced = omsi_cfg::flags::OMSI_SPOT_SELECT.var().and_then(|s| s.trim().parse::<f32>().ok());
+    let forced = omsi_cfg::flags::OMSI_SPOT_SELECT
+        .var()
+        .and_then(|s| s.trim().parse::<f32>().ok());
     if let Some(sel) = forced.or_else(|| v.var("Spot_Select")) {
         if sel >= 0.0 {
             if let Some(sp) = ty.model.spotlights.get(sel as usize) {
@@ -170,8 +193,22 @@ pub fn vehicle_lights(
                 let dl = Vec3::new(vals[3], vals[4], vals[5]).normalize_or_zero();
                 let d = body.transform_vector3(dl).normalize_or_zero();
                 let level = level_axis(body, dl);
-                for (at, share) in spot_origins(&ty.model, ty.def.bounding_box, &vals, &v.light_fade, &value_of) {
-                    push_spot(lights, v.position + body.transform_point3(at).as_dvec3(), d, level, &vals, share, night);
+                for (at, share) in spot_origins(
+                    &ty.model,
+                    ty.def.bounding_box,
+                    &vals,
+                    &v.light_fade,
+                    &value_of,
+                ) {
+                    push_spot(
+                        lights,
+                        v.position + body.transform_point3(at).as_dvec3(),
+                        d,
+                        level,
+                        &vals,
+                        share,
+                        night,
+                    );
                 }
             }
         }
@@ -184,7 +221,9 @@ pub fn vehicle_lights(
             let at = v.position + body.transform_point3(at).as_dvec3();
             let level = level_axis(body, d);
             let d = body.transform_vector3(d).normalize_or_zero();
-            let vals = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, color[0], color[1], color[2], 100.0, 30.0, 70.0];
+            let vals = [
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, color[0], color[1], color[2], 100.0, 30.0, 70.0,
+            ];
             push_enhanced_spot(lights, at, d, level, &vals, share);
         }
     }
@@ -192,26 +231,45 @@ pub fn vehicle_lights(
     // and its sections', where it is declared - a pair mirrored across the vehicle's axis
     // unless its flag keeps the one lamp - and as bright as a [spotlight] of its colour,
     // shared between the pair, times the variable (0..1)
-    let parts = std::iter::once((&ty.model, v.position, body))
-        .chain(v.trailers.iter().map(|t| (&t.ty.model, t.position, t.body_rotation())));
+    let parts = std::iter::once((&ty.model, v.position, body)).chain(
+        v.trailers
+            .iter()
+            .map(|t| (&t.ty.model, t.position, t.body_rotation())),
+    );
     for (model, origin, rot) in parts {
         for sp in &model.spotlights_2 {
             for (pos, dir, share) in spotlight_2_lamps(sp, value_of(sp.variable.as_str())) {
                 let at = origin + rot.transform_point3(pos).as_dvec3();
                 let d = rot.transform_vector3(dir).normalize_or_zero();
-                push_spot(lights, at, d, level_axis(rot, dir), &sp.values, share, night);
+                push_spot(
+                    lights,
+                    at,
+                    d,
+                    level_axis(rot, dir),
+                    &sp.values,
+                    share,
+                    night,
+                );
             }
         }
     }
     // [spotlight_cookie] (openOMSI): lamps whose beam is a picture, the leading vehicle's
     // and its sections'
-    let parts = std::iter::once((&ty.model, v.position, body))
-        .chain(v.trailers.iter().map(|t| (&t.ty.model, t.position, t.body_rotation())));
+    let parts = std::iter::once((&ty.model, v.position, body)).chain(
+        v.trailers
+            .iter()
+            .map(|t| (&t.ty.model, t.position, t.body_rotation())),
+    );
     for (part, (model, origin, rot)) in parts.enumerate() {
         let dir = model.path.parent().unwrap_or(std::path::Path::new(""));
         for (k, c) in model.spotlight_cookies.iter().enumerate() {
             let key = (v as *const VehicleInstance as usize, part, k);
-            let on = cookie_fade(&mut fades.lock(), key, value_of(c.variable.as_str()).clamp(0.0, 1.0), c.fade);
+            let on = cookie_fade(
+                &mut fades.lock(),
+                key,
+                value_of(c.variable.as_str()).clamp(0.0, 1.0),
+                c.fade,
+            );
             if on <= 0.0 {
                 continue;
             }
@@ -219,7 +277,15 @@ pub fn vehicle_lights(
             let local = cookie_direction(Vec3::from(c.dir), turn(&c.yaw), turn(&c.pitch));
             let at = origin + rot.transform_point3(Vec3::from(c.pos)).as_dvec3();
             let d = rot.transform_vector3(local).normalize_or_zero();
-            push_cookie(lights, at, d, c, on, cookie_picture_id(dir, &c.picture), night);
+            push_cookie(
+                lights,
+                at,
+                d,
+                c,
+                on,
+                cookie_picture_id(dir, &c.picture),
+                night,
+            );
         }
     }
     // [interiorlight]s light only the meshes listing them and the passengers (per-instance
@@ -227,7 +293,13 @@ pub fn vehicle_lights(
     let _ = &ty.model.interior_lights;
 }
 
-fn spot_origins(model: &omsi_model::Model, bounding_box: Option<[f32; 6]>, vals: &[f32; 12], fades: &[f32], value_of: &dyn Fn(&str) -> f32) -> Vec<(Vec3, f32)> {
+fn spot_origins(
+    model: &omsi_model::Model,
+    bounding_box: Option<[f32; 6]>,
+    vals: &[f32; 12],
+    fades: &[f32],
+    value_of: &dyn Fn(&str) -> f32,
+) -> Vec<(Vec3, f32)> {
     let dl = Vec3::new(vals[3], vals[4], vals[5]).normalize_or_zero();
     if dl.y > 0.3 {
         let lamps = spot_headlamps(model, fades, value_of);
@@ -247,7 +319,12 @@ fn spot_origins(model: &omsi_model::Model, bounding_box: Option<[f32; 6]>, vals:
     let lamps: Vec<[f32; 3]> = model
         .meshes
         .iter()
-        .flat_map(|m| m.light_enh.iter().map(|l| l.pos).chain(m.light_enh_2.iter().map(|l| l.pos)))
+        .flat_map(|m| {
+            m.light_enh
+                .iter()
+                .map(|l| l.pos)
+                .chain(m.light_enh_2.iter().map(|l| l.pos))
+        })
         .collect();
     let nose = lamps.iter().map(|l| l[1]).reduce(f32::max);
     let tail = lamps.iter().map(|l| l[1]).reduce(f32::min);
@@ -290,7 +367,10 @@ fn spot_origins(model: &omsi_model::Model, bounding_box: Option<[f32; 6]>, vals:
         .collect();
     let spread = (on_face.iter().sum::<f32>() / on_face.len().max(1) as f32).min(half_width);
     let sides: &[f32] = if spread > 0.1 { &[-1.0, 1.0] } else { &[0.0] };
-    sides.iter().map(|side| (apex + Vec3::X * spread * side, 1.0 / sides.len() as f32)).collect()
+    sides
+        .iter()
+        .map(|side| (apex + Vec3::X * spread * side, 1.0 / sides.len() as f32))
+        .collect()
 }
 
 /// A `[spotlight_cookie]`'s direction in its vehicle's frame (x right, y ahead, z up),
@@ -314,7 +394,15 @@ fn cookie_direction(dir: Vec3, yaw_deg: f32, pitch_deg: f32) -> Vec3 {
 /// its picture `picture` (0: not found - its cone lights it): the classic picture's spot, as
 /// `push_spot` makes it, and the enhanced picture's, as bright as one headlamp's beam at
 /// its strongest where the picture is white, lit by the picture within its cone.
-fn push_cookie(lights: &mut Vec<PointLight>, at: DVec3, d: Vec3, c: &omsi_model::SpotlightCookie, on: f32, picture: u16, night: f32) {
+fn push_cookie(
+    lights: &mut Vec<PointLight>,
+    at: DVec3,
+    d: Vec3,
+    c: &omsi_model::SpotlightCookie,
+    on: f32,
+    picture: u16,
+    night: f32,
+) {
     let color = [c.color[0] / 255.0, c.color[1] / 255.0, c.color[2] / 255.0];
     let half = |deg: f32| (deg.clamp(1.0, 170.0) * 0.5).to_radians();
     let tan = [half(c.width).tan(), half(c.height).tan()];
@@ -352,7 +440,8 @@ fn push_cookie(lights: &mut Vec<PointLight>, at: DVec3, d: Vec3, c: &omsi_model:
 
 /// The `[spotlight_cookie]` lamps' brightness and when it was last worked out, by vehicle,
 /// part and lamp (kept by the world the vehicles drive in: `World::cookie_fades`).
-pub(crate) type CookieFades = std::collections::HashMap<(usize, usize, usize), (f32, std::time::Instant)>;
+pub(crate) type CookieFades =
+    std::collections::HashMap<(usize, usize, usize), (f32, std::time::Instant)>;
 
 /// How bright a `[spotlight_cookie]` is now, coming to `target` with its time constant
 /// `fade` (s; 0 at once): kept per vehicle and lamp from frame to frame. A lamp seen for the
@@ -382,7 +471,16 @@ fn cookie_picture_id(model_dir: &std::path::Path, name: &str) -> u16 {
         let mut g = COOKIE_PICTURES.lock().unwrap_or_else(|e| e.into_inner());
         let (known, listed) = g.get_or_insert_with(Default::default);
         if known.insert(id) {
-            let path = CORONA_TEXTURES.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|t| t.ids.iter().find(|(_, i)| **i == id).map(|(p, _)| p.clone()));
+            let path = CORONA_TEXTURES
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .as_ref()
+                .and_then(|t| {
+                    t.ids
+                        .iter()
+                        .find(|(_, i)| **i == id)
+                        .map(|(p, _)| p.clone())
+                });
             if let Some(p) = path {
                 listed.push((id, p));
             }
@@ -394,7 +492,10 @@ fn cookie_picture_id(model_dir: &std::path::Path, name: &str) -> u16 {
 /// The beam pictures known, and in the order they were first asked for (each renderer is
 /// handed them from where it stands, see `upload_corona_textures`). Process-wide like the
 /// numbers in `CORONA_TEXTURES`: a picture file has one number for every renderer.
-type CookiePictures = (std::collections::HashSet<u16>, Vec<(u16, std::path::PathBuf)>);
+type CookiePictures = (
+    std::collections::HashSet<u16>,
+    Vec<(u16, std::path::PathBuf)>,
+);
 static COOKIE_PICTURES: std::sync::Mutex<Option<CookiePictures>> = std::sync::Mutex::new(None);
 
 /// A `[spotlight_2]`'s lamps in its vehicle's frame - position, direction and share of a
@@ -409,7 +510,13 @@ fn spotlight_2_lamps(sp: &omsi_model::Spotlight2, k: f32) -> Vec<(Vec3, Vec3, f3
     let sides: &[f32] = if sp.mirrored { &[1.0, -1.0] } else { &[1.0] };
     sides
         .iter()
-        .map(|s| (Vec3::new(v[0] * s, v[1], v[2]), Vec3::new(v[3] * s, v[4], v[5]), k / sides.len() as f32))
+        .map(|s| {
+            (
+                Vec3::new(v[0] * s, v[1], v[2]),
+                Vec3::new(v[3] * s, v[4], v[5]),
+                k / sides.len() as f32,
+            )
+        })
         .collect()
 }
 
@@ -418,13 +525,22 @@ fn spotlight_2_lamps(sp: &omsi_model::Spotlight2, k: f32) -> Vec<(Vec3, Vec3, f3
 /// the vehicle's pitch - the horizon of its beam (see `push_enhanced_spot`). Zero for a lamp
 /// pointing straight up or down.
 fn level_axis(rot: glam::Mat4, local: Vec3) -> Vec3 {
-    rot.transform_vector3(Vec3::new(local.x, local.y, 0.0)).normalize_or_zero()
+    rot.transform_vector3(Vec3::new(local.x, local.y, 0.0))
+        .normalize_or_zero()
 }
 
 /// The lights of one headlamp at `at` shining along `d`, with a `[spotlight]`'s numbers
 /// (`vals`: colour 6-8, range 9, inner and outer cone 10 and 11) and `share` of its light;
 /// `level` its axis in the vehicle's floor (see [`level_axis`]).
-fn push_spot(lights: &mut Vec<PointLight>, at: DVec3, d: Vec3, level: Vec3, vals: &[f32; 12], share: f32, night: f32) {
+fn push_spot(
+    lights: &mut Vec<PointLight>,
+    at: DVec3,
+    d: Vec3,
+    level: Vec3,
+    vals: &[f32; 12],
+    share: f32,
+    night: f32,
+) {
     let color = [vals[6] / 255.0, vals[7] / 255.0, vals[8] / 255.0];
     // inner and outer cone as full angles (values 10 and 11)
     let (inner, outer) = (vals[10], vals[11]);
@@ -455,7 +571,9 @@ const AI_BEAM_RANGE: f64 = 200.0;
 
 /// Whether a vehicle has no spot of its own and is lent its headlamps' beams.
 fn lends_beams(model: &omsi_model::Model) -> bool {
-    model.spotlights.is_empty() && model.spotlights_2.is_empty() && model.spotlight_cookies.is_empty()
+    model.spotlights.is_empty()
+        && model.spotlights_2.is_empty()
+        && model.spotlight_cookies.is_empty()
 }
 
 /// Which of `vehicles` (by index) may be lent their headlamps' beams (lit ones alone get
@@ -477,9 +595,18 @@ fn cars_with_beams(vehicles: &[&VehicleInstance], camera: DVec3) -> Vec<usize> {
 /// and share of a pair's light, in the model's frame): its lit `[light_enh_2]` lamps that
 /// face forward from its front, white or nearly (no indicator, no rear or roof lamp), one
 /// beam per side from the middle of that side's lamps.
-fn headlamps_of_lamps(model: &omsi_model::Model, fades: &[f32], value_of: &dyn Fn(&str) -> f32) -> Vec<(Vec3, Vec3, [f32; 3], f32)> {
-    let mut found: Vec<FrontLamp> = white_front_lamps(model, fades, value_of).into_iter().filter(|f| f.3 >= 0.5).collect();
-    let Some(front) = found.iter().map(|f| f.0.y).reduce(f32::max) else { return Vec::new() };
+fn headlamps_of_lamps(
+    model: &omsi_model::Model,
+    fades: &[f32],
+    value_of: &dyn Fn(&str) -> f32,
+) -> Vec<(Vec3, Vec3, [f32; 3], f32)> {
+    let mut found: Vec<FrontLamp> = white_front_lamps(model, fades, value_of)
+        .into_iter()
+        .filter(|f| f.3 >= 0.5)
+        .collect();
+    let Some(front) = found.iter().map(|f| f.0.y).reduce(f32::max) else {
+        return Vec::new();
+    };
     found.retain(|f| f.0.y >= front - 0.4);
     let sides = by_side(&found);
     let n = sides.len() as f32;
@@ -498,7 +625,11 @@ fn headlamps_of_lamps(model: &omsi_model::Model, fades: &[f32], value_of: &dyn F
 
 type FrontLamp = (Vec3, Vec3, [f32; 3], f32, f32);
 
-fn white_front_lamps(model: &omsi_model::Model, fades: &[f32], value_of: &dyn Fn(&str) -> f32) -> Vec<FrontLamp> {
+fn white_front_lamps(
+    model: &omsi_model::Model,
+    fades: &[f32],
+    value_of: &dyn Fn(&str) -> f32,
+) -> Vec<FrontLamp> {
     let mut found = Vec::new();
     let mut li = 0usize;
     for md in &model.meshes {
@@ -510,35 +641,70 @@ fn white_front_lamps(model: &omsi_model::Model, fades: &[f32], value_of: &dyn Fn
                 None => value_of(&l.variable) * if l.factor > 0.0 { l.factor } else { 1.0 },
             };
             let dir = Vec3::from(l.dir).normalize_or_zero();
-            let (hi, lo) = (l.color.iter().copied().fold(0.0, f32::max), l.color.iter().copied().fold(f32::MAX, f32::min));
+            let (hi, lo) = (
+                l.color.iter().copied().fold(0.0, f32::max),
+                l.color.iter().copied().fold(f32::MAX, f32::min),
+            );
             let pos = Vec3::from(l.pos);
-            if l.omni || dir.y < 0.8 || hi < 150.0 || lo < 0.6 * hi || !(0.2..1.6).contains(&pos.z) {
+            if l.omni || dir.y < 0.8 || hi < 150.0 || lo < 0.6 * hi || !(0.2..1.6).contains(&pos.z)
+            {
                 continue;
             }
             let lit = if lit.is_nan() { 0.0 } else { lit };
-            found.push((pos, dir, l.color, lit, lit / if l.factor > 0.0 { l.factor } else { 1.0 }));
+            found.push((
+                pos,
+                dir,
+                l.color,
+                lit,
+                lit / if l.factor > 0.0 { l.factor } else { 1.0 },
+            ));
         }
     }
     found
 }
 
 fn by_side(lamps: &[FrontLamp]) -> Vec<Vec<&FrontLamp>> {
-    [lamps.iter().filter(|f| f.0.x < -0.2).collect(), lamps.iter().filter(|f| f.0.x > 0.2).collect(), lamps.iter().filter(|f| f.0.x.abs() <= 0.2).collect()]
-        .into_iter()
-        .filter(|s: &Vec<_>| !s.is_empty())
-        .collect()
+    [
+        lamps.iter().filter(|f| f.0.x < -0.2).collect(),
+        lamps.iter().filter(|f| f.0.x > 0.2).collect(),
+        lamps.iter().filter(|f| f.0.x.abs() <= 0.2).collect(),
+    ]
+    .into_iter()
+    .filter(|s: &Vec<_>| !s.is_empty())
+    .collect()
 }
 
-fn spot_headlamps(model: &omsi_model::Model, fades: &[f32], value_of: &dyn Fn(&str) -> f32) -> Vec<(Vec3, f32)> {
+fn spot_headlamps(
+    model: &omsi_model::Model,
+    fades: &[f32],
+    value_of: &dyn Fn(&str) -> f32,
+) -> Vec<(Vec3, f32)> {
     let mut found = white_front_lamps(model, fades, value_of);
-    let Some(front) = found.iter().map(|f| f.0.y).reduce(f32::max) else { return Vec::new() };
-    let nose = model.meshes.iter().flat_map(|m| m.light_enh.iter().map(|l| l.pos[1]).chain(m.light_enh_2.iter().map(|l| l.pos[1]))).fold(front, f32::max);
+    let Some(front) = found.iter().map(|f| f.0.y).reduce(f32::max) else {
+        return Vec::new();
+    };
+    let nose = model
+        .meshes
+        .iter()
+        .flat_map(|m| {
+            m.light_enh
+                .iter()
+                .map(|l| l.pos[1])
+                .chain(m.light_enh_2.iter().map(|l| l.pos[1]))
+        })
+        .fold(front, f32::max);
     if front < nose - 0.5 {
         return Vec::new();
     }
     found.retain(|f| f.0.y >= front - 0.4);
     let on = |f: &FrontLamp| f.4 >= 0.5;
-    let lit_top = |lamps: &[&FrontLamp]| lamps.iter().filter(|f| on(f)).map(|f| f.0.z).reduce(f32::max);
+    let lit_top = |lamps: &[&FrontLamp]| {
+        lamps
+            .iter()
+            .filter(|f| on(f))
+            .map(|f| f.0.z)
+            .reduce(f32::max)
+    };
     let mut sides = by_side(&found);
     let any_lit = sides.iter().filter_map(|s| lit_top(s)).reduce(f32::max);
     let paired = sides.iter().any(|s| s[0].0.x.abs() > 0.2);
@@ -556,11 +722,27 @@ fn spot_headlamps(model: &omsi_model::Model, fades: &[f32], value_of: &dyn Fn(&s
                 let most = side.iter().map(|f| f.4).fold(f32::MIN, f32::max);
                 side.into_iter().filter(|f| f.4 >= most - 1e-3).collect()
             };
-            let target = lit_top(&set).or(any_lit).unwrap_or_else(|| set.iter().map(|f| f.0.z).fold(f32::MIN, f32::max));
-            let best = set.iter().map(|f| f.0.z).min_by(|a, b| (a - target).abs().total_cmp(&(b - target).abs())).unwrap_or(target);
-            let group: Vec<&FrontLamp> = set.into_iter().filter(|f| (f.0.z - best).abs() <= 0.1).collect();
-            let dir = group.iter().map(|f| f.1).sum::<Vec3>().normalize_or(Vec3::Y);
-            (group.iter().map(|f| f.0).sum::<Vec3>() / group.len() as f32 + dir * 0.1, 1.0 / n)
+            let target = lit_top(&set)
+                .or(any_lit)
+                .unwrap_or_else(|| set.iter().map(|f| f.0.z).fold(f32::MIN, f32::max));
+            let best = set
+                .iter()
+                .map(|f| f.0.z)
+                .min_by(|a, b| (a - target).abs().total_cmp(&(b - target).abs()))
+                .unwrap_or(target);
+            let group: Vec<&FrontLamp> = set
+                .into_iter()
+                .filter(|f| (f.0.z - best).abs() <= 0.1)
+                .collect();
+            let dir = group
+                .iter()
+                .map(|f| f.1)
+                .sum::<Vec3>()
+                .normalize_or(Vec3::Y);
+            (
+                group.iter().map(|f| f.0).sum::<Vec3>() / group.len() as f32 + dir * 0.1,
+                1.0 / n,
+            )
         })
         .collect()
 }
@@ -571,7 +753,14 @@ fn spot_headlamps(model: &omsi_model::Model, fades: &[f32], value_of: &dyn Fn(&s
 /// (Taken about the world's horizon, the beam stayed level while the bus climbed a ramp and
 /// lit less and less of the road rising in front of it, as Omsi.exe's spot - fixed to the
 /// bus - does not, #1897.)
-fn push_enhanced_spot(lights: &mut Vec<PointLight>, at: DVec3, d: Vec3, level: Vec3, vals: &[f32; 12], share: f32) {
+fn push_enhanced_spot(
+    lights: &mut Vec<PointLight>,
+    at: DVec3,
+    d: Vec3,
+    level: Vec3,
+    vals: &[f32; 12],
+    share: f32,
+) {
     let color = [vals[6] / 255.0, vals[7] / 255.0, vals[8] / 255.0];
     let (inner, outer) = (vals[10], vals[11]);
     let half = |deg: f32| (deg.clamp(1.0, 179.0) * 0.5).to_radians().cos();
@@ -584,7 +773,13 @@ fn push_enhanced_spot(lights: &mut Vec<PointLight>, at: DVec3, d: Vec3, level: V
     let weaker = (reach / 60.0).min(1.0).powi(2);
     // (a lamp pointing steeply down - a `[spotlight_2]` over a door - keeps its cone: the
     // road lamp's profile is for one aimed along the road)
-    let beam = if d.normalize_or_zero().z.abs() >= 0.5 || level == Vec3::ZERO { 0.0 } else if vals[9] >= FULL_BEAM_RANGE { -1.0 } else { 1.0 };
+    let beam = if d.normalize_or_zero().z.abs() >= 0.5 || level == Vec3::ZERO {
+        0.0
+    } else if vals[9] >= FULL_BEAM_RANGE {
+        -1.0
+    } else {
+        1.0
+    };
     lights.push(PointLight {
         position: at,
         radius: reach,
@@ -610,7 +805,10 @@ fn push_enhanced_spot(lights: &mut Vec<PointLight>, at: DVec3, d: Vec3, level: V
 /// (A short range is taken as declared, down to half a metre: from 10 m on, a lamp of range
 /// 1 lit everything round it like a headlamp, #1541.)
 fn spot_reach(range: f32, low: f32) -> f32 {
-    range.clamp(0.5, low).max(range * low / 100.0).min(low * 5.0)
+    range
+        .clamp(0.5, low)
+        .max(range * low / 100.0)
+        .min(low * 5.0)
 }
 
 #[cfg(test)]
@@ -622,7 +820,10 @@ mod cookie_tests {
     fn a_cookie_turns_by_its_yaw_and_pitch() {
         let ahead = Vec3::Y;
         let right = cookie_direction(ahead, 30.0, 0.0);
-        assert!(right.x > 0.49 && right.x < 0.51 && right.y > 0.86, "{right:?}");
+        assert!(
+            right.x > 0.49 && right.x < 0.51 && right.y > 0.86,
+            "{right:?}"
+        );
         let up = cookie_direction(ahead, 0.0, 10.0);
         assert!(up.z > 0.17 && up.z < 0.18 && up.x.abs() < 1e-5, "{up:?}");
         assert_eq!(cookie_direction(ahead, 0.0, 0.0), ahead);
@@ -632,13 +833,26 @@ mod cookie_tests {
     /// picture found the enhanced one keeps the plain cone.
     #[test]
     fn a_cookie_lamp_falls_back_to_its_cone() {
-        let c = omsi_model::SpotlightCookie { dir: [0.0, 1.0, 0.0], color: [255.0; 3], range: 80.0, width: 60.0, height: 20.0, ..Default::default() };
+        let c = omsi_model::SpotlightCookie {
+            dir: [0.0, 1.0, 0.0],
+            color: [255.0; 3],
+            range: 80.0,
+            width: 60.0,
+            height: 20.0,
+            ..Default::default()
+        };
         let mut lights = Vec::new();
         push_cookie(&mut lights, DVec3::ZERO, Vec3::Y, &c, 1.0, 7, 1.0);
-        let e = lights.iter().find(|l| l.mode == LightMode::Enhanced).unwrap();
+        let e = lights
+            .iter()
+            .find(|l| l.mode == LightMode::Enhanced)
+            .unwrap();
         assert_eq!(e.cookie.map(|c| c.picture), Some(7));
         assert_eq!(e.beam, 0.0);
-        assert!(e.cone[1] < 30f32.to_radians().cos(), "the cone holds the picture's corners");
+        assert!(
+            e.cone[1] < 30f32.to_radians().cos(),
+            "the cone holds the picture's corners"
+        );
         lights.clear();
         push_cookie(&mut lights, DVec3::ZERO, Vec3::Y, &c, 1.0, 0, 1.0);
         assert!(lights.iter().all(|l| l.cookie.is_none()));
@@ -659,8 +873,14 @@ mod bitmap_tests {
         std::fs::write(dir.join("Signals/texture/Glimmer_lamp.dds"), b"DDS ").unwrap();
         let id = super::corona_texture_id(&dir.join("Signals"), "Glimmer_lamp.bmp");
         assert_ne!(id, 0, "the .dds stands in for the .bmp");
-        assert_eq!(id, super::texture_id_of(dir.join("Signals/texture/Glimmer_lamp.dds")));
-        assert_eq!(super::corona_texture_id(&dir.join("Signals"), "Nowhere_lamp.bmp"), 0);
+        assert_eq!(
+            id,
+            super::texture_id_of(dir.join("Signals/texture/Glimmer_lamp.dds"))
+        );
+        assert_eq!(
+            super::corona_texture_id(&dir.join("Signals"), "Nowhere_lamp.bmp"),
+            0
+        );
     }
 }
 
@@ -684,35 +904,88 @@ mod spot_tests {
     #[test]
     fn a_spotlight_is_a_low_or_a_full_beam_by_its_range() {
         let beam = |range: f32| {
-            let vals = [0.0, 6.5, 0.76, 0.0, 1.0, -0.3, 255.0, 255.0, 233.0, range, 30.0, 80.0];
+            let vals = [
+                0.0, 6.5, 0.76, 0.0, 1.0, -0.3, 255.0, 255.0, 233.0, range, 30.0, 80.0,
+            ];
             let mut lights = Vec::new();
-            super::push_spot(&mut lights, glam::DVec3::ZERO, glam::Vec3::Y, glam::Vec3::Y, &vals, 0.5, 1.0);
-            lights.iter().find(|l| l.mode == omsi_render::LightMode::Enhanced).map(|l| l.beam)
+            super::push_spot(
+                &mut lights,
+                glam::DVec3::ZERO,
+                glam::Vec3::Y,
+                glam::Vec3::Y,
+                &vals,
+                0.5,
+                1.0,
+            );
+            lights
+                .iter()
+                .find(|l| l.mode == omsi_render::LightMode::Enhanced)
+                .map(|l| l.beam)
         };
-        assert_eq!([100.0, 200.0, 450.0, 500.0].map(beam), [Some(1.0), Some(1.0), Some(-1.0), Some(-1.0)]);
+        assert_eq!(
+            [100.0, 200.0, 450.0, 500.0].map(beam),
+            [Some(1.0), Some(1.0), Some(-1.0), Some(-1.0)]
+        );
         // a lamp over a door, pointing down, keeps its cone
-        let vals = [0.0, 6.5, 2.5, 0.0, 0.0, -1.0, 255.0, 255.0, 233.0, 100.0, 30.0, 80.0];
+        let vals = [
+            0.0, 6.5, 2.5, 0.0, 0.0, -1.0, 255.0, 255.0, 233.0, 100.0, 30.0, 80.0,
+        ];
         let mut lights = Vec::new();
-        super::push_spot(&mut lights, glam::DVec3::ZERO, glam::Vec3::NEG_Z, glam::Vec3::ZERO, &vals, 0.5, 1.0);
-        assert_eq!(lights.iter().find(|l| l.mode == omsi_render::LightMode::Enhanced).map(|l| l.beam), Some(0.0));
+        super::push_spot(
+            &mut lights,
+            glam::DVec3::ZERO,
+            glam::Vec3::NEG_Z,
+            glam::Vec3::ZERO,
+            &vals,
+            0.5,
+            1.0,
+        );
+        assert_eq!(
+            lights
+                .iter()
+                .find(|l| l.mode == omsi_render::LightMode::Enhanced)
+                .map(|l| l.beam),
+            Some(0.0)
+        );
     }
 
     /// A headlamp's beam lies about the vehicle's floor: on a bus pitched up a ramp its
     /// Enhanced light is aimed along the ramp, whatever the lamp's own aim down (#1897).
     #[test]
     fn a_headlamp_beam_pitches_with_its_vehicle() {
-        let vals = [0.0, 6.5, 0.76, 0.0, 1.0, -0.3, 255.0, 255.0, 233.0, 100.0, 30.0, 80.0];
+        let vals = [
+            0.0, 6.5, 0.76, 0.0, 1.0, -0.3, 255.0, 255.0, 233.0, 100.0, 30.0, 80.0,
+        ];
         let pitch = 8f32.to_radians();
         let body = glam::Mat4::from_rotation_x(pitch);
         let dl = glam::Vec3::new(0.0, 1.0, -0.3).normalize();
         let d = body.transform_vector3(dl);
         let mut lights = Vec::new();
-        super::push_spot(&mut lights, glam::DVec3::ZERO, d, super::level_axis(body, dl), &vals, 0.5, 1.0);
-        let enh = lights.iter().find(|l| l.mode == omsi_render::LightMode::Enhanced).unwrap();
+        super::push_spot(
+            &mut lights,
+            glam::DVec3::ZERO,
+            d,
+            super::level_axis(body, dl),
+            &vals,
+            0.5,
+            1.0,
+        );
+        let enh = lights
+            .iter()
+            .find(|l| l.mode == omsi_render::LightMode::Enhanced)
+            .unwrap();
         assert_eq!(enh.beam, 1.0);
-        assert!((enh.direction.z - pitch.sin()).abs() < 1e-4 && (enh.direction.y - pitch.cos()).abs() < 1e-4, "{:?}", enh.direction);
+        assert!(
+            (enh.direction.z - pitch.sin()).abs() < 1e-4
+                && (enh.direction.y - pitch.cos()).abs() < 1e-4,
+            "{:?}",
+            enh.direction
+        );
         // (the classic spot keeps the lamp's own aim)
-        let van = lights.iter().find(|l| l.mode == omsi_render::LightMode::Vanilla).unwrap();
+        let van = lights
+            .iter()
+            .find(|l| l.mode == omsi_render::LightMode::Vanilla)
+            .unwrap();
         assert!((van.direction - d).length() < 1e-5);
     }
 
@@ -722,7 +995,9 @@ mod spot_tests {
     fn a_spotlight_2_is_a_mirrored_pair_or_one_lamp() {
         use glam::Vec3;
         let mut sp = omsi_model::Spotlight2 {
-            values: [0.9, 5.9, 0.65, 0.2, 1.0, -0.3, 255.0, 255.0, 233.0, 200.0, 30.0, 80.0],
+            values: [
+                0.9, 5.9, 0.65, 0.2, 1.0, -0.3, 255.0, 255.0, 233.0, 200.0, 30.0, 80.0,
+            ],
             variable: "lights_fern".into(),
             mirrored: true,
         };
@@ -737,7 +1012,10 @@ mod spot_tests {
         assert!(super::spotlight_2_lamps(&sp, 0.0).is_empty());
         assert!(super::spotlight_2_lamps(&sp, -1.0).is_empty());
         sp.mirrored = false;
-        assert_eq!(super::spotlight_2_lamps(&sp, 0.5), [(Vec3::new(0.9, 5.9, 0.65), Vec3::new(0.2, 1.0, -0.3), 0.5)]);
+        assert_eq!(
+            super::spotlight_2_lamps(&sp, 0.5),
+            [(Vec3::new(0.9, 5.9, 0.65), Vec3::new(0.2, 1.0, -0.3), 0.5)]
+        );
         assert_eq!(super::spotlight_2_lamps(&sp, 3.0)[0].2, 1.0);
     }
     #[test]
@@ -750,7 +1028,13 @@ mod spot_tests {
             variable: variable.into(),
             ..Default::default()
         };
-        let mesh = |light_enh_2: Vec<omsi_model::LightEnh2>| omsi_model::Model { meshes: vec![omsi_model::MeshDef { light_enh_2, ..Default::default() }], ..Default::default() };
+        let mesh = |light_enh_2: Vec<omsi_model::LightEnh2>| omsi_model::Model {
+            meshes: vec![omsi_model::MeshDef {
+                light_enh_2,
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
         let model = mesh(vec![
             lamp(-0.8, 5.8, 1.05, "abbl_l"),
             lamp(0.8, 5.8, 1.05, "abbl_r"),
@@ -761,20 +1045,45 @@ mod spot_tests {
             lamp(0.0, 5.8, 1.0, "logo"),
             lamp(-1.1, -5.8, 1.4, "stand"),
             lamp(1.1, -5.8, 1.4, "stand"),
-            omsi_model::LightEnh2 { color: [255.0, 160.0, 0.0], ..lamp(-1.1, 5.8, 1.05, "abbl_l") },
+            omsi_model::LightEnh2 {
+                color: [255.0, 160.0, 0.0],
+                ..lamp(-1.1, 5.8, 1.05, "abbl_l")
+            },
         ]);
         let bb = Some([2.5, 12.0, 3.0, 0.0, 0.0, 1.5]);
-        let low = [0.0, 2.0, 0.76, 0.0, 1.0, -0.3, 255.0, 255.0, 233.0, 100.0, 30.0, 80.0];
+        let low = [
+            0.0, 2.0, 0.76, 0.0, 1.0, -0.3, 255.0, 255.0, 233.0, 100.0, 30.0, 80.0,
+        ];
         let at = |model: &omsi_model::Model, on: &[&str], fades: &[f32], vals: &[f32; 12]| {
             let on: Vec<String> = on.iter().map(|s| s.to_string()).collect();
-            let mut at = super::spot_origins(model, bb, vals, fades, &|name: &str| if on.iter().any(|o| o == name) { 1.0 } else { 0.0 });
+            let mut at = super::spot_origins(model, bb, vals, fades, &|name: &str| {
+                if on.iter().any(|o| o == name) {
+                    1.0
+                } else {
+                    0.0
+                }
+            });
             at.sort_by(|a, b| a.0.x.total_cmp(&b.0.x));
             at
         };
-        let near = |got: &[(Vec3, f32)], want: &[(Vec3, f32)]| got.len() == want.len() && got.iter().zip(want).all(|(g, w)| (g.0 - w.0).length() < 1e-4 && g.1 == w.1);
-        let pair = |z: f32| [(Vec3::new(-0.8, 5.9, z), 0.5), (Vec3::new(0.8, 5.9, z), 0.5)];
+        let near = |got: &[(Vec3, f32)], want: &[(Vec3, f32)]| {
+            got.len() == want.len()
+                && got
+                    .iter()
+                    .zip(want)
+                    .all(|(g, w)| (g.0 - w.0).length() < 1e-4 && g.1 == w.1)
+        };
+        let pair = |z: f32| {
+            [
+                (Vec3::new(-0.8, 5.9, z), 0.5),
+                (Vec3::new(0.8, 5.9, z), 0.5),
+            ]
+        };
         let got = at(&model, &["abbl_l", "abbl_r", "stand"], &[], &low);
-        assert!(near(&got, &pair(1.05)), "low beam, rear markers lit: {got:?}");
+        assert!(
+            near(&got, &pair(1.05)),
+            "low beam, rear markers lit: {got:?}"
+        );
         let got = at(&model, &["stand"], &[], &low);
         assert!(near(&got, &pair(1.2)), "rear markers alone: {got:?}");
         let got = at(&model, &["abbl_l", "abbl_r", "nebel"], &[], &low);
@@ -786,18 +1095,55 @@ mod spot_tests {
         let got = at(&model, &[], &[0.4, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0], &low);
         assert!(near(&got, &pair(1.05)), "low beam fading in: {got:?}");
         let got = at(&model, &["abbl_l", "abbl_r"], &[0.0, 0.0, 1.0, 1.0], &low);
-        assert!(near(&got, &pair(1.2)), "the fades rule over the variables: {got:?}");
-        let dim = mesh(vec![omsi_model::LightEnh2 { factor: 0.3, ..lamp(-0.8, 5.8, 1.05, "abbl") }, omsi_model::LightEnh2 { factor: 0.3, ..lamp(0.8, 5.8, 1.05, "abbl") }, lamp(-0.7, 5.8, 0.6, "drl"), lamp(0.7, 5.8, 0.6, "drl")]);
+        assert!(
+            near(&got, &pair(1.2)),
+            "the fades rule over the variables: {got:?}"
+        );
+        let dim = mesh(vec![
+            omsi_model::LightEnh2 {
+                factor: 0.3,
+                ..lamp(-0.8, 5.8, 1.05, "abbl")
+            },
+            omsi_model::LightEnh2 {
+                factor: 0.3,
+                ..lamp(0.8, 5.8, 1.05, "abbl")
+            },
+            lamp(-0.7, 5.8, 0.6, "drl"),
+            lamp(0.7, 5.8, 0.6, "drl"),
+        ]);
         let got = at(&dim, &["abbl", "drl"], &[], &low);
-        assert!(near(&got, &pair(1.05)), "a faint headlamp glow over a DRL: {got:?}");
-        let rear = [0.0, -5.0, 0.76, 0.0, -1.0, -0.3, 255.0, 255.0, 233.0, 100.0, 30.0, 80.0];
+        assert!(
+            near(&got, &pair(1.05)),
+            "a faint headlamp glow over a DRL: {got:?}"
+        );
+        let rear = [
+            0.0, -5.0, 0.76, 0.0, -1.0, -0.3, 255.0, 255.0, 233.0, 100.0, 30.0, 80.0,
+        ];
         let got = at(&model, &["abbl_l", "abbl_r"], &[], &rear);
-        assert!(got.iter().all(|(p, _)| p.z == 0.76 && (p.y + 5.85).abs() < 1e-4), "a rear spot keeps its own height: {got:?}");
-        let inside = mesh(vec![lamp(-0.5, 2.0, 1.0, "x"), lamp(0.5, 2.0, 1.0, "x"), omsi_model::LightEnh2 { color: [255.0, 190.0, 0.0], ..lamp(0.9, 5.8, 0.9, "x") }]);
+        assert!(
+            got.iter()
+                .all(|(p, _)| p.z == 0.76 && (p.y + 5.85).abs() < 1e-4),
+            "a rear spot keeps its own height: {got:?}"
+        );
+        let inside = mesh(vec![
+            lamp(-0.5, 2.0, 1.0, "x"),
+            lamp(0.5, 2.0, 1.0, "x"),
+            omsi_model::LightEnh2 {
+                color: [255.0, 190.0, 0.0],
+                ..lamp(0.9, 5.8, 0.9, "x")
+            },
+        ]);
         let got = at(&inside, &["x"], &[], &low);
-        assert!(got.iter().all(|(p, _)| p.z == 0.76 && (p.y - 5.85).abs() < 1e-4), "white lamps far behind the nose: {got:?}");
+        assert!(
+            got.iter()
+                .all(|(p, _)| p.z == 0.76 && (p.y - 5.85).abs() < 1e-4),
+            "white lamps far behind the nose: {got:?}"
+        );
         let got = super::spot_origins(&omsi_model::Model::default(), bb, &low, &[], &|_| 0.0);
-        assert!(near(&got, &[(Vec3::new(0.0, 3.55, 0.76), 1.0)]), "no lamps: {got:?}");
+        assert!(
+            near(&got, &[(Vec3::new(0.0, 3.55, 0.76), 1.0)]),
+            "no lamps: {got:?}"
+        );
     }
 }
 
@@ -903,7 +1249,12 @@ pub fn collect(
         }
     }
     // scenery lamps their own script switches, as bright as it says
-    crate::scripted::push_script_lamp_glows(&world.scripted.lock().views, camera_pos, CORONA_RANGE, &mut scene.coronas);
+    crate::scripted::push_script_lamp_glows(
+        &world.scripted.lock().views,
+        camera_pos,
+        CORONA_RANGE,
+        &mut scene.coronas,
+    );
     for list in world.particle_objects.lock().values() {
         for po in list {
             if (po.pos - camera_pos).length() < 1500.0 {
@@ -921,7 +1272,14 @@ pub fn collect(
     // `AI_BEAMS`)
     let beams = cars_with_beams(vehicles, camera_pos);
     for (k, v) in vehicles.iter().enumerate() {
-        vehicle_lights(v, &mut scene.coronas, &mut scene.lights, night, &world.cookie_fades, beams.contains(&k));
+        vehicle_lights(
+            v,
+            &mut scene.coronas,
+            &mut scene.lights,
+            night,
+            &world.cookie_fades,
+            beams.contains(&k),
+        );
         particle_sprites(&v.particles, &mut scene.smoke, &mut scene.coronas);
         for t in &v.trailers {
             particle_sprites(&t.particles, &mut scene.smoke, &mut scene.coronas);
@@ -950,7 +1308,11 @@ pub fn collect(
         c.size > 0.05
     });
     if omsi_cfg::flags::OMSI_DEBUG_CONES.is_set() {
-        log::info!("cones: visibility {vis:.0} m, dark {night:.2}, {} cones of {} coronas", scene.coronas.iter().filter(|c| c.beam).count(), scene.coronas.len());
+        log::info!(
+            "cones: visibility {vis:.0} m, dark {night:.2}, {} cones of {} coronas",
+            scene.coronas.iter().filter(|c| c.beam).count(),
+            scene.coronas.len()
+        );
         for c in scene.coronas.iter().filter(|c| c.beam).take(4) {
             log::info!("  cone at ({:.1}, {:.1}, {:.1}) dir {:?} radius {:.2} half angles {:.0}/{:.0} deg tex {}", c.position.x, c.position.y, c.position.z, c.direction, c.size, c.inner_cos.to_degrees(), c.cone_cos.to_degrees(), c.texture);
         }
@@ -993,7 +1355,11 @@ pub fn collect(
     }
     // nearest lights first: the grid cells hold a limited number
     // (total_cmp: a light at a NaN position must not end the game)
-    scene.lights.sort_by(|a, b| (a.position - camera_pos).length_squared().total_cmp(&(b.position - camera_pos).length_squared()));
+    scene.lights.sort_by(|a, b| {
+        (a.position - camera_pos)
+            .length_squared()
+            .total_cmp(&(b.position - camera_pos).length_squared())
+    });
 }
 
 /// How far Omsi.exe moves every `[smoke]` and `[particle_emitter]` puff towards the eye in
@@ -1003,7 +1369,11 @@ const SMOKE_Z_OFFSET: f32 = 0.1;
 
 /// The particles of a particle set as the renderer draws them: smoke blended over the scene,
 /// and the glowing ones (`--PS_emissive--`: sparks, rockets, a flame) as coronas.
-pub fn particle_sprites(set: &omsi_sim::particles::ParticleSet, smoke: &mut Vec<omsi_render::SmokeParticle>, coronas: &mut Vec<Corona>) {
+pub fn particle_sprites(
+    set: &omsi_sim::particles::ParticleSet,
+    smoke: &mut Vec<omsi_render::SmokeParticle>,
+    coronas: &mut Vec<Corona>,
+) {
     for (p, def) in set.particles() {
         let alpha = p.alpha();
         if alpha <= 0.002 {
@@ -1062,7 +1432,11 @@ static CORONA_TEXTURES: std::sync::Mutex<Option<CoronaTextures>> = std::sync::Mu
 /// The game folder the standard pictures (`Texture\…`) are found in.
 pub fn set_corona_root(root: &std::path::Path) {
     let mut g = CORONA_TEXTURES.lock().unwrap_or_else(|e| e.into_inner());
-    let t = g.get_or_insert_with(|| CoronaTextures { ids: Default::default(), listed: Vec::new(), root: None });
+    let t = g.get_or_insert_with(|| CoronaTextures {
+        ids: Default::default(),
+        listed: Vec::new(),
+        root: None,
+    });
     t.root = Some(root.to_path_buf());
     // (the game's own pictures are looked for in the new folder)
     for id in [&CONE_ID, &GLOW_ID, &STAR_ID] {
@@ -1072,7 +1446,11 @@ pub fn set_corona_root(root: &std::path::Path) {
 
 fn texture_id_of(path: std::path::PathBuf) -> u16 {
     let mut g = CORONA_TEXTURES.lock().unwrap_or_else(|e| e.into_inner());
-    let t = g.get_or_insert_with(|| CoronaTextures { ids: Default::default(), listed: Vec::new(), root: None });
+    let t = g.get_or_insert_with(|| CoronaTextures {
+        ids: Default::default(),
+        listed: Vec::new(),
+        root: None,
+    });
     if let Some(id) = t.ids.get(&path) {
         return *id;
     }
@@ -1090,12 +1468,24 @@ pub fn corona_texture_id(model_dir: &std::path::Path, name: &str) -> u16 {
     // (every lit lamp of every vehicle asks every frame: looked up once, and found again by
     // the folder and the name as they are - a key made of copies of them was two
     // allocations a lamp a frame)
-    type Known = std::collections::HashMap<std::path::PathBuf, std::collections::HashMap<String, u16>>;
+    type Known =
+        std::collections::HashMap<std::path::PathBuf, std::collections::HashMap<String, u16>>;
     static KNOWN: std::sync::Mutex<Option<Known>> = std::sync::Mutex::new(None);
-    if let Some(&id) = KNOWN.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|m| m.get(model_dir)).and_then(|m| m.get(name)) {
+    if let Some(&id) = KNOWN
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .and_then(|m| m.get(model_dir))
+        .and_then(|m| m.get(name))
+    {
         return id;
     }
-    let root = CORONA_TEXTURES.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|t| t.root.clone()).unwrap_or_default();
+    let root = CORONA_TEXTURES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .and_then(|t| t.root.clone())
+        .unwrap_or_default();
     // (found as a material's texture is: the Helferlein signals' `Eff_li.bmp` ships only
     // as `Eff_li.dds`, and looked for under its own name alone the plain glow was drawn)
     let search = crate::texture_dirs(&root, model_dir);
@@ -1127,9 +1517,18 @@ fn stock_texture_id(name: &str, known: &std::sync::atomic::AtomicU32) -> u16 {
     if id != UNKNOWN_ID {
         return id as u16;
     }
-    let root = CORONA_TEXTURES.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|t| t.root.clone()).unwrap_or_default();
+    let root = CORONA_TEXTURES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .and_then(|t| t.root.clone())
+        .unwrap_or_default();
     let p = omsi_cfg::resolve_path(&root, &format!("Texture/{name}"));
-    let id = if omsi_cfg::vfs::is_file(&p) { texture_id_of(p) } else { 0 };
+    let id = if omsi_cfg::vfs::is_file(&p) {
+        texture_id_of(p)
+    } else {
+        0
+    };
     known.store(id as u32, std::sync::atomic::Ordering::Relaxed);
     id
 }
@@ -1169,7 +1568,12 @@ pub fn upload_corona_textures(renderer: &mut omsi_render::Renderer) {
         }
     }
     // (and the `[spotlight_cookie]` pictures: see `cookie_picture_id`)
-    let cookies = COOKIE_PICTURES.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|c| c.1.get(cookies_taken..).unwrap_or_default().to_vec()).unwrap_or_default();
+    let cookies = COOKIE_PICTURES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .map(|c| c.1.get(cookies_taken..).unwrap_or_default().to_vec())
+        .unwrap_or_default();
     renderer.set_pictures_taken((taken, cookies_taken + cookies.len()));
     for (id, path) in cookies {
         match omsi_texture::decode_file(&path) {
@@ -1190,7 +1594,10 @@ pub struct ConeWeather {
 
 impl ConeWeather {
     pub fn new(fog_visibility_m: f32, night: f32) -> ConeWeather {
-        ConeWeather { fog_visibility_m, night: night.clamp(0.0, 1.0) }
+        ConeWeather {
+            fog_visibility_m,
+            night: night.clamp(0.0, 1.0),
+        }
     }
 
     /// The visibility (no fog: a million metres) and the dark.

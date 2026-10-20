@@ -8,7 +8,9 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// Start the thread that keeps the status (not in the self-test).
 pub fn start() {
-    let _ = std::thread::Builder::new().name("discord".into()).spawn(run);
+    let _ = std::thread::Builder::new()
+        .name("discord".into())
+        .spawn(run);
 }
 
 fn run() {
@@ -22,12 +24,20 @@ fn run() {
 
 fn keep(discord: &mut Option<Discord>, next_try: &mut Instant) {
     let settings = omsi_launcher_lib::get_settings().unwrap_or_default();
-    let enabled = settings.get("discord_status").and_then(|v| v.as_bool()).unwrap_or(true);
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let enabled = settings
+        .get("discord_status")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let games = omsi_launcher_lib::instances::list();
     let game_running = games.iter().any(|g| g.running);
     // (a game just started that has not told the registry it runs yet)
-    let launching = games.iter().any(|g| !g.running && g.stopping.is_none() && now.saturating_sub(g.started) < 15);
+    let launching = games
+        .iter()
+        .any(|g| !g.running && g.stopping.is_none() && now.saturating_sub(g.started) < 15);
     let presence = Presence::for_launcher(enabled, launching, game_running);
     if presence.is_none() {
         if let Some(d) = discord.as_ref() {
@@ -49,7 +59,11 @@ fn keep(discord: &mut Option<Discord>, next_try: &mut Instant) {
             return;
         }
         *next_try = Instant::now() + Duration::from_secs(5);
-        let app_id = settings.get("discord_app_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let app_id = settings
+            .get("discord_app_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
         *discord = Discord::start(&app_id);
     }
     if let Some(d) = discord.as_ref() {

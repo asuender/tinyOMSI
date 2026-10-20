@@ -22,7 +22,13 @@ impl Drop for SurfaceState<'_> {
         // session ending in order. The window goes with the process anyway. So on a panic:
         // the frame being drawn is let go of while unwinding, and the same message then
         // took the place of the panic that ended the game in its report (#112: a sort).
-        if !std::thread::panicking() && self.lost.lock().unwrap_or_else(|e| e.into_inner()).is_none() {
+        if !std::thread::panicking()
+            && self
+                .lost
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .is_none()
+        {
             // SAFETY: dropped only here, once
             unsafe { std::mem::ManuallyDrop::drop(&mut self.surface) };
         }
@@ -53,7 +59,9 @@ impl<'w> SurfaceState<'w> {
         let encode = srgb_encode::SrgbEncode::wanted(renderer, renderer.format());
         let mut config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: encode.as_ref().map_or(renderer.format(), |e| e.window_format()),
+            format: encode
+                .as_ref()
+                .map_or(renderer.format(), |e| e.window_format()),
             width: width.max(1),
             height: height.max(1),
             present_mode: if vsync {
@@ -73,27 +81,49 @@ impl<'w> SurfaceState<'w> {
         config.width = width.max(1);
         config.height = height.max(1);
         surface.configure(&renderer.device, &config);
-        Ok(SurfaceState { surface: std::mem::ManuallyDrop::new(surface), config, lost: renderer.errors.device_lost.clone(), encode })
+        Ok(SurfaceState {
+            surface: std::mem::ManuallyDrop::new(surface),
+            config,
+            lost: renderer.errors.device_lost.clone(),
+            encode,
+        })
     }
 
     /// The window's surface on a device whose renderer is still being built ([`Opened`]'s
     /// device and format): pictures without the renderer (a clear, an interface) can be
     /// shown until [`Self::adopt`] hands it over.
-    pub fn early(instance: &wgpu::Instance, window: Arc<winit_window::Window>, device: &wgpu::Device, format: wgpu::TextureFormat, width: u32, height: u32, vsync: bool) -> Result<Self> {
+    pub fn early(
+        instance: &wgpu::Instance,
+        window: Arc<winit_window::Window>,
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        width: u32,
+        height: u32,
+        vsync: bool,
+    ) -> Result<Self> {
         let surface = instance.create_surface(window).context("create_surface")?;
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
             width: width.max(1),
             height: height.max(1),
-            present_mode: if vsync { wgpu::PresentMode::AutoVsync } else { wgpu::PresentMode::AutoNoVsync },
+            present_mode: if vsync {
+                wgpu::PresentMode::AutoVsync
+            } else {
+                wgpu::PresentMode::AutoNoVsync
+            },
             // (two frames in flight: see `new_with`)
             desired_maximum_frame_latency: 2,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![],
         };
         surface.configure(device, &config);
-        Ok(SurfaceState { surface: std::mem::ManuallyDrop::new(surface), config, lost: Default::default(), encode: None })
+        Ok(SurfaceState {
+            surface: std::mem::ManuallyDrop::new(surface),
+            config,
+            lost: Default::default(),
+            encode: None,
+        })
     }
 
     /// The renderer built for the device this surface was made on ([`Self::early`]) takes
@@ -147,7 +177,11 @@ impl<'w> SurfaceState<'w> {
     }
 
     pub fn set_vsync(&mut self, renderer: &Renderer, enabled: bool) {
-        let mode = if enabled { wgpu::PresentMode::AutoVsync } else { wgpu::PresentMode::AutoNoVsync };
+        let mode = if enabled {
+            wgpu::PresentMode::AutoVsync
+        } else {
+            wgpu::PresentMode::AutoNoVsync
+        };
         if self.config.present_mode == mode || renderer.device_lost().is_some() {
             return;
         }

@@ -146,7 +146,11 @@ fn traffic_and_people() {
         &mut g,
     );
     assert_eq!(out, ["ok"]);
-    assert!(g.log.borrow().iter().any(|l| l == "density Some(50) Some(0.5)"));
+    assert!(g
+        .log
+        .borrow()
+        .iter()
+        .any(|l| l == "density Some(50) Some(0.5)"));
 }
 
 #[test]
@@ -232,7 +236,9 @@ fn camera_input_and_sound() {
     assert_eq!(out, ["ok", "hotkey KeyH"]);
     let sounds = g.sounds.borrow();
     assert_eq!(sounds.len(), 1);
-    assert!(sounds[0].0.ends_with("media/ding.wav") && sounds[0].1.on_bus && sounds[0].1.volume == 0.5);
+    assert!(
+        sounds[0].0.ends_with("media/ding.wav") && sounds[0].1.on_bus && sounds[0].1.volume == 0.5
+    );
 }
 
 #[test]
@@ -274,7 +280,13 @@ fn the_game_lan_and_panels() {
         &mut g,
     );
     assert_eq!(out, ["ok"]);
-    assert_eq!(g.lan_sent, [("game".to_string(), 2, "hello".to_string()), ("game".into(), 2, "all".into())]);
+    assert_eq!(
+        g.lan_sent,
+        [
+            ("game".to_string(), 2, "hello".to_string()),
+            ("game".into(), 2, "all".into())
+        ]
+    );
     assert!(g.log.borrow().iter().any(|l| l == "notify 1 Hello"));
 }
 
@@ -332,7 +344,11 @@ fn derived_events() {
     g.duty.as_mut().unwrap().at_stop = true;
     g.clock.time += 60.0;
     g.weather.precip_kind = 1;
-    g.light = Some(Light { aspect: "red", change_in: 10.0, distance: 8.0 });
+    g.light = Some(Light {
+        aspect: "red",
+        change_in: 10.0,
+        distance: 8.0,
+    });
     g.vars.insert("Velocity".into(), 30.0);
     g.events_ex = vec![("resume", Vec::new())];
     p.frame(&mut g);
@@ -344,7 +360,10 @@ fn derived_events() {
     g.duty.as_mut().unwrap().current.name = "Back".into();
     p.frame(&mut g);
     g.duty = None;
-    g.cars.push(AiCar { id: 1, ..Default::default() });
+    g.cars.push(AiCar {
+        id: 1,
+        ..Default::default()
+    });
     for _ in 0..3 {
         p.frame(&mut g);
     }
@@ -376,7 +395,19 @@ fn derived_events() {
 #[test]
 fn passengers_tickets() {
     let mut g = Game::new();
-    g.ticket_asks = vec![TicketAsk { person: 1, age: 40.0, kind: TicketKind::Buy, ticket: 1, name: "Full fare".into(), price: 2.0, stop: Some(12), stop_name: Some("Markt".into()), destination: Some("Rathaus".into()), stop_index: Some(1), destination_index: Some(2) }];
+    g.ticket_asks = vec![TicketAsk {
+        person: 1,
+        age: 40.0,
+        kind: TicketKind::Buy,
+        ticket: 1,
+        name: "Full fare".into(),
+        price: 2.0,
+        stop: Some(12),
+        stop_name: Some("Markt".into()),
+        destination: Some("Rathaus".into()),
+        stop_index: Some(1),
+        destination_index: Some(2),
+    }];
     run(
         "tickets",
         r##"

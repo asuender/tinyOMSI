@@ -8,7 +8,6 @@
 //! object types are loaded once and shared, then everything is uploaded to the GPU on the
 //! calling thread.
 
-use omsi_world::map_index::{MapIndex, Pose};
 use anyhow::{Context, Result};
 use glam::{DVec2, DVec3, Mat4};
 use hashbrown::HashMap;
@@ -24,6 +23,7 @@ use omsi_render::{
 use omsi_scenery::{SceneryObject, Spline};
 use omsi_sim::traffic::{Lane, LaneBuilder, LaneKey, LaneKind, TrafficLightController};
 use omsi_texture::{Image, TextureCache, TextureData};
+use omsi_world::map_index::{MapIndex, Pose};
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
@@ -33,59 +33,59 @@ pub mod camera_arm;
 pub mod driver;
 pub mod lights;
 pub mod mapgen;
-pub mod road_paint;
 pub mod money;
 pub mod puddles;
 pub mod rain;
+pub mod road_paint;
 pub mod route_arrows;
 pub mod threads;
 pub mod wheel_surface;
 pub mod window_wipers;
 
-mod staging;
 mod batching;
-mod terrain_paint;
-mod sound_probe;
-mod world;
-mod open;
-mod stage;
-mod place;
 mod cut_terrain;
-mod upload;
+mod lightmaps;
+mod open;
+mod place;
 mod place_step;
 mod props;
-mod lightmaps;
 mod scripted;
+mod sound_probe;
+mod stage;
+mod staging;
+mod terrain_paint;
+mod upload;
+mod world;
 pub use scripted::DayKind;
+pub mod camera_util;
+pub mod check;
+pub mod editor;
+pub mod export;
+pub mod head_idle;
+pub mod host;
+pub mod hud;
+mod lanes;
+pub mod schedule_paper;
+mod season_looks;
+pub mod tiles;
 mod vehicle_materials;
 mod vehicle_types;
 mod vehicles;
-mod lanes;
-mod season_looks;
-pub mod host;
-pub mod head_idle;
-pub mod hud;
-pub mod editor;
-pub mod tiles;
-pub mod schedule_paper;
-pub mod check;
-pub mod export;
-pub mod camera_util;
 
-pub use staging::*;
 pub use batching::*;
-pub use terrain_paint::*;
-pub use world::*;
-pub use open::*;
-pub use props::*;
-pub use scripted::*;
-pub use vehicle_materials::*;
-pub use vehicle_types::*;
 use lanes::*;
 use lightmaps::*;
-pub use stage::*;
+pub use open::*;
 #[cfg(test)]
 use place::field_height;
+pub use props::*;
+pub use scripted::*;
+pub use stage::*;
+pub use staging::*;
+pub use terrain_paint::*;
+pub use vehicle_materials::*;
+pub use vehicle_types::*;
+pub use world::*;
 
 #[cfg(test)]
 mod surf_map_tests;

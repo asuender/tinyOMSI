@@ -37,7 +37,10 @@ impl Drop for Lent {
 }
 
 pub fn has_prefetcher() -> bool {
-    PREFETCHER.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    PREFETCHER
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_some()
 }
 
 /// Buses read at once, at most (each holds its files, and a coach's paints are pictures of
@@ -73,7 +76,14 @@ pub enum Got {
 /// Is the bus `path` in `paint` being read now (on its thread; not waiting for its turn)?
 pub fn being_read(path: &Path, paint: &str) -> bool {
     let key = (path.to_path_buf(), paint.to_ascii_lowercase());
-    matches!(BUSES.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|m| m.get(&key)), Some(State::Reading))
+    matches!(
+        BUSES
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .and_then(|m| m.get(&key)),
+        Some(State::Reading)
+    )
 }
 
 /// The count of buses that became ready (see `READY`).
@@ -109,15 +119,28 @@ pub fn get(root: &Path, path: &Path, paint: &str) -> Got {
     map.insert(key.clone(), State::Reading);
     drop(g);
     let (root_buf, paint_s) = (root.to_path_buf(), paint.to_string());
-    let spawned = std::thread::Builder::new().name("remote-bus".into()).spawn(move || {
-        let state = read(&root_buf, &key.0, &paint_s);
-        BUSES.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(HashMap::new).insert(key, state);
-        READING.fetch_sub(1, Ordering::AcqRel);
-        READY.fetch_add(1, Ordering::AcqRel);
-    });
+    let spawned = std::thread::Builder::new()
+        .name("remote-bus".into())
+        .spawn(move || {
+            let state = read(&root_buf, &key.0, &paint_s);
+            BUSES
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get_or_insert_with(HashMap::new)
+                .insert(key, state);
+            READING.fetch_sub(1, Ordering::AcqRel);
+            READY.fetch_add(1, Ordering::AcqRel);
+        });
     if let Err(e) = spawned {
         READING.fetch_sub(1, Ordering::AcqRel);
-        BUSES.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(HashMap::new).insert((path.to_path_buf(), paint.to_ascii_lowercase()), State::Failed(format!("no thread: {e}"), Instant::now()));
+        BUSES
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_or_insert_with(HashMap::new)
+            .insert(
+                (path.to_path_buf(), paint.to_ascii_lowercase()),
+                State::Failed(format!("no thread: {e}"), Instant::now()),
+            );
     }
     Got::Reading
 }
@@ -129,14 +152,22 @@ fn read(root: &Path, path: &Path, paint: &str) -> State {
     let audit = omsi_cfg::vfs::Audit::begin();
     // (read under a guard: a file that would stop the reader makes the bus a box that says
     // so, not the end of this game)
-    let loaded = std::panic::catch_unwind(|| VehicleType::load(root, path)).map_err(|_| "its files could not be read".to_string()).and_then(|r| r.map_err(|e| e.to_string()));
+    let loaded = std::panic::catch_unwind(|| VehicleType::load(root, path))
+        .map_err(|_| "its files could not be read".to_string())
+        .and_then(|r| r.map_err(|e| e.to_string()));
     let reads = audit.end();
     let ty = match loaded {
         Ok(t) => Arc::new(t),
         Err(why) => return State::Failed(why, Instant::now()),
     };
     let t1 = Instant::now();
-    let scheme = if paint.is_empty() { None } else { ty.paint_schemes.iter().position(|s| s.name.eq_ignore_ascii_case(paint)) };
+    let scheme = if paint.is_empty() {
+        None
+    } else {
+        ty.paint_schemes
+            .iter()
+            .position(|s| s.name.eq_ignore_ascii_case(paint))
+    };
     let prefetcher = PREFETCHER.lock().unwrap_or_else(|e| e.into_inner()).clone();
     if let Some(p) = prefetcher {
         // (a picture that would stop the reader leaves it to the frame's upload, as before)
@@ -158,7 +189,8 @@ mod tests {
     #[test]
     fn a_bus_is_read_off_the_frame_and_then_handed_out() {
         // (no such bus: it is read on its thread all the same, and fails there)
-        let root = std::env::temp_dir().join(format!("openomsi-remote-load-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("openomsi-remote-load-{}", std::process::id()));
         let path = root.join("Vehicles/None/none.bus");
         let before = generation();
         assert!(matches!(get(&root, &path, ""), Got::Reading));
@@ -167,6 +199,9 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
         }
         assert!(generation() > before, "the box is told the bus is done");
-        assert!(matches!(get(&root, &path, ""), Got::Failed(_)), "a bus that cannot be read says why");
+        assert!(
+            matches!(get(&root, &path, ""), Got::Failed(_)),
+            "a bus that cannot be read says why"
+        );
     }
 }

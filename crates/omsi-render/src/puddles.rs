@@ -11,7 +11,11 @@ const MAX_TRACE_PIXELS_LOW: f32 = 480.0 * 270.0;
 /// traced (m) and how many screen-space steps a ray takes at most. Low keeps the puddles
 /// near the bus.
 fn reach(low: bool) -> [f32; 4] {
-    if low { [40.0, 24.0, 0.0, 0.0] } else { [100.0, 48.0, 0.0, 0.0] }
+    if low {
+        [40.0, 24.0, 0.0, 0.0]
+    } else {
+        [100.0, 48.0, 0.0, 0.0]
+    }
 }
 
 #[repr(C)]
@@ -366,11 +370,18 @@ pub(super) struct Targets {
 /// High past the budget): the wet pixel looked for among them (see `probe_taps`).
 fn footprint(w: u32, h: u32, low: bool) -> f32 {
     let (tw, th) = trace_size(w, h, low);
-    (w as f32 / tw as f32).max(h as f32 / th as f32).ceil().clamp(1.0, 8.0)
+    (w as f32 / tw as f32)
+        .max(h as f32 / th as f32)
+        .ceil()
+        .clamp(1.0, 8.0)
 }
 
 fn trace_size(w: u32, h: u32, low: bool) -> (u32, u32) {
-    let (half, budget) = if low { (0.25_f32, MAX_TRACE_PIXELS_LOW) } else { (0.5, MAX_TRACE_PIXELS) };
+    let (half, budget) = if low {
+        (0.25_f32, MAX_TRACE_PIXELS_LOW)
+    } else {
+        (0.5, MAX_TRACE_PIXELS)
+    };
     let scale = half.min((budget / (w.max(1) as f32 * h.max(1) as f32)).sqrt());
     (
         ((w as f32 * scale).floor() as u32).max(1),
@@ -549,11 +560,10 @@ impl Renderer {
         // A previously used size can outlive the AO depth after a resize/another view.
         // Rebind the current receiver texture instead of tracing against an old frame.
         let low = lighting.puddles == 1;
-        if hdr
-            .puddles
-            .as_ref()
-            .is_none_or(|t| t.source_depth != *self.targets.ao.as_ref().unwrap().depth_view.texture() || t.low != low)
-        {
+        if hdr.puddles.as_ref().is_none_or(|t| {
+            t.source_depth != *self.targets.ao.as_ref().unwrap().depth_view.texture()
+                || t.low != low
+        }) {
             let targets = Targets::new(self, hdr, w, h, low);
             log::info!(
                 "puddle reflections ({}): {}x{} rays, at most {} steps within {} m; resolve {w}x{h}",
@@ -587,7 +597,11 @@ impl Renderer {
             1.0
         };
         // (low: no capture of the player's vehicle - the screen-space rays still find it)
-        let origins = if low { Vec::new() } else { vehicle_origins(lighting, camera) };
+        let origins = if low {
+            Vec::new()
+        } else {
+            vehicle_origins(lighting, camera)
+        };
         let mut parts = [<VehicleBox as bytemuck::Zeroable>::zeroed(); 4];
         for (part, (o, h, bb)) in parts
             .iter_mut()
@@ -623,9 +637,9 @@ impl Renderer {
             projection_trace: [
                 proj.z_axis.z,
                 proj.w_axis.z,
-                omsi_cfg::flags::OMSI_DEBUG_PUDDLES.parse()
-                    .unwrap_or(0.0),
-                omsi_cfg::flags::OMSI_PUDDLE_THICKNESS.parse()
+                omsi_cfg::flags::OMSI_DEBUG_PUDDLES.parse().unwrap_or(0.0),
+                omsi_cfg::flags::OMSI_PUDDLE_THICKNESS
+                    .parse()
                     .unwrap_or(0.12),
             ],
             vehicle_plane: plane,
@@ -679,7 +693,11 @@ impl Renderer {
         // Select only this vehicle's existing draw entries. AI instances can share meshes
         // and batches with it; selecting a mesh alone would reflect all of them at one height.
         // (low: the capture is only cleared, see `prepare_puddle_reflections`)
-        let origins = if lighting.puddles == 1 { Vec::new() } else { vehicle_origins(lighting, camera) };
+        let origins = if lighting.puddles == 1 {
+            Vec::new()
+        } else {
+            vehicle_origins(lighting, camera)
+        };
         let vehicle_batches = player_vehicle_batches(scene, batches, draw_list, &origins);
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -995,7 +1013,10 @@ mod tests {
             for size in [64, 48, 64] {
                 r.render_to_image(&mut scene, size, size, &camera, &lighting)
                     .unwrap();
-                let targets = r.targets.hdr_targets[&(size, size)].puddles.as_ref().unwrap();
+                let targets = r.targets.hdr_targets[&(size, size)]
+                    .puddles
+                    .as_ref()
+                    .unwrap();
                 assert_eq!(
                     targets.source_depth,
                     *r.targets.ao.as_ref().unwrap().depth_view.texture()
@@ -1364,7 +1385,9 @@ mod tests {
     fn probe_taps(span: i32) -> Vec<i32> {
         let span = span.clamp(1, 8);
         let taps = span.min(3);
-        (0..taps).map(|x| ((2 * x + 1) * span) / (2 * taps) - span / 2).collect()
+        (0..taps)
+            .map(|x| ((2 * x + 1) * span) / (2 * taps) - span / 2)
+            .collect()
     }
 
     /// The looks for a wet pixel: the same 2x2 at half size as before, at most 3x3 spread
@@ -1377,7 +1400,10 @@ mod tests {
         assert_eq!(probe_taps(8), [-3, 0, 2]);
         for span in 1..=8 {
             let t = probe_taps(span);
-            assert!(t.len() <= 3 && t.iter().all(|&o| o >= -(span / 2) && o < span - span / 2), "{span}: {t:?}");
+            assert!(
+                t.len() <= 3 && t.iter().all(|&o| o >= -(span / 2) && o < span - span / 2),
+                "{span}: {t:?}"
+            );
         }
         for (w, h) in [(1920, 1080), (2560, 1440), (3840, 2160)] {
             let looks = |low: bool| {
@@ -1385,7 +1411,12 @@ mod tests {
                 let n = probe_taps(footprint(w, h, low) as i32).len() as u64;
                 tw as u64 * th as u64 * n * n
             };
-            assert!(looks(true) < looks(false), "{w}x{h}: low {} high {}", looks(true), looks(false));
+            assert!(
+                looks(true) < looks(false),
+                "{w}x{h}: low {} high {}",
+                looks(true),
+                looks(false)
+            );
             assert!(looks(false) <= MAX_TRACE_PIXELS as u64 * 9);
         }
     }
@@ -1404,7 +1435,10 @@ mod tests {
                 let f = footprint(w, h, low);
                 assert!(f >= 1.0 && f <= 8.0);
                 // (the pixels looked at cover the picture, up to the 8x8 cap)
-                assert!((tw as f32 * f >= w as f32 && th as f32 * f >= h as f32) || f == 8.0, "{w}x{h} {low}");
+                assert!(
+                    (tw as f32 * f >= w as f32 && th as f32 * f >= h as f32) || f == 8.0,
+                    "{w}x{h} {low}"
+                );
             }
         }
     }
@@ -1428,9 +1462,7 @@ fn vehicle_capture_splits_shared_batches_without_drawing_ai_entries() {
             .collect::<Vec<_>>(),
         vec![0..2, 3..4, 5..6]
     );
-    assert!(
-        selected
-            .iter()
-            .all(|b| (b.pipe, b.mesh, b.first, b.count, b.material) == (7, 3, 12, 24, 4))
-    );
+    assert!(selected
+        .iter()
+        .all(|b| (b.pipe, b.mesh, b.first, b.count, b.material) == (7, 3, 12, 24, 4)));
 }

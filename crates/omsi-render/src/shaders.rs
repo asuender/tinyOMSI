@@ -40,7 +40,9 @@ pub(crate) const ENHANCED: &str = concat!(
 mod tests {
     /// FNV-1a, 64 bits: enough to tell one text from another, and no dependency for it.
     fn fnv1a(text: &str) -> u64 {
-        text.bytes().fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ b as u64).wrapping_mul(0x0100_0000_01b3))
+        text.bytes().fold(0xcbf2_9ce4_8422_2325, |h, b| {
+            (h ^ b as u64).wrapping_mul(0x0100_0000_01b3)
+        })
     }
 
     /// The assembled modules are byte for byte the single files they were cut from (sizes
@@ -56,8 +58,17 @@ mod tests {
     /// single files', and the 0.2.31 release's Windows test failed on that alone)
     #[test]
     fn assembled_shaders_are_the_old_files() {
-        let (scene, enhanced) = (super::SCENE.replace("\r\n", "\n"), super::ENHANCED.replace("\r\n", "\n"));
-        assert_eq!((scene.len(), fnv1a(&scene)), (125_013, 0x285e_be68_6cb8_f146));
-        assert_eq!((enhanced.len(), fnv1a(&enhanced)), (88_225, 0x1839_e9f6_7957_791c));
+        let (scene, enhanced) = (
+            super::SCENE.replace("\r\n", "\n"),
+            super::ENHANCED.replace("\r\n", "\n"),
+        );
+        assert_eq!(
+            (scene.len(), fnv1a(&scene)),
+            (125_013, 0x285e_be68_6cb8_f146)
+        );
+        assert_eq!(
+            (enhanced.len(), fnv1a(&enhanced)),
+            (88_225, 0x1839_e9f6_7957_791c)
+        );
     }
 }

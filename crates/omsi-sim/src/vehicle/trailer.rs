@@ -156,11 +156,28 @@ impl AxleVarIds {
         let p = &main.ty.program;
         let sides = |f: &dyn Fn(&str) -> Option<omsi_script::VarId>| ["L", "R"].map(|side| f(side));
         let n = first..first + axles;
-        self.rotation = n.clone().map(|k| sides(&|side| p.var(&format!("Wheel_Rotation_{k}_{side}")))).collect();
-        self.rotation_speed = n.clone().map(|k| sides(&|side| p.var(&format!("Wheel_RotationSpeed_{k}_{side}")))).collect();
-        self.suspension = n.clone().map(|k| sides(&|side| p.var(&format!("Axle_Suspension_{k}_{side}")))).collect();
-        self.steering = n.clone().map(|k| sides(&|side| p.var(&format!("Axle_Steering_{k}_{side}")))).collect();
-        self.spring_factor = n.map(|k| main.var_slot(&format!("Axle_Springfactor_{k}_L")).map(|i| i as omsi_script::VarId)).collect();
+        self.rotation = n
+            .clone()
+            .map(|k| sides(&|side| p.var(&format!("Wheel_Rotation_{k}_{side}"))))
+            .collect();
+        self.rotation_speed = n
+            .clone()
+            .map(|k| sides(&|side| p.var(&format!("Wheel_RotationSpeed_{k}_{side}"))))
+            .collect();
+        self.suspension = n
+            .clone()
+            .map(|k| sides(&|side| p.var(&format!("Axle_Suspension_{k}_{side}"))))
+            .collect();
+        self.steering = n
+            .clone()
+            .map(|k| sides(&|side| p.var(&format!("Axle_Steering_{k}_{side}"))))
+            .collect();
+        self.spring_factor = n
+            .map(|k| {
+                main.var_slot(&format!("Axle_Springfactor_{k}_L"))
+                    .map(|i| i as omsi_script::VarId)
+            })
+            .collect();
         self.made_for = Some(key);
     }
 }
@@ -188,17 +205,28 @@ pub(super) fn coupled_curvature(k_lead: f32, lead_arm: f32, alpha: f32, arm: f32
 /// it pressed its springs a fifth deeper than the front section's and its end sagged (#1835).
 /// None for a part with more axles, which stands on them.
 pub(super) fn joint_load(def: &omsi_vehicle::Vehicle, coupling_y: f32) -> f32 {
-    let [axle] = def.axles.as_slice() else { return 0.0 };
+    let [axle] = def.axles.as_slice() else {
+        return 0.0;
+    };
     if def.is_rail() || coupling_y <= axle.long + 0.5 {
         return 0.0;
     }
-    let weight = if def.mass < 100.0 { def.mass * 1000.0 } else { def.mass }.max(0.0) * 9.81;
+    let weight = if def.mass < 100.0 {
+        def.mass * 1000.0
+    } else {
+        def.mass
+    }
+    .max(0.0)
+        * 9.81;
     let cog_y = def.cog.map(|c| c[1]).unwrap_or(0.0);
     (weight * (cog_y - axle.long) / (coupling_y - axle.long)).clamp(0.0, weight * 0.5)
 }
 
 /// The mesh animators of a part, their variables found by `var`.
-fn part_animators(ty: &VehicleType, var: &dyn Fn(&str) -> Option<omsi_script::VarId>) -> Vec<MeshAnimator> {
+fn part_animators(
+    ty: &VehicleType,
+    var: &dyn Fn(&str) -> Option<omsi_script::VarId>,
+) -> Vec<MeshAnimator> {
     let mut animators: Vec<MeshAnimator> = ty
         .meshes
         .iter()
@@ -255,7 +283,8 @@ impl TrailerPart {
         // AG300's, set ahead of its axle) followed it as if it were a fixed one (#322);
         // the stock GN92's line is its axle, a semitrailer's the middle of its axle group,
         // and rail cars name none.
-        let turning_line = (ty.def.rot_pnt_long != 0.0 && !ty.def.axles.is_empty()).then_some(ty.def.rot_pnt_long);
+        let turning_line =
+            (ty.def.rot_pnt_long != 0.0 && !ty.def.axles.is_empty()).then_some(ty.def.rot_pnt_long);
         let axle_long = if let Some(r) = turning_line {
             r
         } else if let Some(b) = ty.def.boogies {
@@ -291,7 +320,9 @@ impl TrailerPart {
         let length = if ty.def.is_rail() {
             let len = (coupling_front.y - axle_long).abs();
             if len < 0.1 {
-                (coupling_front.y - declared_coupling(&ty.def, reversed).y).abs().max(0.5)
+                (coupling_front.y - declared_coupling(&ty.def, reversed).y)
+                    .abs()
+                    .max(0.5)
             } else {
                 len
             }
@@ -306,7 +337,11 @@ impl TrailerPart {
             .unwrap_or(0.5);
         let n = ty.meshes.len();
         let mut loads = crate::rigid::wheel_rest_loads(&ty.def);
-        let joint_load = if joint == 0 && !reversed { joint_load(&ty.def, coupling_front.y) } else { 0.0 };
+        let joint_load = if joint == 0 && !reversed {
+            joint_load(&ty.def, coupling_front.y)
+        } else {
+            0.0
+        };
         if let Some(l) = loads.first_mut().filter(|_| joint_load > 0.0) {
             *l -= joint_load / 2.0;
         }
@@ -444,7 +479,12 @@ impl TrailerPart {
     /// A trailer follows its tractor's heading; it pitches between the coupling and the
     /// ground under its axle, and leans as the vehicle does.
     pub fn body_rotation(&self) -> Mat4 {
-        body_rotation(self.heading, self.pitch, self.bank, body_reversed(&self.ty.def, self.reversed))
+        body_rotation(
+            self.heading,
+            self.pitch,
+            self.bank,
+            body_reversed(&self.ty.def, self.reversed),
+        )
     }
 
     pub fn body_heading(&self) -> f64 {
@@ -466,12 +506,18 @@ impl TrailerPart {
     /// Transform for mesh `i` relative to the part's position; a shadow blob lies on the
     /// ground under its axles (see `VehicleInstance::mesh_local_transform`).
     pub fn mesh_local_transform(&self, i: usize) -> Mat4 {
-        let xf = self.mesh_transforms.get(i).copied().unwrap_or(Mat4::IDENTITY);
+        let xf = self
+            .mesh_transforms
+            .get(i)
+            .copied()
+            .unwrap_or(Mat4::IDENTITY);
         if is_shadow_mesh(&self.ty, i) {
-            let lift = if self.ty.def.is_rail() { 0.0 } else { -self.ground_lift };
-            return self.body_rotation()
-                * onto_plane([lift, 0.0, 0.0])
-                * xf;
+            let lift = if self.ty.def.is_rail() {
+                0.0
+            } else {
+                -self.ground_lift
+            };
+            return self.body_rotation() * onto_plane([lift, 0.0, 0.0]) * xf;
         }
         self.body_rotation() * xf
     }
@@ -585,7 +631,11 @@ impl TrailerPart {
         if let Some(b) = self.ty.def.boogies.map(f32::abs).filter(|b| *b > 0.05) {
             return (b, -b);
         }
-        let turn = if body_reversed(&self.ty.def, self.reversed) { -1.0 } else { 1.0 };
+        let turn = if body_reversed(&self.ty.def, self.reversed) {
+            -1.0
+        } else {
+            1.0
+        };
         let longs = self.ty.def.axles.iter().map(|a| a.long * turn);
         let (lo, hi) = longs.fold((f32::MAX, f32::MIN), |(lo, hi), y| (lo.min(y), hi.max(y)));
         if hi - lo > 0.5 {
@@ -607,7 +657,8 @@ impl TrailerPart {
         (front, y_front): (DVec3, f32),
         (back, y_back): (DVec3, f32),
     ) {
-        self.axle_ids.refresh(main, self.first_axle, self.axle_count.max(self.rest.len()));
+        self.axle_ids
+            .refresh(main, self.first_axle, self.axle_count.max(self.rest.len()));
         let d = front - back;
         let run = d.truncate().length();
         if run > 1e-3 {
@@ -620,7 +671,8 @@ impl TrailerPart {
         // (its wheels roll as far as its rear end moved)
         if let Some(p) = self.pivot {
             let ds = (back - p).truncate().length() as f32;
-            self.odometer += ds * (main.physics.velocity_kmh().signum().max(0.0) * 2.0 - 1.0).max(-1.0);
+            self.odometer +=
+                ds * (main.physics.velocity_kmh().signum().max(0.0) * 2.0 - 1.0).max(-1.0);
         }
         self.pivot = Some(back);
         self.track = Some(back);
@@ -630,8 +682,14 @@ impl TrailerPart {
         self.update_visuals_only(main, dt, lead);
     }
 
-    pub(super) fn update(&mut self, main: &mut VehicleInstance, dt: f32, lead: Option<(DVec3, Mat4, f64)>) {
-        self.axle_ids.refresh(main, self.first_axle, self.axle_count.max(self.rest.len()));
+    pub(super) fn update(
+        &mut self,
+        main: &mut VehicleInstance,
+        dt: f32,
+        lead: Option<(DVec3, Mat4, f64)>,
+    ) {
+        self.axle_ids
+            .refresh(main, self.first_axle, self.axle_count.max(self.rest.len()));
         if self.remote {
             // Another game's rear section stands where that game says, leaning onto the
             // coupling (`set_remote_pose`). Walked on behind the coupling here as well, it
@@ -683,8 +741,14 @@ impl TrailerPart {
         // joint at its stop made jump)
         if !self.ty.def.is_rail() && !self.reversed {
             let (k_lead, line_lead) = self.lead_turn;
-            let alpha = (((lead_heading - heading + 540.0).rem_euclid(360.0) - 180.0) as f32).to_radians();
-            self.kappa = coupled_curvature(k_lead, self.coupling_back.y - line_lead, alpha, self.coupling_front.y - self.axle_long);
+            let alpha =
+                (((lead_heading - heading + 540.0).rem_euclid(360.0) - 180.0) as f32).to_radians();
+            self.kappa = coupled_curvature(
+                k_lead,
+                self.coupling_back.y - line_lead,
+                alpha,
+                self.coupling_front.y - self.axle_long,
+            );
         }
         let new_pivot = c - DVec3::new(dir.x, dir.y, 0.0) * self.length as f64;
         let ds = (new_pivot - pivot).truncate().length() as f32;
@@ -723,7 +787,13 @@ impl TrailerPart {
         // it (#140). Level with the coupling instead. With the world's faces the part may
         // stand lower than the coupling on a grade, but never metres under it: that is the
         // road under a bridge seen through a gap in the deck (#135).
-        let ground_z = ground_z.filter(|z| if main.contact.is_some() { z + lift - level > -3.0 } else { (z + lift - level).abs() < 1.5 });
+        let ground_z = ground_z.filter(|z| {
+            if main.contact.is_some() {
+                z + lift - level > -3.0
+            } else {
+                (z + lift - level).abs() < 1.5
+            }
+        });
         let axle_z = if let Some(z) = on_track {
             // Rail vehicles (vehtype == 3) bypass terrain raycasts and suspension height relaxation
             // entirely: vertical coordinate z is locked rigidly to the rail track spline geometry.
@@ -776,9 +846,15 @@ impl TrailerPart {
                     let f = lead_rot.transform_vector3(Vec3::Y);
                     let h = lead_heading.to_radians();
                     let along = f.x as f64 * h.sin() + f.y as f64 * h.cos();
-                    (f.z as f64).atan2(along.abs().max(1e-6) * along.signum()).to_degrees() as f32
+                    (f.z as f64)
+                        .atan2(along.abs().max(1e-6) * along.signum())
+                        .to_degrees() as f32
                 };
-                let lead_pitch = if lead_pitch.abs() > 90.0 { lead_pitch - 180.0 * lead_pitch.signum() } else { lead_pitch };
+                let lead_pitch = if lead_pitch.abs() > 90.0 {
+                    lead_pitch - 180.0 * lead_pitch.signum()
+                } else {
+                    lead_pitch
+                };
                 let rel = lead_pitch - pitch;
                 if rel.abs() > bmax {
                     pitch = lead_pitch - rel.clamp(-bmax, bmax);
@@ -819,16 +895,27 @@ impl TrailerPart {
         self.update_visuals_only(main, dt, lead);
     }
 
-    pub(super) fn update_visuals_only(&mut self, main: &mut VehicleInstance, dt: f32, lead: Option<(DVec3, Mat4, f64)>) {
+    pub(super) fn update_visuals_only(
+        &mut self,
+        main: &mut VehicleInstance,
+        dt: f32,
+        lead: Option<(DVec3, Mat4, f64)>,
+    ) {
         let (_lead_pos, lead_rot, lead_heading) =
             lead.unwrap_or((main.position, main.body_rotation(), main.heading));
         let lead_pitch = {
             let f = lead_rot.transform_vector3(Vec3::Y);
             let h = lead_heading.to_radians();
             let along = f.x as f64 * h.sin() + f.y as f64 * h.cos();
-            (f.z as f64).atan2(along.abs().max(1e-6) * along.signum()).to_degrees()
+            (f.z as f64)
+                .atan2(along.abs().max(1e-6) * along.signum())
+                .to_degrees()
         };
-        let lead_pitch = if lead_pitch.abs() > 90.0 { lead_pitch - 180.0 * lead_pitch.signum() } else { lead_pitch };
+        let lead_pitch = if lead_pitch.abs() > 90.0 {
+            lead_pitch - 180.0 * lead_pitch.signum()
+        } else {
+            lead_pitch
+        };
         let alpha = ((lead_heading - self.heading + 540.0) % 360.0) - 180.0;
         let beta = lead_pitch - self.pitch as f64;
         if let Some(id) = self.v_alpha {
@@ -844,7 +931,9 @@ impl TrailerPart {
         for a in 0..self.axle_count {
             let steer = self.axle_steer(a);
             for side in 0..2 {
-                if let (Some(Some(id)), Some(s)) = (self.axle_ids.steering.get(a).map(|s| s[side]), steer) {
+                if let (Some(Some(id)), Some(s)) =
+                    (self.axle_ids.steering.get(a).map(|s| s[side]), steer)
+                {
                     main.state.vars[id as usize] = s;
                 }
                 if let Some(id) = self.axle_ids.rotation[a][side] {
@@ -862,7 +951,8 @@ impl TrailerPart {
             Some(run) => run.frame(main, place),
             None if self.runs_itself => {
                 let run = super::CarRun::start(&self.ty, main, place);
-                let slot_of = |n: &str| omsi_script::compile::with_lower(n, |k| run.names.get(k).copied());
+                let slot_of =
+                    |n: &str| omsi_script::compile::with_lower(n, |k| run.names.get(k).copied());
                 self.animators = part_animators(&self.ty, &slot_of);
                 self.skin_rest = Vec::new();
                 self.props_plan = PropsPlan::default();
@@ -870,8 +960,17 @@ impl TrailerPart {
             }
             None => {}
         }
-        let (vars, index) = self.run.as_deref().map_or((&main.state.vars, &main.var_index), |r| (&r.state.vars, &r.names));
-        for (transform, animator) in self.mesh_transforms.iter_mut().zip(self.animators.iter_mut()) {
+        let (vars, index) = self
+            .run
+            .as_deref()
+            .map_or((&main.state.vars, &main.var_index), |r| {
+                (&r.state.vars, &r.names)
+            });
+        for (transform, animator) in self
+            .mesh_transforms
+            .iter_mut()
+            .zip(self.animators.iter_mut())
+        {
             *transform = animator.update(dt, vars);
         }
         crate::anim::apply_parents(&self.animators, &mut self.mesh_transforms);
@@ -893,7 +992,11 @@ impl TrailerPart {
             return None;
         }
         let axle = self.ty.def.axles.get(a)?;
-        Some(((axle.long - self.axle_long) * self.kappa).atan().clamp(-1.05, 1.05))
+        Some(
+            ((axle.long - self.axle_long) * self.kappa)
+                .atan()
+                .clamp(-1.05, 1.05),
+        )
     }
 
     /// `Axle_Suspension_*` of the part's sprung axles from the ground under each wheel, the
@@ -912,15 +1015,24 @@ impl TrailerPart {
             if !self.ty.suspension_axles.contains(&axle) {
                 continue;
             }
-            let Some(def) = self.ty.def.axles.get(a) else { continue };
+            let Some(def) = self.ty.def.axles.get(a) else {
+                continue;
+            };
             let r = (def.wheel_diameter / 2.0).max(0.15);
             let hub = r - offset;
             let outer = (def.max_width / 2.0).max(0.3);
-            let across = if def.min_width > 0.0 && def.min_width < def.max_width { (def.max_width + def.min_width) / 4.0 } else { outer * 0.85 };
+            let across = if def.min_width > 0.0 && def.min_width < def.max_width {
+                (def.max_width + def.min_width) / 4.0
+            } else {
+                outer * 0.85
+            };
             let mut sides = [None, None];
             for (si, x) in [-across, across].into_iter().enumerate() {
-                let p = self.position + rot.transform_point3(Vec3::new(x, def.long, hub)).as_dvec3();
-                let Some(g) = probe(p.x, p.y, p.z + 1.0) else { continue };
+                let p =
+                    self.position + rot.transform_point3(Vec3::new(x, def.long, hub)).as_dvec3();
+                let Some(g) = probe(p.x, p.y, p.z + 1.0) else {
+                    continue;
+                };
                 // how far the wheel is pushed up into its arch (never below where it hangs
                 // unloaded, never past the bump stop)
                 sides[si] = Some(((g + r as f64 - p.z) as f32).clamp(0.0, crate::rigid::BUMP));

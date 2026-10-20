@@ -18,7 +18,13 @@ impl Offscreen<'_> {
             ..
         } = *self;
         if let Some(t) = traffic.as_mut() {
-            view_sync::sync(ViewSync::traffic(t, scenery), sim_view, world, renderer, scene);
+            view_sync::sync(
+                ViewSync::traffic(t, scenery),
+                sim_view,
+                world,
+                renderer,
+                scene,
+            );
             let buses = t
                 .cars
                 .iter()
@@ -121,12 +127,19 @@ impl Offscreen<'_> {
                 self.click_test(&mut player, spec);
             }
             if args.cam.is_none() && args.view != "free" && args.follow.is_none() {
-                self.camera = player_view(args, &self.settings, &mut player, &self.camera, &self.world);
+                self.camera =
+                    player_view(args, &self.settings, &mut player, &self.camera, &self.world);
             }
             vehicle_camera(&player, &mut self.camera);
             // the driver at the wheel, as the window has him every frame (not posed, he was
             // not drawn - or stood in the aisle in the file's T-pose)
-            player.sync_driver(&self.renderer, &mut self.scene, 1.0 / 30.0, self.settings.driver, args.view == "driver");
+            player.sync_driver(
+                &self.renderer,
+                &mut self.scene,
+                1.0 / 30.0,
+                self.settings.driver,
+                args.view == "driver",
+            );
             self.player_ref = Some(player);
         }
     }
@@ -167,8 +180,15 @@ impl Offscreen<'_> {
                 drive_spawn_z
             );
             let v = &player.vehicle;
-            let wheels: Vec<String> = tyre_lows(v, world).iter().map(|(_, d)| format!("{d:+.3}")).collect();
-            log::info!("rest wheels: {} lowest tyre points against the road: [{}]", v.ty.def.type_name, wheels.join(", "));
+            let wheels: Vec<String> = tyre_lows(v, world)
+                .iter()
+                .map(|(_, d)| format!("{d:+.3}"))
+                .collect();
+            log::info!(
+                "rest wheels: {} lowest tyre points against the road: [{}]",
+                v.ty.def.type_name,
+                wheels.join(", ")
+            );
         }
         if omsi_cfg::flags::OMSI_DEBUG_HUMANS.is_set() {
             log::info!(
@@ -305,9 +325,11 @@ impl Offscreen<'_> {
             };
             log::info!("tyres over the ground: {}", gaps(&player.vehicle));
             if let Some(t) = traffic.as_ref() {
-                for c in t.cars.iter().filter(|c| {
-                    (c.vehicle.position - player.vehicle.position).length() < 1500.0
-                }) {
+                for c in t
+                    .cars
+                    .iter()
+                    .filter(|c| (c.vehicle.position - player.vehicle.position).length() < 1500.0)
+                {
                     let def = &c.vehicle.ty.def;
                     let name = if def.type_name.is_empty() {
                         def.path
@@ -334,7 +356,12 @@ impl Offscreen<'_> {
             player.vehicle.var("antrieb_getr_aktugang")
         );
         if let Some(mins) = player.vehicle.repair_minutes() {
-            log::info!("damage: the workshop would need {mins:.0} min (elec {:?} engine {:?} drive {:?})", player.vehicle.var("elec_failure_general"), player.vehicle.var("engine_failure_general"), player.vehicle.var("antrieb_failure_general"));
+            log::info!(
+                "damage: the workshop would need {mins:.0} min (elec {:?} engine {:?} drive {:?})",
+                player.vehicle.var("elec_failure_general"),
+                player.vehicle.var("engine_failure_general"),
+                player.vehicle.var("antrieb_failure_general")
+            );
         }
     }
 
@@ -374,8 +401,7 @@ impl Offscreen<'_> {
                 settings.seat_pitch_deg,
                 false,
             );
-            let cam =
-                player.camera_look(&args.view, camera, look, offscreen_orbit());
+            let cam = player.camera_look(&args.view, camera, look, offscreen_orbit());
             let (o, d) = cursor_ray(&cam, v[0], v[1], w as f32, h as f32);
             match player.click(o, d, pixel_angle(&cam, h as f32) * 6.0) {
                 Some(i) => log::info!(
@@ -395,7 +421,13 @@ impl Offscreen<'_> {
             // the tear-off ticket blocks, aimed at as the window's click does (#2399)
             if let Some(hm) = humans_off.as_mut() {
                 if sim_view.people.ticket_blocks.is_none() {
-                    hm.sync_money(&mut sim_view.people, world, renderer, scene, &player.vehicle);
+                    hm.sync_money(
+                        &mut sim_view.people,
+                        world,
+                        renderer,
+                        scene,
+                        &player.vehicle,
+                    );
                 }
             }
             if let Some(b) = sim_view.people.ticket_blocks.as_ref() {
@@ -408,7 +440,10 @@ impl Offscreen<'_> {
                         log::info!("  ticket block {n}: off screen");
                         continue;
                     }
-                    let (sx, sy) = ((ndc.x * 0.5 + 0.5) * w as f32, (0.5 - ndc.y * 0.5) * h as f32);
+                    let (sx, sy) = (
+                        (ndc.x * 0.5 + 0.5) * w as f32,
+                        (0.5 - ndc.y * 0.5) * h as f32,
+                    );
                     let (o2, d2) = cursor_ray(&cam, sx, sy, w as f32, h as f32);
                     log::info!("  ticket block {n} at screen ({sx:.0}, {sy:.0}): aiming there hits block {:?}", b.hit(o2, d2, &player.vehicle));
                 }
@@ -480,9 +515,7 @@ impl Offscreen<'_> {
                         Some(got) if &got == ev => hit += 1,
                         Some(got) => {
                             wrong += 1;
-                            log::info!(
-                                "  aiming at '{ev}' ({sx:.0}, {sy:.0}) operates '{got}'"
-                            );
+                            log::info!("  aiming at '{ev}' ({sx:.0}, {sy:.0}) operates '{got}'");
                         }
                         None => {
                             missed += 1;
@@ -539,7 +572,13 @@ impl Offscreen<'_> {
                 .map(|p| p.vehicle.position)
                 .unwrap_or(camera.position);
             let bus = player_ref.as_ref().map(|p| &p.vehicle);
-            view_sync::sync(ViewSync::people(&mut h, bus, center), sim_view, world, renderer, scene);
+            view_sync::sync(
+                ViewSync::people(&mut h, bus, center),
+                sim_view,
+                world,
+                renderer,
+                scene,
+            );
             log::info!(
                 "passengers: {} people ({}), request {:?}, paid {:?}, change due {:?}",
                 h.people.len(),
@@ -592,7 +631,13 @@ impl Offscreen<'_> {
                         );
                     }
                 }
-                if let Some((id, pos, _, name)) = world.data.peek().lists.bus_stops.iter().min_by(|a, b| (a.1 - p.vehicle.position).length().total_cmp(&(b.1 - p.vehicle.position).length())) {
+                if let Some((id, pos, _, name)) =
+                    world.data.peek().lists.bus_stops.iter().min_by(|a, b| {
+                        (a.1 - p.vehicle.position)
+                            .length()
+                            .total_cmp(&(b.1 - p.vehicle.position).length())
+                    })
+                {
                     log::info!(
                         "nearest bus stop {id} '{name}' at ({:.1}, {:.1}) is {:.1} m away",
                         pos.x,
@@ -654,7 +699,7 @@ fn trigger_test(player: &mut Player) {
     let run = |v: &mut omsi_sim::VehicleInstance,
                name: Option<&str>,
                d: (f32, f32)|
-               -> (bool, Vec<f32>, Vec<f32>, Vec<String>) {
+     -> (bool, Vec<f32>, Vec<f32>, Vec<String>) {
         restore(v);
         v.host.fired_triggers.clear();
         v.host.fired_file_triggers.clear();
@@ -683,8 +728,7 @@ fn trigger_test(player: &mut Player) {
         );
         (exists, held, v.state.vars.clone(), sounds)
     };
-    let (_, idle_held, idle, idle_sounds) =
-        run(&mut player.vehicle, None, (0.0, 0.0));
+    let (_, idle_held, idle, idle_sounds) = run(&mut player.vehicle, None, (0.0, 0.0));
     let (_, idle_held2, idle2, _) = run(&mut player.vehicle, None, (0.0, 0.0));
     let differs = |a: f32, b: f32| (a - b).abs() > 1e-4 * (1.0 + a.abs());
     // what moves by itself between two identical runs (random numbers)
@@ -699,14 +743,11 @@ fn trigger_test(player: &mut Player) {
         // door and window sideways, the parking brake and the sign clamp
         // up or down)
         for d in [(0.0, 6.0), (0.0, -6.0), (6.0, 0.0), (-6.0, 0.0)] {
-            let (e, held, after, sounds) =
-                run(&mut player.vehicle, Some(name.as_str()), d);
+            let (e, held, after, sounds) = run(&mut player.vehicle, Some(name.as_str()), d);
             exists |= e;
             changed = (0..idle.len().min(after.len()))
                 .filter(|&k| {
-                    !noisy[k]
-                        && (differs(after[k], idle[k])
-                        || differs(held[k], idle_held[k]))
+                    !noisy[k] && (differs(after[k], idle[k]) || differs(held[k], idle_held[k]))
                 })
                 .collect();
             played = sounds
@@ -745,6 +786,15 @@ fn trigger_test(player: &mut Player) {
         }
     }
     restore(&mut player.vehicle);
-    log::info!("trigger test: {ok} of {} switches do something; {} have no trigger in the script: {:?}", names.len(), dead.len(), dead);
-    log::info!("  {} fire a trigger but change nothing (may need power or another switch first): {:?}", silent.len(), silent);
+    log::info!(
+        "trigger test: {ok} of {} switches do something; {} have no trigger in the script: {:?}",
+        names.len(),
+        dead.len(),
+        dead
+    );
+    log::info!(
+        "  {} fire a trigger but change nothing (may need power or another switch first): {:?}",
+        silent.len(),
+        silent
+    );
 }

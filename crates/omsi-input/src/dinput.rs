@@ -53,24 +53,45 @@ const G923_PRODUCTS: [u16; 4] = [0xC266, 0xC267, 0xC26D, 0xC26E];
 /// the middle. Only the G923, the one wheel measured: the other models stay as they were
 /// until one of them is.
 fn force_flipped_for(hardware_id: Option<(u16, u16)>) -> bool {
-    hardware_id.is_some_and(|(vendor, product)| vendor == LOGITECH_VENDOR && G923_PRODUCTS.contains(&product))
+    hardware_id.is_some_and(|(vendor, product)| {
+        vendor == LOGITECH_VENDOR && G923_PRODUCTS.contains(&product)
+    })
 }
 
 /// `OMSI_TRACE_FFB=<csv>`: the force feedback frame by frame - the wheel's position (now and
 /// a frame before), whether the force was turned round, the force sent and what made it.
 pub fn trace_ffb(f: &crate::controllers::FfInput, x: f32, x0: f32, inverted: bool, force: f32) {
-    let Some(path) = omsi_cfg::flags::OMSI_TRACE_FFB.os() else { return };
+    let Some(path) = omsi_cfg::flags::OMSI_TRACE_FFB.os() else {
+        return;
+    };
     use std::io::Write;
-    static TRACE: std::sync::Mutex<Option<(std::fs::File, std::time::Instant)>> = std::sync::Mutex::new(None);
+    static TRACE: std::sync::Mutex<Option<(std::fs::File, std::time::Instant)>> =
+        std::sync::Mutex::new(None);
     let mut g = TRACE.lock().unwrap_or_else(|e| e.into_inner());
     if g.is_none() {
         *g = std::fs::File::create(&path).ok().map(|mut file| {
-            let _ = writeln!(file, "t,dt,kmh,pos,pos_before,inverted,force_sent,lateral,bump,micro");
+            let _ = writeln!(
+                file,
+                "t,dt,kmh,pos,pos_before,inverted,force_sent,lateral,bump,micro"
+            );
             (file, std::time::Instant::now())
         });
     }
     if let Some((file, t0)) = g.as_mut() {
-        let _ = writeln!(file, "{:.3},{:.4},{:.2},{:.4},{:.4},{},{:.4},{:.3},{:.3},{:.3}", t0.elapsed().as_secs_f32(), f.dt, f.kmh, x, x0, inverted as u8, force, f.lateral_accel, f.wheel_bump, f.micro);
+        let _ = writeln!(
+            file,
+            "{:.3},{:.4},{:.2},{:.4},{:.4},{},{:.4},{:.3},{:.3},{:.3}",
+            t0.elapsed().as_secs_f32(),
+            f.dt,
+            f.kmh,
+            x,
+            x0,
+            inverted as u8,
+            force,
+            f.lateral_accel,
+            f.wheel_bump,
+            f.micro
+        );
     }
 }
 /// A failed read after reacquiring can be transient, but several in a row mean the
@@ -187,7 +208,12 @@ fn invalidate_state(
     *valid = false;
 }
 
-fn state_axes(state: &RawState, valid: bool, has_axis: &[bool; 8], ranges: &[(i32, i32); 8]) -> Vec<(usize, f32)> {
+fn state_axes(
+    state: &RawState,
+    valid: bool,
+    has_axis: &[bool; 8],
+    ranges: &[(i32, i32); 8],
+) -> Vec<(usize, f32)> {
     if !valid {
         return Vec::new();
     }
@@ -823,8 +849,20 @@ impl DirectInput {
             return;
         }
         self.background = on;
-        let exclusive: Vec<(GUID, String)> = self.devices.iter().filter(|d| self.ff && d.ff_capable).map(|d| (d.guid, d.name.clone())).collect();
-        log::info!("game controllers: DirectInput {} the window is in front", if on { "goes on reading while" } else { "reads only while" });
+        let exclusive: Vec<(GUID, String)> = self
+            .devices
+            .iter()
+            .filter(|d| self.ff && d.ff_capable)
+            .map(|d| (d.guid, d.name.clone()))
+            .collect();
+        log::info!(
+            "game controllers: DirectInput {} the window is in front",
+            if on {
+                "goes on reading while"
+            } else {
+                "reads only while"
+            }
+        );
         self.reopen_devices(exclusive);
     }
 
@@ -857,7 +895,8 @@ impl DirectInput {
                 None => {
                     log::warn!("{name}: DirectInput device could not be reopened; asking Windows to enumerate controllers again");
                     if !self.pending_open.iter().any(|(g, ..)| *g == guid) {
-                        self.pending_open.push((guid, name, Instant::now() + retry_delay(0), 1));
+                        self.pending_open
+                            .push((guid, name, Instant::now() + retry_delay(0), 1));
                     }
                     rescan = true;
                 }
@@ -876,7 +915,11 @@ impl DirectInput {
     /// `retry`: a delayed attempt after a failed one, whose failure was already reported (its
     /// messages go to the debug log).
     fn open(&self, guid: &GUID, name: &str, retry: bool) -> Option<Device> {
-        let warn = if retry { log::Level::Debug } else { log::Level::Warn };
+        let warn = if retry {
+            log::Level::Debug
+        } else {
+            log::Level::Warn
+        };
         unsafe {
             let mut dev: Option<IDirectInputDevice8W> = None;
             self.di.CreateDevice(guid, &mut dev, None).ok()?;
@@ -914,16 +957,26 @@ impl DirectInput {
                 .map(|(vid, pid)| format!("{vid:04X}/{pid:04X}"))
                 .unwrap_or_else(|| "unknown".into());
             log::log!(
-                if retry { log::Level::Debug } else { log::Level::Info },
+                if retry {
+                    log::Level::Debug
+                } else {
+                    log::Level::Info
+                },
                 "{name}: DirectInput identity VID/PID {id}, instance {guid:?}, HID path {path:?}"
             );
             let Some((mut objs, mut fmt, has_axis, ff_axis)) = data_format(&dev) else {
-                log::log!(warn, "{name}: DirectInput could not list the device's controls");
+                log::log!(
+                    warn,
+                    "{name}: DirectInput could not list the device's controls"
+                );
                 return None;
             };
             fmt.rgodf = objs.as_mut_ptr();
             if let Err(e) = dev.SetDataFormat(&mut fmt) {
-                log::log!(warn, "{name}: DirectInput rejected the device's data format ({e})");
+                log::log!(
+                    warn,
+                    "{name}: DirectInput rejected the device's data format ({e})"
+                );
                 return None;
             }
             let mut caps = DIDEVCAPS {
@@ -934,7 +987,12 @@ impl DirectInput {
             let ff_capable = caps.dwFlags & DIDC_FORCEFEEDBACK != 0;
             let mut wants_ff = self.ff && ff_capable;
             let level = if wants_ff {
-                DISCL_EXCLUSIVE | if self.background { DISCL_BACKGROUND } else { DISCL_FOREGROUND }
+                DISCL_EXCLUSIVE
+                    | if self.background {
+                        DISCL_BACKGROUND
+                    } else {
+                        DISCL_FOREGROUND
+                    }
             } else {
                 DISCL_NONEXCLUSIVE | DISCL_BACKGROUND
             };
@@ -970,13 +1028,25 @@ impl DirectInput {
                     dwObj: (k * 4) as u32,
                     dwHow: DIPH_BYOFFSET,
                 };
-                let mut asked = DIPROPRANGE { diph: header, lMin: -RANGE, lMax: RANGE };
+                let mut asked = DIPROPRANGE {
+                    diph: header,
+                    lMin: -RANGE,
+                    lMax: RANGE,
+                };
                 let _ = dev.SetProperty(prop(4), &mut asked.diph);
-                let mut took = DIPROPRANGE { diph: header, lMin: 0, lMax: 0 };
+                let mut took = DIPROPRANGE {
+                    diph: header,
+                    lMin: 0,
+                    lMax: 0,
+                };
                 if dev.GetProperty(prop(4), &mut took.diph).is_ok() && took.lMax > took.lMin {
                     ranges[k] = (took.lMin, took.lMax);
                     if ranges[k] != (-RANGE, RANGE) {
-                        log::info!("{name}: axis {k} keeps the driver's range {}..{}: read in it", took.lMin, took.lMax);
+                        log::info!(
+                            "{name}: axis {k} keeps the driver's range {}..{}: read in it",
+                            took.lMin,
+                            took.lMax
+                        );
                     }
                 }
             }
@@ -1135,12 +1205,13 @@ impl DirectInput {
                             log::debug!(
                                 "DirectInput device {name}: could not be opened; delaying retry"
                             );
-                            if !self
-                                .pending_open
-                                .iter()
-                                .any(|(pending, ..)| *pending == g)
-                            {
-                                self.pending_open.push((g, name, Instant::now() + retry_delay(0), 1));
+                            if !self.pending_open.iter().any(|(pending, ..)| *pending == g) {
+                                self.pending_open.push((
+                                    g,
+                                    name,
+                                    Instant::now() + retry_delay(0),
+                                    1,
+                                ));
                             }
                         }
                     }
@@ -1161,8 +1232,12 @@ impl DirectInput {
                 self.devices.push(d);
             } else {
                 // 1 s, 2 s, 4 s ... up to 30 s; a device plugged in or out starts over
-                self.pending_open
-                    .push((guid, name, Instant::now() + retry_delay(tries), tries + 1));
+                self.pending_open.push((
+                    guid,
+                    name,
+                    Instant::now() + retry_delay(tries),
+                    tries + 1,
+                ));
             }
         }
         let mut reopen = Vec::new();
@@ -1277,7 +1352,11 @@ impl DirectInput {
         };
         let limit = crate::ffb_calibration::MAX_PULSE_FORCE;
         // (the wheel's measured polarity is part of the game's forces, so the test sees it too)
-        let force = if force_flipped_for(device.hardware_id) { -force } else { force };
+        let force = if force_flipped_for(device.hardware_id) {
+            -force
+        } else {
+            force
+        };
         let mut constant = DICONSTANTFORCE {
             lMagnitude: (force.clamp(-limit, limit) * DI_FFNOMINALMAX as f32) as i32,
         };

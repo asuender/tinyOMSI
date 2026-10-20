@@ -37,8 +37,22 @@ pub(crate) struct ViewValues {
 
 impl ViewEditor {
     pub(crate) fn panel(&self, app: &crate::App) -> Panel {
-        let mirrors = app.player.as_ref().map(|p| (0..p.vehicle.ty.def.cameras_reflexion.len()).map(|i| p.mirror_offsets.get(i).copied().unwrap_or([0.0; 2])).collect()).unwrap_or_default();
-        self.panel_of(&ViewValues { seat: app.settings.seat, pitch: app.settings.seat_pitch_deg, yaw: app.cam.view_yaw, fov: app.cam.view_fov, mirrors })
+        let mirrors = app
+            .player
+            .as_ref()
+            .map(|p| {
+                (0..p.vehicle.ty.def.cameras_reflexion.len())
+                    .map(|i| p.mirror_offsets.get(i).copied().unwrap_or([0.0; 2]))
+                    .collect()
+            })
+            .unwrap_or_default();
+        self.panel_of(&ViewValues {
+            seat: app.settings.seat,
+            pitch: app.settings.seat_pitch_deg,
+            yaw: app.cam.view_yaw,
+            fov: app.cam.view_fov,
+            mirrors,
+        })
     }
 
     pub(crate) fn panel_of(&self, v: &ViewValues) -> Panel {
@@ -47,23 +61,66 @@ impl ViewEditor {
         let mut c = vec![
             title("View editor"),
             note("The driver's view of this vehicle; the cab behind shows each change."),
-            slider_row("seat0", "Eye left / right", &cm(v.seat[0]), v.seat[0], SEAT, 0.01),
-            slider_row("seat1", "Eye forward / back", &cm(v.seat[1]), v.seat[1], SEAT, 0.01),
-            slider_row("seat2", "Eye up / down", &cm(v.seat[2]), v.seat[2], SEAT, 0.01),
+            slider_row(
+                "seat0",
+                "Eye left / right",
+                &cm(v.seat[0]),
+                v.seat[0],
+                SEAT,
+                0.01,
+            ),
+            slider_row(
+                "seat1",
+                "Eye forward / back",
+                &cm(v.seat[1]),
+                v.seat[1],
+                SEAT,
+                0.01,
+            ),
+            slider_row(
+                "seat2",
+                "Eye up / down",
+                &cm(v.seat[2]),
+                v.seat[2],
+                SEAT,
+                0.01,
+            ),
             slider_row("yaw", "Look left / right", &deg(v.yaw), v.yaw, TURN, 0.5),
             slider_row("pitch", "Look up / down", &deg(v.pitch), v.pitch, TILT, 0.5),
         ];
         let fov = v.fov.unwrap_or(0.0);
-        let fov_text = if fov < 20.0 { omsi_ui::tr("The vehicle's").into_owned() } else { format!("{fov:.0}°") };
+        let fov_text = if fov < 20.0 {
+            omsi_ui::tr("The vehicle's").into_owned()
+        } else {
+            format!("{fov:.0}°")
+        };
         c.push(slider_row("fov", "Field of view", &fov_text, fov, FOV, 1.0));
         if !v.mirrors.is_empty() {
             c.push(divider());
         }
         for (i, o) in v.mirrors.iter().enumerate() {
-            c.push(slider_row(&format!("m{i}x"), &format!("{} {} ↔", omsi_ui::tr("Mirror"), i + 1), &deg(o[0]), o[0], MIRROR_ACROSS, 0.5));
-            c.push(slider_row(&format!("m{i}y"), &format!("{} {} ↕", omsi_ui::tr("Mirror"), i + 1), &deg(o[1]), o[1], MIRROR_UP, 0.5));
+            c.push(slider_row(
+                &format!("m{i}x"),
+                &format!("{} {} ↔", omsi_ui::tr("Mirror"), i + 1),
+                &deg(o[0]),
+                o[0],
+                MIRROR_ACROSS,
+                0.5,
+            ));
+            c.push(slider_row(
+                &format!("m{i}y"),
+                &format!("{} {} ↕", omsi_ui::tr("Mirror"), i + 1),
+                &deg(o[1]),
+                o[1],
+                MIRROR_UP,
+                0.5,
+            ));
         }
-        c.push(grow_row(vec![button("save", "Save for this vehicle", Some("save")), button("reset", "Reset", Some("restart_alt")), button("close", "Close", Some("close"))]));
+        c.push(grow_row(vec![
+            button("save", "Save for this vehicle", Some("save")),
+            button("reset", "Reset", Some("restart_alt")),
+            button("close", "Close", Some("close")),
+        ]));
         if let Some(said) = &self.said {
             c.push(note(said));
         }
@@ -107,7 +164,14 @@ pub(crate) fn change(app: &mut crate::App, id: &str, value: &Value) {
         "fov" => app.cam.view_fov = (v >= 20.0).then_some(v),
         m => {
             // a mirror's turn: `m<i>x` across, `m<i>y` up
-            let Some((i, axis)) = m.strip_prefix('m').and_then(|r| Some((r[..r.len() - 1].parse::<usize>().ok()?, r.as_bytes()[r.len() - 1]))) else { return };
+            let Some((i, axis)) = m.strip_prefix('m').and_then(|r| {
+                Some((
+                    r[..r.len() - 1].parse::<usize>().ok()?,
+                    r.as_bytes()[r.len() - 1],
+                ))
+            }) else {
+                return;
+            };
             let Some(p) = app.player.as_mut() else { return };
             let n = p.vehicle.ty.def.cameras_reflexion.len();
             if i >= n {
@@ -145,10 +209,17 @@ pub(crate) fn click(app: &mut crate::App, id: &str) {
 
 /// Keep the view for the vehicle driven; what was done, in words.
 fn save_view(app: &mut crate::App) -> String {
-    let Some(p) = app.player.as_ref() else { return String::new() };
+    let Some(p) = app.player.as_ref() else {
+        return String::new();
+    };
     let bus = crate::game_lists::seat_key(p);
     crate::settings::bus_seats::remember(&bus, app.settings.seat, app.settings.seat_pitch_deg);
-    crate::settings::save_mirror_state(&p.vehicle.ty.def.path, &p.mirror_offsets, &p.mirror_shifts, &p.mirror_fovs);
+    crate::settings::save_mirror_state(
+        &p.vehicle.ty.def.path,
+        &p.mirror_offsets,
+        &p.mirror_shifts,
+        &p.mirror_fovs,
+    );
     let def = &p.vehicle.ty.def;
     let n = def.cameras_driver.len().max(1);
     let Some(std) = def.cameras_driver.get(def.camera_std % n) else {
@@ -169,11 +240,19 @@ fn save_view(app: &mut crate::App) -> String {
         .enumerate()
         .map(|(i, m)| {
             let o = p.mirror_offsets.get(i).copied().unwrap_or([0.0; 2]);
-            omsi_vehicle::Camera { yaw: m.yaw + o[0], pitch: m.pitch + o[1], ..m.clone() }
+            omsi_vehicle::Camera {
+                yaw: m.yaw + o[0],
+                pitch: m.pitch + o[1],
+                ..m.clone()
+            }
         })
         .collect();
     match store(&bus, &cam, &mirrors) {
-        Ok(path) => format!("{} {}", omsi_ui::tr("Saved for this vehicle:"), path.display()),
+        Ok(path) => format!(
+            "{} {}",
+            omsi_ui::tr("Saved for this vehicle:"),
+            path.display()
+        ),
         Err(e) => format!("{} {e}", omsi_ui::tr("Not saved:")),
     }
 }
@@ -185,7 +264,10 @@ fn views_path() -> Option<std::path::PathBuf> {
 
 /// One camera as OMSI writes it in a `.bus` file under `keyword`.
 pub(crate) fn camera_entry(keyword: &str, c: &omsi_vehicle::Camera) -> String {
-    format!("[{keyword}]\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n", c.pos[0], c.pos[1], c.pos[2], c.dist, c.fov, c.yaw, c.pitch)
+    format!(
+        "[{keyword}]\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n",
+        c.pos[0], c.pos[1], c.pos[2], c.dist, c.fov, c.yaw, c.pitch
+    )
 }
 
 /// The views of every vehicle in a `views.cfg` text: each under `[vehicle]` and its key,
@@ -212,15 +294,23 @@ fn blocks(text: &str) -> Vec<(String, String)> {
 }
 
 /// Write the view of `bus`; the file it is in.
-fn store(bus: &str, driver: &omsi_vehicle::Camera, mirrors: &[omsi_vehicle::Camera]) -> std::io::Result<std::path::PathBuf> {
-    let path = views_path().ok_or_else(|| std::io::Error::other("no folder for the game's data"))?;
+fn store(
+    bus: &str,
+    driver: &omsi_vehicle::Camera,
+    mirrors: &[omsi_vehicle::Camera],
+) -> std::io::Result<std::path::PathBuf> {
+    let path =
+        views_path().ok_or_else(|| std::io::Error::other("no folder for the game's data"))?;
     let text = std::fs::read_to_string(&path).unwrap_or_default();
     let key = bus.trim().replace('\\', "/").to_ascii_lowercase();
     let mut out = String::from("# openOMSI: the driver's view and the mirrors of each vehicle as set in the view editor,\n# in the .bus file's own camera entries\n");
     for (k, body) in blocks(&text).into_iter().filter(|(k, _)| *k != key) {
         out.push_str(&format!("[vehicle]\n{k}\n{body}"));
     }
-    out.push_str(&format!("[vehicle]\n{key}\n{}", camera_entry("add_camera_driver", driver)));
+    out.push_str(&format!(
+        "[vehicle]\n{key}\n{}",
+        camera_entry("add_camera_driver", driver)
+    ));
     for m in mirrors {
         out.push_str(&camera_entry("add_camera_reflexion", m));
     }
@@ -235,15 +325,25 @@ fn store(bus: &str, driver: &omsi_vehicle::Camera, mirrors: &[omsi_vehicle::Came
 /// The turn and the field of view kept for `bus` against its standard camera `std` (none
 /// kept: none).
 pub(crate) fn stored(bus: &str, std: &omsi_vehicle::Camera) -> (f32, Option<f32>) {
-    let text = views_path().and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_default();
+    let text = views_path()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .unwrap_or_default();
     stored_in(&text, bus, std)
 }
 
 fn stored_in(text: &str, bus: &str, std: &omsi_vehicle::Camera) -> (f32, Option<f32>) {
     let key = bus.trim().replace('\\', "/").to_ascii_lowercase();
-    let Some((_, body)) = blocks(text).into_iter().find(|(k, _)| *k == key) else { return (0.0, None) };
-    let mut lines = body.lines().map(str::trim).skip_while(|l| *l != "[add_camera_driver]").skip(1);
-    let nums: Vec<f32> = (0..7).filter_map(|_| lines.next().map(omsi_cfg::parse_f32)).collect();
+    let Some((_, body)) = blocks(text).into_iter().find(|(k, _)| *k == key) else {
+        return (0.0, None);
+    };
+    let mut lines = body
+        .lines()
+        .map(str::trim)
+        .skip_while(|l| *l != "[add_camera_driver]")
+        .skip(1);
+    let nums: Vec<f32> = (0..7)
+        .filter_map(|_| lines.next().map(omsi_cfg::parse_f32))
+        .collect();
     if nums.len() < 7 {
         return (0.0, None);
     }
@@ -257,15 +357,36 @@ mod tests {
 
     #[test]
     fn a_view_is_kept_in_omsis_camera_entries() {
-        let std = omsi_vehicle::Camera { pos: [-0.6, 5.1, 1.9], dist: 0.0, fov: 50.0, yaw: 0.0, pitch: -5.0, extra: None, fixed: false };
-        let mine = omsi_vehicle::Camera { yaw: 4.5, fov: 62.0, ..std.clone() };
+        let std = omsi_vehicle::Camera {
+            pos: [-0.6, 5.1, 1.9],
+            dist: 0.0,
+            fov: 50.0,
+            yaw: 0.0,
+            pitch: -5.0,
+            extra: None,
+            fixed: false,
+        };
+        let mine = omsi_vehicle::Camera {
+            yaw: 4.5,
+            fov: 62.0,
+            ..std.clone()
+        };
         let entry = camera_entry("add_camera_driver", &mine);
-        assert_eq!(entry, "[add_camera_driver]\n-0.6\n5.1\n1.9\n0\n62\n4.5\n-5\n");
+        assert_eq!(
+            entry,
+            "[add_camera_driver]\n-0.6\n5.1\n1.9\n0\n62\n4.5\n-5\n"
+        );
         // as the .bus reader reads it
-        let bus = omsi_vehicle::Vehicle::parse(&omsi_cfg::CfgFile::from_str("view.bus", &format!("{entry}\n{}", camera_entry("add_camera_reflexion", &std))));
+        let bus = omsi_vehicle::Vehicle::parse(&omsi_cfg::CfgFile::from_str(
+            "view.bus",
+            &format!("{entry}\n{}", camera_entry("add_camera_reflexion", &std)),
+        ));
         assert_eq!(bus.cameras_driver, [mine.clone()]);
         assert_eq!(bus.cameras_reflexion, [std.clone()]);
-        let text = format!("[vehicle]\nvehicles/a.bus\n{}[vehicle]\nvehicles/b.bus\n{entry}", camera_entry("add_camera_driver", &std));
+        let text = format!(
+            "[vehicle]\nvehicles/a.bus\n{}[vehicle]\nvehicles/b.bus\n{entry}",
+            camera_entry("add_camera_driver", &std)
+        );
         assert_eq!(stored_in(&text, "Vehicles\\B.bus", &std), (4.5, Some(62.0)));
         assert_eq!(stored_in(&text, "vehicles/a.bus", &std), (0.0, None));
         assert_eq!(stored_in(&text, "vehicles/c.bus", &std), (0.0, None));

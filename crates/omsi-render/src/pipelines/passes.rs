@@ -45,8 +45,7 @@ pub(crate) fn leave_out_enhanced(options: &RenderOptions, adapter_name: &str) ->
     options.preview_only
         || sixteen_texture_units()
         || (options.no_enhanced
-            && (adapter_name.to_ascii_lowercase().contains("opengl")
-                || gl_backend()))
+            && (adapter_name.to_ascii_lowercase().contains("opengl") || gl_backend()))
 }
 
 type Made = Option<wgpu::RenderPipeline>;
@@ -68,37 +67,124 @@ fn take(made: &mut impl Iterator<Item = Made>) -> PassPipelines {
 }
 
 impl PassKit<'_> {
-    fn pass<'s>(&'s self, f: wgpu::TextureFormat, fs: PassShaders<'s>, jobs: &mut Vec<Job<'s, Made>>) {
+    fn pass<'s>(
+        &'s self,
+        f: wgpu::TextureFormat,
+        fs: PassShaders<'s>,
+        jobs: &mut Vec<Job<'s, Made>>,
+    ) {
         let device = self.device;
         for samples in [self.msaa, 1] {
             for i in 0..SceneBase::PIPELINES {
-                jobs.push(Box::new(move || Some(self.scene.pipeline_at(device, f, fs.scene, samples, i))));
+                jobs.push(Box::new(move || {
+                    Some(self.scene.pipeline_at(device, f, fs.scene, samples, i))
+                }));
             }
         }
-        jobs.push(Box::new(move || Some(self.coronas.pipeline(device, f, fs.corona, fs.corona_blend, self.msaa))));
-        jobs.push(Box::new(move || Some(self.coronas.pipeline(device, f, fs.smoke, ALPHA_BLEND, self.msaa))));
-        jobs.push(Box::new(move || (!basic_pipelines()).then(|| optional_pipeline(device, "the snowfall", || self.snow.pipeline(device, f, fs.snow, self.msaa))).flatten()));
-        jobs.push(Box::new(move || rainfall_pipeline().then(|| optional_pipeline(device, "the rainfall", || self.rain.pipeline(device, f, fs.rain, self.msaa))).flatten()));
-        jobs.push(Box::new(move || Some(self.sky.pipeline(device, f, fs.sky, self.msaa))));
+        jobs.push(Box::new(move || {
+            Some(
+                self.coronas
+                    .pipeline(device, f, fs.corona, fs.corona_blend, self.msaa),
+            )
+        }));
+        jobs.push(Box::new(move || {
+            Some(
+                self.coronas
+                    .pipeline(device, f, fs.smoke, ALPHA_BLEND, self.msaa),
+            )
+        }));
+        jobs.push(Box::new(move || {
+            (!basic_pipelines())
+                .then(|| {
+                    optional_pipeline(device, "the snowfall", || {
+                        self.snow.pipeline(device, f, fs.snow, self.msaa)
+                    })
+                })
+                .flatten()
+        }));
+        jobs.push(Box::new(move || {
+            rainfall_pipeline()
+                .then(|| {
+                    optional_pipeline(device, "the rainfall", || {
+                        self.rain.pipeline(device, f, fs.rain, self.msaa)
+                    })
+                })
+                .flatten()
+        }));
+        jobs.push(Box::new(move || {
+            Some(self.sky.pipeline(device, f, fs.sky, self.msaa))
+        }));
     }
 
-    pub(crate) fn build(&self, format: wgpu::TextureFormat, hdr_format: wgpu::TextureFormat, leave_out_enhanced: bool) -> Passes {
+    pub(crate) fn build(
+        &self,
+        format: wgpu::TextureFormat,
+        hdr_format: wgpu::TextureFormat,
+        leave_out_enhanced: bool,
+    ) -> Passes {
         let enhanced = !leave_out_enhanced;
         let reflections = enhanced && !GL_BACKEND.load(std::sync::atomic::Ordering::Relaxed);
         let mut jobs: Vec<Job<Made>> = Vec::new();
-        self.pass(format, PassShaders { scene: "fs_main", corona: "fs_main", corona_blend: SCREEN, smoke: "fs_smoke", snow: "fs_snow", rain: "fs_rain", sky: "fs_main" }, &mut jobs);
+        self.pass(
+            format,
+            PassShaders {
+                scene: "fs_main",
+                corona: "fs_main",
+                corona_blend: SCREEN,
+                smoke: "fs_smoke",
+                snow: "fs_snow",
+                rain: "fs_rain",
+                sky: "fs_main",
+            },
+            &mut jobs,
+        );
         if enhanced {
-            jobs.push(Box::new(move || Some(self.sky.pipeline(self.device, format, "fs_enhanced_mirror", self.msaa))));
-            self.pass(hdr_format, PassShaders { scene: "fs_enhanced", corona: "fs_enhanced", corona_blend: ADDITIVE, smoke: "fs_smoke_enhanced", snow: "fs_snow_enhanced", rain: "fs_rain_enhanced", sky: "fs_enhanced" }, &mut jobs);
+            jobs.push(Box::new(move || {
+                Some(
+                    self.sky
+                        .pipeline(self.device, format, "fs_enhanced_mirror", self.msaa),
+                )
+            }));
+            self.pass(
+                hdr_format,
+                PassShaders {
+                    scene: "fs_enhanced",
+                    corona: "fs_enhanced",
+                    corona_blend: ADDITIVE,
+                    smoke: "fs_smoke_enhanced",
+                    snow: "fs_snow_enhanced",
+                    rain: "fs_rain_enhanced",
+                    sky: "fs_enhanced",
+                },
+                &mut jobs,
+            );
         }
         if reflections {
-            self.pass(hdr_format, PassShaders { scene: "fs_vanilla_reflections", corona: "fs_main", corona_blend: SCREEN, smoke: "fs_smoke", snow: "fs_snow", rain: "fs_rain", sky: "fs_main" }, &mut jobs);
+            self.pass(
+                hdr_format,
+                PassShaders {
+                    scene: "fs_vanilla_reflections",
+                    corona: "fs_main",
+                    corona_blend: SCREEN,
+                    smoke: "fs_smoke",
+                    snow: "fs_snow",
+                    rain: "fs_rain",
+                    sky: "fs_main",
+                },
+                &mut jobs,
+            );
         }
         let mut made = compile_all(self.device, jobs).into_iter();
         let pass = take(&mut made);
         let sky_mirror_pipeline = enhanced.then(|| one(&mut made));
         let hdr_pass = enhanced.then(|| take(&mut made));
         let reflection_pass = reflections.then(|| take(&mut made));
-        Passes { pass, hdr_pass, sky_mirror_pipeline, reflection_pass, leave_out_enhanced }
+        Passes {
+            pass,
+            hdr_pass,
+            sky_mirror_pipeline,
+            reflection_pass,
+            leave_out_enhanced,
+        }
     }
 }

@@ -9,12 +9,17 @@ fn demo_library() -> PathBuf {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     let release = !cfg!(debug_assertions);
     let mut cmd = std::process::Command::new(cargo);
-    cmd.args(["build", "-q", "-p", "omsi-demo-plugin", "--manifest-path"]).arg(root.join("Cargo.toml"));
+    cmd.args(["build", "-q", "-p", "omsi-demo-plugin", "--manifest-path"])
+        .arg(root.join("Cargo.toml"));
     if release {
         cmd.arg("--release");
     }
     assert!(cmd.status().unwrap().success(), "building the demo plugin");
-    let name = format!("{}omsi_demo_plugin{}", std::env::consts::DLL_PREFIX, std::env::consts::DLL_SUFFIX);
+    let name = format!(
+        "{}omsi_demo_plugin{}",
+        std::env::consts::DLL_PREFIX,
+        std::env::consts::DLL_SUFFIX
+    );
     // the test binary is target/<profile>/deps/…; the library sits in target/<profile>
     let exe = std::env::current_exe().unwrap();
     exe.parent().unwrap().parent().unwrap().join(name)
@@ -85,7 +90,12 @@ impl PluginIo for Game {
     fn ticket_asks(&self) -> Vec<omsi_plugin::TicketAsk> {
         self.asks.clone()
     }
-    fn people_set_ticket(&mut self, id: u32, change: &omsi_plugin::TicketChange, by: &str) -> Result<(), String> {
+    fn people_set_ticket(
+        &mut self,
+        id: u32,
+        change: &omsi_plugin::TicketChange,
+        by: &str,
+    ) -> Result<(), String> {
         self.changed.push((id, change.clone(), by.to_string()));
         Ok(())
     }
@@ -97,17 +107,39 @@ fn run(plugins: &mut Plugins) -> Game {
     g.strings.insert("note".into(), "................".into());
     // [scripttexturelist] lists 2 (entry 0: painted), 0 (entry 1: never written) and 9
     // (entry 2: the vehicle has no such texture, skipped)
-    g.textures = vec![(4, 4, vec![0; 64]), (2, 2, vec![0; 16]), (8, 2, vec![0; 64])];
+    g.textures = vec![
+        (4, 4, vec![0; 64]),
+        (2, 2, vec![0; 16]),
+        (8, 2, vec![0; 64]),
+    ];
     for t in [0.0, 1.0, 1.5, 2.0] {
         g.time = t;
         // a press in the middle of texture 2 at 1 s (and one on texture 0, which the
         // demo's entry 1 ignores)
         if t == 1.0 {
-            plugins.pointer = vec![(2, omsi_plugin::POINTER_DOWN, 0.5, 0.5), (0, omsi_plugin::POINTER_DOWN, 0.1, 0.1)];
+            plugins.pointer = vec![
+                (2, omsi_plugin::POINTER_DOWN, 0.5, 0.5),
+                (0, omsi_plugin::POINTER_DOWN, 0.1, 0.1),
+            ];
             // and two passengers boarding: one rides from stop 2 to 5 of the trip, one is
             // a child; a third rides where the trip does not go (left as it is)
-            let ask = |person: u32, age: f32, dest: Option<usize>| omsi_plugin::TicketAsk { person, age, kind: omsi_plugin::TicketKind::Buy, ticket: 1, name: "Full fare".into(), price: 20.0, stop_index: Some(1), destination: Some("Nový Bor".into()), destination_index: dest, ..Default::default() };
-            g.asks = vec![ask(5, 40.0, Some(4)), ask(6, 8.0, Some(4)), ask(7, 40.0, None)];
+            let ask = |person: u32, age: f32, dest: Option<usize>| omsi_plugin::TicketAsk {
+                person,
+                age,
+                kind: omsi_plugin::TicketKind::Buy,
+                ticket: 1,
+                name: "Full fare".into(),
+                price: 20.0,
+                stop_index: Some(1),
+                destination: Some("Nový Bor".into()),
+                destination_index: dest,
+                ..Default::default()
+            };
+            g.asks = vec![
+                ask(5, 40.0, Some(4)),
+                ask(6, 8.0, Some(4)),
+                ask(7, 40.0, None),
+            ];
         }
         plugins.frame(&mut g);
         g.asks.clear();
@@ -117,9 +149,23 @@ fn run(plugins: &mut Plugins) -> Game {
 
 /// The tickets the demo changed: the ride priced by its stops, the child's ticket gone.
 fn check_tickets(g: &Game) {
-    let ride = omsi_plugin::TicketChange { price: Some(30.0), name: Some("Nový Bor, 3 stops".into()), voice: Some("Zone_3".into()), ..Default::default() };
-    let child = omsi_plugin::TicketChange { kind: Some(omsi_plugin::TicketKind::None), ..Default::default() };
-    assert_eq!(g.changed, [(5, ride, "DEMO".to_string()), (6, child, "DEMO".to_string())]);
+    let ride = omsi_plugin::TicketChange {
+        price: Some(30.0),
+        name: Some("Nový Bor, 3 stops".into()),
+        voice: Some("Zone_3".into()),
+        ..Default::default()
+    };
+    let child = omsi_plugin::TicketChange {
+        kind: Some(omsi_plugin::TicketKind::None),
+        ..Default::default()
+    };
+    assert_eq!(
+        g.changed,
+        [
+            (5, ride, "DEMO".to_string()),
+            (6, child, "DEMO".to_string())
+        ]
+    );
 }
 
 /// What the demo drew after four frames: the third texture (number 2 of the vehicle)
@@ -149,7 +195,10 @@ fn in_process() {
     assert_eq!(g.strings["note"], "seen at 2");
     // the system variable reached the plugin before its trigger was asked: down at 1 s
     // (odd), still down at 1.5 s, up at 2 s
-    assert_eq!(g.fired, [("horn".to_string(), true), ("horn".to_string(), false)]);
+    assert_eq!(
+        g.fired,
+        [("horn".to_string(), true), ("horn".to_string(), false)]
+    );
     check_textures(&g);
     check_tickets(&g);
     plugins.finalize();
@@ -162,14 +211,34 @@ fn through_the_host() {
     let dll = dir.join("Demo/demo.dll");
     let host = Path::new(env!("CARGO_BIN_EXE_omsi-plugin-host"));
     let r = Remote::spawn(None, host, &dll).expect("host starts");
-    assert!(r.procs().variable && r.procs().trigger && r.procs().system && r.procs().string && r.procs().texture && r.procs().pointer && r.procs().ticket);
+    assert!(
+        r.procs().variable
+            && r.procs().trigger
+            && r.procs().system
+            && r.procs().string
+            && r.procs().texture
+            && r.procs().pointer
+            && r.procs().ticket
+    );
     drop(r);
     // the same frames through a plugin whose library will not load here: force the host
-    let hosts = HostConfig { host32: Some(host.to_path_buf()), runner: None };
-    std::fs::write(dir.join("Demo/demo.opl"), "[dll]\r\nDemo\\notalibrary.dll\r\n").unwrap();
+    let hosts = HostConfig {
+        host32: Some(host.to_path_buf()),
+        runner: None,
+    };
+    std::fs::write(
+        dir.join("Demo/demo.opl"),
+        "[dll]\r\nDemo\\notalibrary.dll\r\n",
+    )
+    .unwrap();
     std::fs::write(dir.join("Demo/notalibrary.dll"), b"MZ not really").unwrap();
-    let err = Plugin::load(&dir.join("Demo/demo.opl"), &dir, &hosts).err().expect("a file that is no library fails");
-    assert!(err.contains("could not load") || err.contains("host") || err.contains("Wine"), "{err}");
+    let err = Plugin::load(&dir.join("Demo/demo.opl"), &dir, &hosts)
+        .err()
+        .expect("a file that is no library fails");
+    assert!(
+        err.contains("could not load") || err.contains("host") || err.contains("Wine"),
+        "{err}"
+    );
     let _ = std::fs::remove_dir_all(dir);
 }
 
@@ -179,11 +248,42 @@ fn host_frames() {
     let host = Path::new(env!("CARGO_BIN_EXE_omsi-plugin-host"));
     let mut r = Remote::spawn(None, host, &dir.join("Demo/demo.dll")).unwrap();
     let tickets = vec![
-        omsi_plugin::TicketCall { person: 1, age: 40.0, stop: "Střížkov".into(), destination: "Nový Bor".into(), stop_number: 2, destination_number: 5, kind: 2, ticket: 1, price: 20.0, name: "Full fare".into() },
-        omsi_plugin::TicketCall { person: 2, age: 9.0, kind: 2, ticket: 2, ..Default::default() },
-        omsi_plugin::TicketCall { person: 3, age: 40.0, kind: 2, ticket: 1, ..Default::default() },
+        omsi_plugin::TicketCall {
+            person: 1,
+            age: 40.0,
+            stop: "Střížkov".into(),
+            destination: "Nový Bor".into(),
+            stop_number: 2,
+            destination_number: 5,
+            kind: 2,
+            ticket: 1,
+            price: 20.0,
+            name: "Full fare".into(),
+        },
+        omsi_plugin::TicketCall {
+            person: 2,
+            age: 9.0,
+            kind: 2,
+            ticket: 2,
+            ..Default::default()
+        },
+        omsi_plugin::TicketCall {
+            person: 3,
+            age: 40.0,
+            kind: 2,
+            ticket: 1,
+            ..Default::default()
+        },
     ];
-    let f = omsi_plugin::Frame { system: vec![(0, 3.0)], vars: vec![(0, 1.5)], strings: vec![(0, "0123456789ab".into())], triggers: vec![0], textures: vec![(0, 3, 2), (1, 2, 2)], pointer: vec![(0, omsi_plugin::POINTER_UP, 2.0, 1.0)], tickets };
+    let f = omsi_plugin::Frame {
+        system: vec![(0, 3.0)],
+        vars: vec![(0, 1.5)],
+        strings: vec![(0, "0123456789ab".into())],
+        triggers: vec![0],
+        textures: vec![(0, 3, 2), (1, 2, 2)],
+        pointer: vec![(0, omsi_plugin::POINTER_UP, 2.0, 1.0)],
+        tickets,
+    };
     let reply = r.frame(&f).unwrap();
     assert_eq!(reply.system, [None]);
     assert_eq!(reply.vars, [Some(3.0)]);
@@ -197,8 +297,25 @@ fn host_frames() {
     assert_eq!(&px[4..8], &[2, 1, omsi_plugin::POINTER_UP, 1]);
     assert_eq!(reply.textures[1], None);
     // the passengers' tickets went through the host and back
-    let full = omsi_plugin::TicketAnswer { kind: 2, ticket: 1, price: 30.0, name: "Nový Bor, 3 stops".into(), voice: "Zone_3".into() };
-    assert_eq!(reply.tickets, [Some(full), Some(omsi_plugin::TicketAnswer { kind: 0, ticket: 2, ..Default::default() }), None]);
+    let full = omsi_plugin::TicketAnswer {
+        kind: 2,
+        ticket: 1,
+        price: 30.0,
+        name: "Nový Bor, 3 stops".into(),
+        voice: "Zone_3".into(),
+    };
+    assert_eq!(
+        reply.tickets,
+        [
+            Some(full),
+            Some(omsi_plugin::TicketAnswer {
+                kind: 0,
+                ticket: 2,
+                ..Default::default()
+            }),
+            None
+        ]
+    );
     // the host keeps the buffer: the second frame counts on from the first
     let reply = r.frame(&f).unwrap();
     assert_eq!(reply.textures[0].as_ref().unwrap()[3], 2);
@@ -211,15 +328,42 @@ fn host_frames() {
 /// `omsi_demo_plugin.dll` built for i686-pc-windows-gnu (see docs/PLUGINS.md), and Wine.
 #[test]
 fn windows_dll_under_wine() {
-    let Some(dir) = omsi_cfg::flags::OMSI_TEST_WINE_DIR.live_os().map(PathBuf::from) else { return };
+    let Some(dir) = omsi_cfg::flags::OMSI_TEST_WINE_DIR
+        .live_os()
+        .map(PathBuf::from)
+    else {
+        return;
+    };
     let hosts = HostConfig::detect();
-    let wine = hosts.runner.clone().or_else(|| cfg!(windows).then(PathBuf::new));
-    let runner = if cfg!(windows) { None } else { Some(wine.expect("wine on the path")) };
-    let mut r = Remote::spawn(runner.as_deref(), &dir.join("omsi-plugin-host.exe"), &dir.join("omsi_demo_plugin.dll")).expect("the 32-bit host starts");
-    let f = omsi_plugin::Frame { system: vec![(0, 5.0)], vars: vec![(0, 0.75)], strings: vec![(0, "abcdefghijk".into())], triggers: vec![0], textures: vec![(0, 2, 2)], ..Default::default() };
+    let wine = hosts
+        .runner
+        .clone()
+        .or_else(|| cfg!(windows).then(PathBuf::new));
+    let runner = if cfg!(windows) {
+        None
+    } else {
+        Some(wine.expect("wine on the path"))
+    };
+    let mut r = Remote::spawn(
+        runner.as_deref(),
+        &dir.join("omsi-plugin-host.exe"),
+        &dir.join("omsi_demo_plugin.dll"),
+    )
+    .expect("the 32-bit host starts");
+    let f = omsi_plugin::Frame {
+        system: vec![(0, 5.0)],
+        vars: vec![(0, 0.75)],
+        strings: vec![(0, "abcdefghijk".into())],
+        triggers: vec![0],
+        textures: vec![(0, 2, 2)],
+        ..Default::default()
+    };
     let reply = r.frame(&f).unwrap();
     assert_eq!(reply.vars, [Some(1.5)]);
-    assert_eq!(reply.textures[0].as_ref().map(|p| p[..4].to_vec()), Some(vec![0, 0, 7, 1]));
+    assert_eq!(
+        reply.textures[0].as_ref().map(|p| p[..4].to_vec()),
+        Some(vec![0, 0, 7, 1])
+    );
     assert_eq!(reply.strings, [Some("seen at 5".to_string())]);
     assert_eq!(reply.triggers_active, [true]);
     r.finalize();

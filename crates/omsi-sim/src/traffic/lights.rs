@@ -67,20 +67,50 @@ pub struct TrafficLightController {
 impl TrafficLightController {
     pub fn new(lights: Vec<Vec<(i32, f32)>>, cycle: f32) -> TrafficLightController {
         let n = lights.len();
-        TrafficLightController { lights, cycle, offset: 0.0, approach: vec![None; n], stops: Vec::new(), time: 0.0, request: vec![false; n], held: false, passed: Vec::new(), rewound: None, started: false }
+        TrafficLightController {
+            lights,
+            cycle,
+            offset: 0.0,
+            approach: vec![None; n],
+            stops: Vec::new(),
+            time: 0.0,
+            request: vec![false; n],
+            held: false,
+            passed: Vec::new(),
+            rewound: None,
+            started: false,
+        }
     }
 
     /// From the `[traffic_light]` program of a crossing object: (per light: name, phases
     /// as (state, seconds), `[approachdist]`), the cycle, the stop and jump points.
-    pub fn from_program(lights: Vec<(Vec<(i32, f32)>, Option<f32>)>, cycle: Option<f32>, stops: &[[f32; 3]], jumps: &[[f32; 4]]) -> TrafficLightController {
+    pub fn from_program(
+        lights: Vec<(Vec<(i32, f32)>, Option<f32>)>,
+        cycle: Option<f32>,
+        stops: &[[f32; 3]],
+        jumps: &[[f32; 4]],
+    ) -> TrafficLightController {
         let approach = lights.iter().map(|l| l.1).collect();
-        let mut c = TrafficLightController::new(lights.into_iter().map(|l| l.0).collect(), cycle.unwrap_or(0.0));
+        let mut c = TrafficLightController::new(
+            lights.into_iter().map(|l| l.0).collect(),
+            cycle.unwrap_or(0.0),
+        );
         c.approach = approach;
         for s in stops {
-            c.stops.push(LightStop { light: s[0].max(0.0) as usize, time: s[1], if_request: s[2] > 0.5, jump_to: None });
+            c.stops.push(LightStop {
+                light: s[0].max(0.0) as usize,
+                time: s[1],
+                if_request: s[2] > 0.5,
+                jump_to: None,
+            });
         }
         for j in jumps {
-            c.stops.push(LightStop { light: j[0].max(0.0) as usize, time: j[1], if_request: j[2] > 0.5, jump_to: Some(j[3]) });
+            c.stops.push(LightStop {
+                light: j[0].max(0.0) as usize,
+                time: j[1],
+                if_request: j[2] > 0.5,
+                jump_to: Some(j[3]),
+            });
         }
         c
     }
@@ -90,7 +120,11 @@ impl TrafficLightController {
         if self.cycle > 0.0 {
             return self.cycle as f64;
         }
-        self.lights.iter().map(|p| p.iter().map(|x| x.1).sum::<f32>()).fold(0.0f32, f32::max).max(1.0) as f64
+        self.lights
+            .iter()
+            .map(|p| p.iter().map(|x| x.1).sum::<f32>())
+            .fold(0.0f32, f32::max)
+            .max(1.0) as f64
     }
 
     /// Set the clock from the time of day (s) the first time the program runs: crossings
@@ -104,7 +138,11 @@ impl TrafficLightController {
 
     /// Request distance of light `i` (m).
     pub fn approach_dist(&self, i: usize) -> f32 {
-        self.approach.get(i).copied().flatten().unwrap_or(DEFAULT_APPROACH)
+        self.approach
+            .get(i)
+            .copied()
+            .flatten()
+            .unwrap_or(DEFAULT_APPROACH)
     }
 
     /// Whether light `i` is asked by a vehicle `gap` m before its stop line (below 0: over
@@ -198,7 +236,11 @@ impl TrafficLightController {
                     // 127 s cycle, and taken as 3 s it ran its night flashing in every
                     // daytime cycle.
                     let jump_to = f64::from(to);
-                    let target = if jump_to < cycle { jump_to.rem_euclid(cycle) } else { 0.0 };
+                    let target = if jump_to < cycle {
+                        jump_to.rem_euclid(cycle)
+                    } else {
+                        0.0
+                    };
                     let no_progress = ((target - p.time as f64).rem_euclid(cycle)).abs() < 1e-6;
                     self.rewound = (!p.if_request && to > 1e-6 && to < p.time - 1e-6).then_some(k);
                     self.time = target;
@@ -314,11 +356,17 @@ impl TrafficLightController {
         let mut spans: Vec<(i32, f32, f32)> = Vec::new();
         let mut start = 0.0;
         for (k, (state, dur)) in phases.iter().enumerate() {
-            let end = if k + 1 == phases.len() { cycle.max(start + dur) } else { start + dur };
+            let end = if k + 1 == phases.len() {
+                cycle.max(start + dur)
+            } else {
+                start + dur
+            };
             spans.push((*state, start, end));
             start = end;
         }
-        let Some(k) = spans.iter().position(|s| x < s.2).or(Some(spans.len() - 1)) else { return f32::INFINITY };
+        let Some(k) = spans.iter().position(|s| x < s.2).or(Some(spans.len() - 1)) else {
+            return f32::INFINITY;
+        };
         let state = spans[k].0;
         if spans.iter().all(|s| s.0 == state) {
             return f32::INFINITY;
@@ -358,7 +406,11 @@ impl TrafficLightController {
     /// (the rules of the stock `ampel1_ddr.osc`, which agree with `ampel1.osc` for the
     /// states the West Berlin programs use).
     pub fn lamps(state: i32) -> (bool, bool, bool) {
-        (matches!(state, 0..=5), matches!(state, 3..=5 | 8..=11), matches!(state, 6..=8))
+        (
+            matches!(state, 0..=5),
+            matches!(state, 3..=5 | 8..=11),
+            matches!(state, 6..=8),
+        )
     }
 }
 

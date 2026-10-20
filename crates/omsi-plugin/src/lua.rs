@@ -15,7 +15,9 @@
 use crate::api::{self, runtime, Binding, CallError, Ctx, PluginState, Value};
 use crate::ui::{self, SharedUi};
 use crate::PluginIo;
-use mlua::{ChunkMode, Function, HookTriggers, Lua, LuaOptions, MultiValue, StdLib, Table, VmState};
+use mlua::{
+    ChunkMode, Function, HookTriggers, Lua, LuaOptions, MultiValue, StdLib, Table, VmState,
+};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -51,7 +53,9 @@ pub struct DiskSource {
 
 impl DiskSource {
     fn is_main(&self) -> bool {
-        self.path.file_name().is_some_and(|n| n.eq_ignore_ascii_case("main.lua"))
+        self.path
+            .file_name()
+            .is_some_and(|n| n.eq_ignore_ascii_case("main.lua"))
     }
 
     fn folder(&self) -> &Path {
@@ -62,13 +66,19 @@ impl DiskSource {
 impl LuaSource for DiskSource {
     fn main(&self) -> Result<(String, String), String> {
         let text = std::fs::read(&self.path).map_err(|e| e.to_string())?;
-        let name = self.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let name = self
+            .path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
         Ok((String::from_utf8_lossy(&text).into_owned(), name))
     }
 
     fn module(&self, name: &str) -> Option<(String, String)> {
         // (`require("a.b")` is `a/b.lua` or `a/b/init.lua`, never out of the folder)
-        let rel = api::paths::clean(&name.replace('.', "/")).ok().filter(|r| !r.is_empty())?;
+        let rel = api::paths::clean(&name.replace('.', "/"))
+            .ok()
+            .filter(|r| !r.is_empty())?;
         for file in [format!("{rel}.lua"), format!("{rel}/init.lua")] {
             if let Some(p) = crate::resolve_path(self.folder(), &file).filter(|p| p.is_file()) {
                 let text = std::fs::read(&p).ok()?;
@@ -82,17 +92,26 @@ impl LuaSource for DiskSource {
     /// folder left out).
     fn stamp(&self) -> Option<SystemTime> {
         if !self.is_main() {
-            return std::fs::metadata(&self.path).and_then(|m| m.modified()).ok();
+            return std::fs::metadata(&self.path)
+                .and_then(|m| m.modified())
+                .ok();
         }
         fn walk(dir: &Path, best: &mut Option<SystemTime>, top: bool) {
-            let Ok(rd) = std::fs::read_dir(dir) else { return };
+            let Ok(rd) = std::fs::read_dir(dir) else {
+                return;
+            };
             for e in rd.flatten() {
                 let p = e.path();
                 if p.is_dir() {
-                    if !(top && p.file_name().is_some_and(|n| n.eq_ignore_ascii_case(DATA_DIR))) {
+                    if !(top
+                        && p.file_name()
+                            .is_some_and(|n| n.eq_ignore_ascii_case(DATA_DIR)))
+                    {
                         walk(&p, best, false);
                     }
-                } else if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("lua")) && !is_save(&p) {
+                } else if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("lua"))
+                    && !is_save(&p)
+                {
                     if let Ok(t) = e.metadata().and_then(|m| m.modified()) {
                         *best = Some(best.map_or(t, |b| b.max(t)));
                     }
@@ -111,9 +130,15 @@ const DATA_DIR: &str = "data";
 /// Every Lua plugin of a plugins folder: top-level `*.lua` files and `<folder>/main.lua`.
 /// A one-file plugin's saved data (`<name>.save.lua`) is no plugin.
 pub fn find_lua(dir: &Path) -> Vec<PathBuf> {
-    let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
     let mut entries: Vec<PathBuf> = rd.flatten().map(|e| e.path()).collect();
-    entries.sort_by_key(|p| p.file_name().map(|n| n.to_string_lossy().to_uppercase()).unwrap_or_default());
+    entries.sort_by_key(|p| {
+        p.file_name()
+            .map(|n| n.to_string_lossy().to_uppercase())
+            .unwrap_or_default()
+    });
     let mut out = Vec::new();
     for p in entries {
         if p.is_dir() {
@@ -129,7 +154,11 @@ pub fn find_lua(dir: &Path) -> Vec<PathBuf> {
 
 /// A plugin's saved data (`data.save.lua`, `<name>.save.lua`), not its code.
 fn is_save(p: &Path) -> bool {
-    p.file_name().is_some_and(|n| n.to_string_lossy().to_ascii_lowercase().ends_with(".save.lua"))
+    p.file_name().is_some_and(|n| {
+        n.to_string_lossy()
+            .to_ascii_lowercase()
+            .ends_with(".save.lua")
+    })
 }
 
 /// What a Lua plugin is made from.
@@ -149,12 +178,34 @@ pub struct LuaSpec {
 impl LuaSpec {
     /// A plugin file of a plugins folder.
     pub fn disk(path: &Path) -> LuaSpec {
-        let is_main = path.file_name().is_some_and(|n| n.eq_ignore_ascii_case("main.lua"));
-        let name_src = if is_main { path.parent().unwrap_or(path) } else { path };
-        let name = name_src.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "plugin".into());
+        let is_main = path
+            .file_name()
+            .is_some_and(|n| n.eq_ignore_ascii_case("main.lua"));
+        let name_src = if is_main {
+            path.parent().unwrap_or(path)
+        } else {
+            path
+        };
+        let name = name_src
+            .file_stem()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "plugin".into());
         let folder = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-        let (save_file, data_dir) = if is_main { (path.with_file_name("data.save.lua"), folder.join(DATA_DIR)) } else { (path.with_extension("save.lua"), path.with_extension("data")) };
-        LuaSpec { name, source: Box::new(DiskSource { path: path.to_path_buf() }), save_file, data_dir, folder: Some(folder), perms: None }
+        let (save_file, data_dir) = if is_main {
+            (path.with_file_name("data.save.lua"), folder.join(DATA_DIR))
+        } else {
+            (path.with_extension("save.lua"), path.with_extension("data"))
+        };
+        LuaSpec {
+            name,
+            source: Box::new(DiskSource {
+                path: path.to_path_buf(),
+            }),
+            save_file,
+            data_dir,
+            folder: Some(folder),
+            perms: None,
+        }
     }
 }
 
@@ -199,16 +250,43 @@ impl LuaPlugin {
     }
 
     /// [`LuaPlugin::load`], with the panels it shows in `ui` (shared by every plugin).
-    pub fn load_with_ui(path: &Path, io: &mut dyn PluginIo, ui: SharedUi) -> Result<LuaPlugin, String> {
+    pub fn load_with_ui(
+        path: &Path,
+        io: &mut dyn PluginIo,
+        ui: SharedUi,
+    ) -> Result<LuaPlugin, String> {
         Self::start_spec(LuaSpec::disk(path), path, io, runtime::Hub::with_ui(ui))
     }
 
     /// Load a plugin of any source (`path`: what it is known by in the log).
-    pub fn start_spec(spec: LuaSpec, path: &Path, io: &mut dyn PluginIo, hub: runtime::SharedHub) -> Result<LuaPlugin, String> {
+    pub fn start_spec(
+        spec: LuaSpec,
+        path: &Path,
+        io: &mut dyn PluginIo,
+        hub: runtime::SharedHub,
+    ) -> Result<LuaPlugin, String> {
         let owner = NEXT_OWNER.fetch_add(1, Ordering::Relaxed);
-        let mut state = PluginState::new(&spec.name, "Lua plugin", "lua", owner, hub, spec.folder.clone(), spec.data_dir.clone());
+        let mut state = PluginState::new(
+            &spec.name,
+            "Lua plugin",
+            "lua",
+            owner,
+            hub,
+            spec.folder.clone(),
+            spec.data_dir.clone(),
+        );
         state.perms = spec.perms.clone();
-        let mut p = LuaPlugin { name: spec.name.clone(), path: path.to_path_buf(), spec, binding: None, state: Box::new(state), slot: Rc::new(Cell::new(None)), stamp: None, last_check: None, disabled: false };
+        let mut p = LuaPlugin {
+            name: spec.name.clone(),
+            path: path.to_path_buf(),
+            spec,
+            binding: None,
+            state: Box::new(state),
+            slot: Rc::new(Cell::new(None)),
+            stamp: None,
+            last_check: None,
+            disabled: false,
+        };
         p.start(io)?;
         Ok(p)
     }
@@ -225,8 +303,16 @@ impl LuaPlugin {
         self.binding = Some(Box::new(binding));
         let r = self.with_ctx(io, |ctx, b| {
             b.depth.set(1);
-            b.deadline.set(Some(Instant::now() + Duration::from_millis(runtime::LOAD_BUDGET_MS)));
-            let top = b.lua.load(&source).set_name(format!("@{chunk}")).set_mode(ChunkMode::Text).exec().map_err(|e| b.error(e));
+            b.deadline.set(Some(
+                Instant::now() + Duration::from_millis(runtime::LOAD_BUDGET_MS),
+            ));
+            let top = b
+                .lua
+                .load(&source)
+                .set_name(format!("@{chunk}"))
+                .set_mode(ChunkMode::Text)
+                .exec()
+                .map_err(|e| b.error(e));
             b.depth.set(0);
             b.deadline.set(None);
             top?;
@@ -234,7 +320,14 @@ impl LuaPlugin {
         });
         if let Err(e) = r {
             log::warn!("{} {}", self.state.tag, e.msg);
-            io.message(&format!("Lua plugin {}: {}", self.name, e.msg.lines().next().unwrap_or("")), 8.0);
+            io.message(
+                &format!(
+                    "Lua plugin {}: {}",
+                    self.name,
+                    e.msg.lines().next().unwrap_or("")
+                ),
+                8.0,
+            );
             // (what its top level showed before it failed would stay for good)
             self.with_ctx(io, |ctx, _| {
                 runtime::finish(ctx);
@@ -246,17 +339,31 @@ impl LuaPlugin {
     }
 
     /// Run `f` with the game, the state and the binding reachable from Lua.
-    fn with_ctx<R>(&mut self, io: &mut dyn PluginIo, f: impl FnOnce(&mut Ctx<'_>, &LuaBinding) -> R) -> R {
-        let b: &LuaBinding = self.binding.as_deref().expect("a plugin runs with its Lua state");
+    fn with_ctx<R>(
+        &mut self,
+        io: &mut dyn PluginIo,
+        f: impl FnOnce(&mut Ctx<'_>, &LuaBinding) -> R,
+    ) -> R {
+        let b: &LuaBinding = self
+            .binding
+            .as_deref()
+            .expect("a plugin runs with its Lua state");
         // SAFETY: the lifetime is erased only for the length of this call; the slot is
         // cleared before `io` goes out of reach
         let io_ptr: *mut (dyn PluginIo + '_) = io;
-        let io_ptr = unsafe { std::mem::transmute::<*mut (dyn PluginIo + '_), *mut (dyn PluginIo + 'static)>(io_ptr) };
+        let io_ptr = unsafe {
+            std::mem::transmute::<*mut (dyn PluginIo + '_), *mut (dyn PluginIo + 'static)>(io_ptr)
+        };
         let state: *mut PluginState = &mut *self.state;
-        let raw = Raw { io: io_ptr, state, binding: b };
+        let raw = Raw {
+            io: io_ptr,
+            state,
+            binding: b,
+        };
         self.slot.set(Some(raw));
         // SAFETY: the three live while `self` and `io` are borrowed here
-        let mut ctx = unsafe { Ctx::from_raw(raw.io, raw.state, raw.binding as *const dyn Binding) };
+        let mut ctx =
+            unsafe { Ctx::from_raw(raw.io, raw.state, raw.binding as *const dyn Binding) };
         let r = f(&mut ctx, b);
         self.slot.set(None);
         r
@@ -265,7 +372,10 @@ impl LuaPlugin {
     /// One frame: a reload when the files changed, then the runtime's frame (the events,
     /// timers, watches and `frame`).
     pub fn frame(&mut self, io: &mut dyn PluginIo) {
-        if self.last_check.is_none_or(|t| t.elapsed() > Duration::from_secs(1)) {
+        if self
+            .last_check
+            .is_none_or(|t| t.elapsed() > Duration::from_secs(1))
+        {
             self.last_check = Some(Instant::now());
             let stamp = self.spec.source.stamp();
             if stamp.is_some() && stamp != self.stamp {
@@ -290,7 +400,12 @@ impl LuaPlugin {
 
     /// Whether the plugin listens to `event` (through `on`, or its global `on_<event>`).
     pub fn hears(&self, event: &str) -> bool {
-        !self.disabled && (self.state.listens(event) || self.binding.as_ref().is_some_and(|b| b.has_global_handler(event)))
+        !self.disabled
+            && (self.state.listens(event)
+                || self
+                    .binding
+                    .as_ref()
+                    .is_some_and(|b| b.has_global_handler(event)))
     }
 
     /// One event now, outside the frame (`Plugins::emit`).
@@ -305,7 +420,15 @@ impl LuaPlugin {
     /// A fresh state for a plugin loaded again (its owner mark stays).
     fn reset_state(&mut self) {
         let old = &self.state;
-        let mut s = PluginState::new(&self.spec.name, "Lua plugin", "lua", old.owner, old.hub.clone(), self.spec.folder.clone(), self.spec.data_dir.clone());
+        let mut s = PluginState::new(
+            &self.spec.name,
+            "Lua plugin",
+            "lua",
+            old.owner,
+            old.hub.clone(),
+            self.spec.folder.clone(),
+            self.spec.data_dir.clone(),
+        );
         s.perms = self.spec.perms.clone();
         self.state = Box::new(s);
         self.disabled = false;
@@ -346,7 +469,13 @@ pub struct LuaBinding {
 impl LuaBinding {
     /// A Lua state with the safe libraries and the `omsi` table.
     fn new(p: &LuaPlugin) -> mlua::Result<LuaBinding> {
-        let libs = StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::UTF8 | StdLib::COROUTINE | StdLib::PACKAGE | StdLib::OS;
+        let libs = StdLib::TABLE
+            | StdLib::STRING
+            | StdLib::MATH
+            | StdLib::UTF8
+            | StdLib::COROUTINE
+            | StdLib::PACKAGE
+            | StdLib::OS;
         let lua = Lua::new_with(libs, LuaOptions::default())?;
         lua.set_memory_limit(MEMORY_LIMIT)?;
         let g = lua.globals();
@@ -357,15 +486,32 @@ impl LuaBinding {
         let overran = Rc::new(Cell::new(false));
         {
             let (deadline, overran) = (deadline.clone(), overran.clone());
-            lua.set_hook(HookTriggers::new().every_nth_instruction(10_000), move |_, _| match deadline.get() {
-                Some(d) if Instant::now() > d => {
-                    overran.set(true);
-                    Err(mlua::Error::runtime(format!("the plugin ran longer than {} ms and was stopped", runtime::CALL_BUDGET_MS)))
-                }
-                _ => Ok(VmState::Continue),
-            });
+            lua.set_hook(
+                HookTriggers::new().every_nth_instruction(10_000),
+                move |_, _| match deadline.get() {
+                    Some(d) if Instant::now() > d => {
+                        overran.set(true);
+                        Err(mlua::Error::runtime(format!(
+                            "the plugin ran longer than {} ms and was stopped",
+                            runtime::CALL_BUDGET_MS
+                        )))
+                    }
+                    _ => Ok(VmState::Continue),
+                },
+            );
         }
-        let b = LuaBinding { by_id: lua.create_table()?, by_fn: lua.create_table()?, counts: RefCell::new(HashMap::new()), fresh: RefCell::new(Vec::new()), next: Cell::new(1), depth: Cell::new(0), deadline, overran, globals: g.clone(), lua };
+        let b = LuaBinding {
+            by_id: lua.create_table()?,
+            by_fn: lua.create_table()?,
+            counts: RefCell::new(HashMap::new()),
+            fresh: RefCell::new(Vec::new()),
+            next: Cell::new(1),
+            depth: Cell::new(0),
+            deadline,
+            overran,
+            globals: g.clone(),
+            lua,
+        };
         b.bind(p)?;
         Ok(b)
     }
@@ -374,7 +520,10 @@ impl LuaBinding {
     fn bind(&self, p: &LuaPlugin) -> mlua::Result<()> {
         let lua = &self.lua;
         let omsi = lua.create_table()?;
-        omsi.set("version", option_env!("OPENOMSI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")))?;
+        omsi.set(
+            "version",
+            option_env!("OPENOMSI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
+        )?;
         omsi.set("name", p.name.clone())?;
         for f in api::registry() {
             let mut t = omsi.clone();
@@ -399,7 +548,10 @@ impl LuaBinding {
         self.globals.set("print", omsi.get::<Function>("log")?)?;
         // saved data, only the plugin's own file
         let save = p.spec.save_file.clone();
-        omsi.set("_read_data", lua.create_function(move |_, ()| Ok(std::fs::read_to_string(&save).ok()))?)?;
+        omsi.set(
+            "_read_data",
+            lua.create_function(move |_, ()| Ok(std::fs::read_to_string(&save).ok()))?,
+        )?;
         let save = p.spec.save_file.clone();
         omsi.set(
             "_write_data",
@@ -416,14 +568,20 @@ impl LuaBinding {
         )?;
         self.globals.set("omsi", omsi)?;
         require(lua, &self.globals, p.slot.clone(), source_ptr(p))?;
-        lua.load(PRELUDE).set_name("=omsi").set_mode(ChunkMode::Text).exec()
+        lua.load(PRELUDE)
+            .set_name("=omsi")
+            .set_mode(ChunkMode::Text)
+            .exec()
     }
 
     /// The Lua function of a registry entry.
     fn function(&self, f: &'static api::ApiFn, slot: Slot) -> mlua::Result<Function> {
         self.lua.create_function(move |lua, args: MultiValue| {
             let Some(raw) = slot.get() else {
-                return Err(mlua::Error::runtime(format!("omsi.{}: called outside the game's frame", f.name)));
+                return Err(mlua::Error::runtime(format!(
+                    "omsi.{}: called outside the game's frame",
+                    f.name
+                )));
             };
             // SAFETY: the slot is set only while the plugin's call runs (`with_ctx`)
             let b = unsafe { &*raw.binding };
@@ -431,10 +589,14 @@ impl LuaBinding {
             for a in args.iter() {
                 vals.push(b.to_value(a).map_err(mlua::Error::runtime)?);
             }
-            let mut ctx = unsafe { Ctx::from_raw(raw.io, raw.state, raw.binding as *const dyn Binding) };
+            let mut ctx =
+                unsafe { Ctx::from_raw(raw.io, raw.state, raw.binding as *const dyn Binding) };
             let out = api::call_fn(&mut ctx, f, vals).map_err(|e| mlua::Error::runtime(e.0))?;
             match out {
-                Value::List(items) if f.multi => items.into_iter().map(|v| b.to_lua(lua, v)).collect::<mlua::Result<MultiValue>>(),
+                Value::List(items) if f.multi => items
+                    .into_iter()
+                    .map(|v| b.to_lua(lua, v))
+                    .collect::<mlua::Result<MultiValue>>(),
                 v => Ok(MultiValue::from_iter([b.to_lua(lua, v)?])),
             }
         })
@@ -486,7 +648,10 @@ impl LuaBinding {
     }
 
     fn error(&self, e: mlua::Error) -> CallError {
-        CallError { msg: e.to_string(), fatal: self.overran.get() }
+        CallError {
+            msg: e.to_string(),
+            fatal: self.overran.get(),
+        }
     }
 
     /// Run `f` as a call into the plugin: the outermost one gets the time budget.
@@ -494,7 +659,9 @@ impl LuaBinding {
         let outer = self.depth.get() == 0;
         if outer {
             self.overran.set(false);
-            self.deadline.set(Some(Instant::now() + Duration::from_millis(runtime::CALL_BUDGET_MS)));
+            self.deadline.set(Some(
+                Instant::now() + Duration::from_millis(runtime::CALL_BUDGET_MS),
+            ));
         }
         self.depth.set(self.depth.get() + 1);
         let r = f();
@@ -507,7 +674,12 @@ impl LuaBinding {
 
     /// One of the prelude's own functions (`omsi._save`).
     fn call_internal(&self, name: &str) -> Result<(), CallError> {
-        self.guarded(|| self.globals.get::<Table>("omsi")?.get::<Function>(name)?.call::<()>(()))
+        self.guarded(|| {
+            self.globals
+                .get::<Table>("omsi")?
+                .get::<Function>(name)?
+                .call::<()>(())
+        })
     }
 
     /// Forget the functions handed out in the last call that nothing kept.
@@ -536,7 +708,11 @@ impl Binding for LuaBinding {
             _ => return Err(CallError::new(format!("callback {cb} is gone"))),
         };
         let lua = &self.lua;
-        let args = args.into_iter().map(|v| self.to_lua(lua, v)).collect::<mlua::Result<MultiValue>>().map_err(|e| self.error(e))?;
+        let args = args
+            .into_iter()
+            .map(|v| self.to_lua(lua, v))
+            .collect::<mlua::Result<MultiValue>>()
+            .map_err(|e| self.error(e))?;
         let r: mlua::Value = self.guarded(|| f.call(args))?;
         self.to_value(&r).map_err(CallError::new)
     }
@@ -564,13 +740,21 @@ impl Binding for LuaBinding {
             _ => return Ok(false),
         };
         let lua = &self.lua;
-        let args = args.iter().cloned().map(|v| self.to_lua(lua, v)).collect::<mlua::Result<MultiValue>>().map_err(|e| self.error(e))?;
+        let args = args
+            .iter()
+            .cloned()
+            .map(|v| self.to_lua(lua, v))
+            .collect::<mlua::Result<MultiValue>>()
+            .map_err(|e| self.error(e))?;
         self.guarded(|| f.call::<()>(args))?;
         Ok(true)
     }
 
     fn has_global_handler(&self, event: &str) -> bool {
-        matches!(self.globals.raw_get::<mlua::Value>(format!("on_{event}")), Ok(mlua::Value::Function(_)))
+        matches!(
+            self.globals.raw_get::<mlua::Value>(format!("on_{event}")),
+            Ok(mlua::Value::Function(_))
+        )
     }
 }
 
@@ -589,7 +773,10 @@ fn sandbox(lua: &Lua, g: &Table) -> mlua::Result<()> {
     // `string.dump` is the way to make one. It is kept as a name, for plugins that test
     // `load(string.dump(f))`, but gives no code: only the mark of a binary chunk, which
     // `load` refuses)
-    g.get::<Table>("string")?.set("dump", lua.create_function(|lua, _: MultiValue| lua.create_string("\x1bLua"))?)?;
+    g.get::<Table>("string")?.set(
+        "dump",
+        lua.create_function(|lua, _: MultiValue| lua.create_string("\x1bLua"))?,
+    )?;
     let package: Table = g.get("package")?;
     package.set("path", "")?;
     package.set("cpath", "")?;
@@ -597,9 +784,15 @@ fn sandbox(lua: &Lua, g: &Table) -> mlua::Result<()> {
     // `require("os")` hands out `package.loaded.os`, the whole library with `execute`
     // and `remove` (#1715): the loaded table keeps the safe libraries only, `os` the clock
     let loaded: Table = package.get("loaded")?;
-    let names: Vec<String> = loaded.pairs::<String, mlua::Value>().filter_map(|kv| kv.ok().map(|(k, _)| k)).collect();
+    let names: Vec<String> = loaded
+        .pairs::<String, mlua::Value>()
+        .filter_map(|kv| kv.ok().map(|(k, _)| k))
+        .collect();
     for k in names {
-        if !matches!(k.as_str(), "_G" | "table" | "string" | "math" | "utf8" | "coroutine" | "package") {
+        if !matches!(
+            k.as_str(),
+            "_G" | "table" | "string" | "math" | "utf8" | "coroutine" | "package"
+        ) {
             loaded.set(k, mlua::Value::Nil)?;
         }
     }
@@ -625,10 +818,22 @@ fn require(lua: &Lua, g: &Table, slot: Slot, source: *const dyn LuaSource) -> ml
         let src = unsafe { &*source };
         match src.module(&name) {
             Some((text, file)) => {
-                let f = lua.load(text).set_name(format!("@{file}")).set_mode(ChunkMode::Text).into_function()?;
-                Ok((mlua::Value::Function(f), mlua::Value::String(lua.create_string(&file)?)))
+                let f = lua
+                    .load(text)
+                    .set_name(format!("@{file}"))
+                    .set_mode(ChunkMode::Text)
+                    .into_function()?;
+                Ok((
+                    mlua::Value::Function(f),
+                    mlua::Value::String(lua.create_string(&file)?),
+                ))
             }
-            None => Ok((mlua::Value::String(lua.create_string(format!("\n\tno module '{name}' in the plugin"))?), mlua::Value::Nil)),
+            None => Ok((
+                mlua::Value::String(
+                    lua.create_string(format!("\n\tno module '{name}' in the plugin"))?,
+                ),
+                mlua::Value::Nil,
+            )),
         }
     })?;
     // [1] package.preload stays; the file searchers go
@@ -648,7 +853,12 @@ pub fn to_value(v: &mlua::Value) -> Result<Value, String> {
 /// Integers stay integers, a table with the keys 1..n is a list and any other a map (its
 /// keys sorted, numbers written as texts), a function is its callback id, a text that is no
 /// UTF-8 is bytes. A table deeper than `MAX_DEPTH` is cut there (nil).
-fn convert(v: &mlua::Value, depth: usize, budget: &mut usize, cb: &mut dyn FnMut(&Function) -> u64) -> Result<Value, String> {
+fn convert(
+    v: &mlua::Value,
+    depth: usize,
+    budget: &mut usize,
+    cb: &mut dyn FnMut(&Function) -> u64,
+) -> Result<Value, String> {
     if *budget == 0 {
         return Err(format!("a table of more than {MAX_VALUES} values"));
     }
@@ -672,7 +882,10 @@ fn convert(v: &mlua::Value, depth: usize, budget: &mut usize, cb: &mut dyn FnMut
             for kv in t.clone().pairs::<mlua::Value, mlua::Value>() {
                 pairs.push(kv.map_err(|e| e.to_string())?);
             }
-            let is_list = pairs.len() == n && pairs.iter().all(|(k, _)| matches!(k, mlua::Value::Integer(i) if *i >= 1 && (*i as usize) <= n));
+            let is_list = pairs.len() == n
+                && pairs.iter().all(
+                    |(k, _)| matches!(k, mlua::Value::Integer(i) if *i >= 1 && (*i as usize) <= n),
+                );
             if is_list {
                 let mut out = vec![Value::Nil; n];
                 for (k, x) in &pairs {

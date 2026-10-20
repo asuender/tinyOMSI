@@ -15,7 +15,11 @@ pub(crate) fn scene_shader_source(gl: bool) -> String {
 
 pub(crate) fn scene_shader_for(gl: bool, path: ArrayPath) -> String {
     let src = arrays_as_textures(&scene_shader_text(gl), path);
-    if gl && path.no_storage() { compares_without_gather(&src) } else { src }
+    if gl && path.no_storage() {
+        compares_without_gather(&src)
+    } else {
+        src
+    }
 }
 
 /// The sun's shadow tent with each gather of four depth comparisons taken as four single
@@ -26,11 +30,21 @@ pub(crate) fn scene_shader_for(gl: bool, path: ArrayPath) -> String {
 pub(crate) fn compares_without_gather(src: &str) -> String {
     let mut out = src.to_string();
     for t in ["t_shadow", "t_shadow_far"] {
-        let at = |x: f32, y: f32| format!("textureSampleCompareLevel({t}, s_shadow, a + vec2<f32>({x:?}, {y:?}) / dims, zr)");
+        let at = |x: f32, y: f32| {
+            format!(
+                "textureSampleCompareLevel({t}, s_shadow, a + vec2<f32>({x:?}, {y:?}) / dims, zr)"
+            )
+        };
         let gather = format!("textureGatherCompare({t}, s_shadow, a, zr)");
         assert!(out.contains(&gather), "scene shader: {gather} not found");
         // (in the gather's order: (0, 1), (1, 1), (1, 0), (0, 0) of the quad around `a`)
-        let four = format!("vec4<f32>({}, {}, {}, {})", at(-0.5, 0.5), at(0.5, 0.5), at(0.5, -0.5), at(-0.5, -0.5));
+        let four = format!(
+            "vec4<f32>({}, {}, {}, {})",
+            at(-0.5, 0.5),
+            at(0.5, 0.5),
+            at(0.5, -0.5),
+            at(-0.5, -0.5)
+        );
         out = out.replace(&gather, &four);
     }
     out
@@ -56,15 +70,40 @@ pub(crate) fn arrays_as_textures(src: &str, path: ArrayPath) -> String {
             if pick.is_empty() { format!("vec4<{ty}>") } else { ty.to_string() }
         )
     };
-    swap("var<storage, read> models: array<vec4<f32>>;", load("models", "f32", ""), "models", "models_at");
-    swap("var<storage, read> inst_params: array<vec4<f32>>;", load("inst_params", "f32", ""), "inst_params", "inst_params_at");
-    swap("var<storage, read> draw_list: array<u32>;", load("draw_list", "u32", ".x"), "draw_list", "draw_list_at");
+    swap(
+        "var<storage, read> models: array<vec4<f32>>;",
+        load("models", "f32", ""),
+        "models",
+        "models_at",
+    );
+    swap(
+        "var<storage, read> inst_params: array<vec4<f32>>;",
+        load("inst_params", "f32", ""),
+        "inst_params",
+        "inst_params_at",
+    );
+    swap(
+        "var<storage, read> draw_list: array<u32>;",
+        load("draw_list", "u32", ".x"),
+        "draw_list",
+        "draw_list_at",
+    );
     if path == ArrayPath::LightTextures {
         let lights = format!(
             "var lights_tex: texture_2d<f32>;\nfn lights_texel(t: u32) -> vec4<f32> {{ return textureLoad(lights_tex, vec2<u32>(t % {w}u, t / {w}u), 0); }}\nfn lights_at(i: u32) -> PointLight {{ return PointLight(lights_texel(i * 4u), lights_texel(i * 4u + 1u), lights_texel(i * 4u + 2u), lights_texel(i * 4u + 3u)); }}"
         );
-        swap("var<storage, read> lights: array<PointLight>;", lights, "lights", "lights_at");
-        swap("var<storage, read> grid: array<u32>;", load("grid", "u32", ".x"), "grid", "grid_at");
+        swap(
+            "var<storage, read> lights: array<PointLight>;",
+            lights,
+            "lights",
+            "lights_at",
+        );
+        swap(
+            "var<storage, read> grid: array<u32>;",
+            load("grid", "u32", ".x"),
+            "grid",
+            "grid_at",
+        );
     }
     if path == ArrayPath::NoStorage {
         swap(
@@ -73,7 +112,12 @@ pub(crate) fn arrays_as_textures(src: &str, path: ArrayPath) -> String {
             "lights",
             "lights_at",
         );
-        swap("@group(0) @binding(4) var<storage, read> grid: array<u32>;", "fn grid_at(i: u32) -> u32 { return 0xffffffffu; }".to_string(), "grid", "grid_at");
+        swap(
+            "@group(0) @binding(4) var<storage, read> grid: array<u32>;",
+            "fn grid_at(i: u32) -> u32 { return 0xffffffffu; }".to_string(),
+            "grid",
+            "grid_at",
+        );
     }
     out
 }
@@ -128,8 +172,16 @@ pub(crate) fn scene_shader_text(gl: bool) -> String {
     ]
     .join("\n");
     // Enhanced+: the enhanced pass writes the reflections' surfaces as well (`GBUF_FORMAT`)
-    let src = if rt_gbuf() { src.replace("//RT ", "") } else { src };
-    let src = if basic_pipelines() { lean_scene(src) } else { src };
+    let src = if rt_gbuf() {
+        src.replace("//RT ", "")
+    } else {
+        src
+    };
+    let src = if basic_pipelines() {
+        lean_scene(src)
+    } else {
+        src
+    };
     if !gl {
         return src;
     }
@@ -147,7 +199,10 @@ pub(crate) fn scene_shader_text(gl: bool) -> String {
         .replace("textureSample(t_trans, s_tile, uv)", &clamped("t_trans"))
         .replace("textureSample(t_night, s_tile, uv)", &clamped("t_night"))
         .replace("ao = ao_at(in.clip.xy, in.world);", "ao = 1.0;")
-        .replace("rt_at(in.clip.xy, in.world)", "vec4<f32>(1.0, 0.0, -1.0, 0.0)");
+        .replace(
+            "rt_at(in.clip.xy, in.world)",
+            "vec4<f32>(1.0, 0.0, -1.0, 0.0)",
+        );
     debug_assert!(!out.contains("s_tile, uv)"));
     debug_assert!(!out.contains("ao_at(in.") && !out.contains("rt_at(in."));
     out
@@ -163,7 +218,10 @@ pub(crate) fn lean_scene(src: String) -> String {
     let out = src
         .replace("irr = irr * lamp_shadow_at(li, p, n, thin);", "")
         .replace("ms = sun_shadow_soft(in.world, n, thin);", "ms = 1.0;")
-        .replace("let sm = sun_shadow_soft(in.world, n, thin);", "let sm = 1.0;");
+        .replace(
+            "let sm = sun_shadow_soft(in.world, n, thin);",
+            "let sm = 1.0;",
+        );
     debug_assert_eq!(out.matches("sun_shadow_soft(in.world").count(), 1);
     debug_assert!(!out.contains("* lamp_shadow_at("));
     out
@@ -189,7 +247,11 @@ pub(crate) fn snow_shader_source() -> String {
 /// The rainfall (rain.wgsl), as the snowfall.
 pub(crate) fn rain_shader_source() -> String {
     let src = precip_shader_source(include_str!("../rain.wgsl"));
-    if basic_pipelines() { lean_rain(src) } else { src }
+    if basic_pipelines() {
+        lean_rain(src)
+    } else {
+        src
+    }
 }
 
 pub(crate) fn lean_rain(src: String) -> String {
@@ -211,7 +273,11 @@ pub(crate) fn precip_shader_source(own: &str) -> String {
         let src = src
             .replace("@group(0) @binding(3) var<storage, read> lights: array<PointLight>;", "fn lights_at(i: u32) -> PointLight { return PointLight(vec4<f32>(0.0), vec4<f32>(0.0), vec4<f32>(0.0), vec4<f32>(0.0)); }")
             .replace("@group(0) @binding(4) var<storage, read> grid: array<u32>;", "fn grid_at(i: u32) -> u32 { return 0xffffffffu; }");
-        return indexing_as_calls(&indexing_as_calls(&src, "lights", "lights_at"), "grid", "grid_at");
+        return indexing_as_calls(
+            &indexing_as_calls(&src, "lights", "lights_at"),
+            "grid",
+            "grid_at",
+        );
     }
     src
 }
@@ -232,7 +298,14 @@ pub(crate) struct SnowUniform {
 /// crystals of a millimetre, a heavy one aggregates of several.
 pub(crate) fn snowfall_flakes(s: f32) -> ([u32; 3], f32) {
     let k = 0.08 + 0.92 * s.clamp(0.0, 1.0);
-    ([(70000.0 * k) as u32, (55000.0 * k) as u32, (25000.0 * k) as u32], 0.0006 + 0.0034 * s * s)
+    (
+        [
+            (70000.0 * k) as u32,
+            (55000.0 * k) as u32,
+            (25000.0 * k) as u32,
+        ],
+        0.0006 + 0.0034 * s * s,
+    )
 }
 
 #[repr(C)]
@@ -254,7 +327,12 @@ pub(crate) struct RainUniform {
 /// on each square metre at a time in a downpour, close by.
 pub(crate) fn rainfall_drops(r: f32, quality: u8) -> [u32; 4] {
     let k = (0.12 + 0.88 * r.clamp(0.0, 1.0)) * [0.3, 0.6, 1.0][quality.min(2) as usize];
-    [(90000.0 * k) as u32, (110000.0 * k) as u32, (60000.0 * k) as u32, (25000.0 * k) as u32]
+    [
+        (90000.0 * k) as u32,
+        (110000.0 * k) as u32,
+        (60000.0 * k) as u32,
+        (25000.0 * k) as u32,
+    ]
 }
 
 /// Enhanced: the lamps' light in the fog over the drawn picture (`fog_lamps.wgsl`; not
@@ -294,7 +372,10 @@ pub(crate) fn corona_shader_source() -> String {
     // (the basic set lights rain by the sky alone: the loop over the lamps is one more
     // thing a phone's compiler can fail on, see `lean_scene`)
     let src = if basic_pipelines() {
-        src.replace("let l = precip_light(in.wpos.xyz, to_eye, in.wpos.w > 1.5);", "let l = sh_irradiance(vec3<f32>(0.0, 0.0, 1.0)) / PI;")
+        src.replace(
+            "let l = precip_light(in.wpos.xyz, to_eye, in.wpos.w > 1.5);",
+            "let l = sh_irradiance(vec3<f32>(0.0, 0.0, 1.0)) / PI;",
+        )
     } else {
         src
     };
@@ -303,7 +384,11 @@ pub(crate) fn corona_shader_source() -> String {
         let src = src
             .replace("@group(0) @binding(3) var<storage, read> lights: array<PointLight>;", "fn lights_at(i: u32) -> PointLight { return PointLight(vec4<f32>(0.0), vec4<f32>(0.0), vec4<f32>(0.0), vec4<f32>(0.0)); }")
             .replace("@group(0) @binding(4) var<storage, read> grid: array<u32>;", "fn grid_at(i: u32) -> u32 { return 0xffffffffu; }");
-        return indexing_as_calls(&indexing_as_calls(&src, "lights", "lights_at"), "grid", "grid_at");
+        return indexing_as_calls(
+            &indexing_as_calls(&src, "lights", "lights_at"),
+            "grid",
+            "grid_at",
+        );
     }
     src
 }

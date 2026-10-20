@@ -21,14 +21,18 @@ fn main() {
         }
     };
     loop {
-        let Ok(op) = wire::get_u8(&mut input) else { return };
+        let Ok(op) = wire::get_u8(&mut input) else {
+            return;
+        };
         let res = match (op, &mut lib) {
             (wire::START, Some(lib)) => {
                 lib.start();
                 wire::put_u8(&mut out, 1).and_then(|_| wire::put_u8(&mut out, lib.procs().flags()))
             }
             (wire::START, None) => {
-                let _ = wire::put_u8(&mut out, 0).and_then(|_| wire::put_u8(&mut out, 0)).and_then(|_| out.flush());
+                let _ = wire::put_u8(&mut out, 0)
+                    .and_then(|_| wire::put_u8(&mut out, 0))
+                    .and_then(|_| out.flush());
                 return;
             }
             (wire::FRAME, Some(lib)) => {
@@ -36,16 +40,23 @@ fn main() {
                 // as the game knows from the flags of START)
                 // (and the passengers' tickets only for one with AccessTicketRequest)
                 let (textures, tickets) = (lib.procs().texture, lib.procs().ticket);
-                let frame = wire::get_frame(&mut input, textures, lib.procs().pointer).and_then(|mut f| {
-                    if tickets {
-                        f.tickets = wire::get_tickets(&mut input)?;
-                    }
-                    Ok(f)
-                });
+                let frame =
+                    wire::get_frame(&mut input, textures, lib.procs().pointer).and_then(|mut f| {
+                        if tickets {
+                            f.tickets = wire::get_tickets(&mut input)?;
+                        }
+                        Ok(f)
+                    });
                 match frame {
                     Ok(f) => {
                         let reply = lib.frame(&f);
-                        wire::put_reply(&mut out, &reply, textures).and_then(|_| if tickets { wire::put_ticket_answers(&mut out, &reply.tickets) } else { Ok(()) })
+                        wire::put_reply(&mut out, &reply, textures).and_then(|_| {
+                            if tickets {
+                                wire::put_ticket_answers(&mut out, &reply.tickets)
+                            } else {
+                                Ok(())
+                            }
+                        })
                     }
                     Err(_) => return,
                 }

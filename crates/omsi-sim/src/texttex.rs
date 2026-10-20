@@ -29,12 +29,32 @@ pub struct FontLibrary {
 }
 
 /// Style words at the end of a font name ("churafont++ 32x8 Bold").
-const STYLE_WORDS: &[&str] = &["bold", "heavy", "black", "light", "thin", "medium", "regular", "italic", "narrow", "condensed", "wide"];
+const STYLE_WORDS: &[&str] = &[
+    "bold",
+    "heavy",
+    "black",
+    "light",
+    "thin",
+    "medium",
+    "regular",
+    "italic",
+    "narrow",
+    "condensed",
+    "wide",
+];
 
 /// A font name without its trailing style words, lower case: the family and size.
 fn family_of(name: &str) -> String {
-    let mut words: Vec<String> = name.split_whitespace().map(|w| w.to_ascii_lowercase()).collect();
-    while words.len() > 1 && words.last().map(|w| STYLE_WORDS.contains(&w.as_str())).unwrap_or(false) {
+    let mut words: Vec<String> = name
+        .split_whitespace()
+        .map(|w| w.to_ascii_lowercase())
+        .collect();
+    while words.len() > 1
+        && words
+            .last()
+            .map(|w| STYLE_WORDS.contains(&w.as_str()))
+            .unwrap_or(false)
+    {
         words.pop();
     }
     words.join(" ")
@@ -52,14 +72,23 @@ fn size_of(name: &str) -> Option<(u32, u32)> {
 
 impl FontLibrary {
     pub fn new(root: &Path) -> FontLibrary {
-        FontLibrary { atlases: HashMap::new(), images: HashMap::new(), root: root.to_path_buf(), index: None, only_root: false }
+        FontLibrary {
+            atlases: HashMap::new(),
+            images: HashMap::new(),
+            root: root.to_path_buf(),
+            index: None,
+            only_root: false,
+        }
     }
 
     /// The fonts of `root/Fonts` alone - not of every content folder: one bus's own (another
     /// player's bus, mounted as its driver has it), which this machine's fonts of the same
     /// names must not stand in for.
     pub fn only(root: &Path) -> FontLibrary {
-        FontLibrary { only_root: true, ..FontLibrary::new(root) }
+        FontLibrary {
+            only_root: true,
+            ..FontLibrary::new(root)
+        }
     }
 
     fn index(&mut self) -> &[Font] {
@@ -68,7 +97,11 @@ impl FontLibrary {
             // the installation): a mod's display fonts live in the content folder, and looking
             // only in the installation's `Fonts` left the O530's number plate, matrix and
             // dashboard displays empty. A file of the same name higher up replaces the stock one.
-            let mut files = if self.only_root { Vec::new() } else { omsi_cfg::read_dir_merged("Fonts") };
+            let mut files = if self.only_root {
+                Vec::new()
+            } else {
+                omsi_cfg::read_dir_merged("Fonts")
+            };
             if files.is_empty() {
                 files = omsi_cfg::vfs::read_dir_paths(&self.root.join("Fonts"));
             }
@@ -81,7 +114,17 @@ impl FontLibrary {
                     folders.push(d);
                 }
             }
-            files.sort_by_cached_key(|p| (folders.iter().position(|d| Some(d.as_path()) == p.parent()).unwrap_or(usize::MAX), p.file_name().map(|n| n.to_string_lossy().to_ascii_lowercase()).unwrap_or_default()));
+            files.sort_by_cached_key(|p| {
+                (
+                    folders
+                        .iter()
+                        .position(|d| Some(d.as_path()) == p.parent())
+                        .unwrap_or(usize::MAX),
+                    p.file_name()
+                        .map(|n| n.to_string_lossy().to_ascii_lowercase())
+                        .unwrap_or_default(),
+                )
+            });
             // Two files of one folder naming the same font: the one read later takes its place,
             // as in the original (the LiAZ's `ANX_S.oft` spells its "ц" as "=", and a
             // "ANX_S - копия.oft" lying beside it, read first, left the letter out). A
@@ -89,15 +132,25 @@ impl FontLibrary {
             let mut all: Vec<Font> = Vec::new();
             let mut folder_of: Vec<usize> = Vec::new();
             for p in files {
-                if !p.extension().map(|x| x.eq_ignore_ascii_case("oft")).unwrap_or(false) {
+                if !p
+                    .extension()
+                    .map(|x| x.eq_ignore_ascii_case("oft"))
+                    .unwrap_or(false)
+                {
                     continue;
                 }
-                let folder = folders.iter().position(|d| Some(d.as_path()) == p.parent()).unwrap_or(usize::MAX);
+                let folder = folders
+                    .iter()
+                    .position(|d| Some(d.as_path()) == p.parent())
+                    .unwrap_or(usize::MAX);
                 // `Font::path` is the .oft (read through the VFS): its bitmaps lie next to it
                 if let Ok(list) = Font::load_all(&p) {
                     for f in list {
                         let key = f.name.trim().to_ascii_lowercase();
-                        match all.iter().position(|o| o.name.trim().to_ascii_lowercase() == key) {
+                        match all
+                            .iter()
+                            .position(|o| o.name.trim().to_ascii_lowercase() == key)
+                        {
                             Some(k) if folder_of[k] == folder => all[k] = f,
                             Some(_) => {}
                             None => {
@@ -116,7 +169,9 @@ impl FontLibrary {
     /// Whether a font of exactly this name is installed.
     pub fn has_exact(&mut self, name: &str) -> bool {
         let wanted = name.trim();
-        self.index().iter().any(|f| f.name.trim().eq_ignore_ascii_case(wanted))
+        self.index()
+            .iter()
+            .any(|f| f.name.trim().eq_ignore_ascii_case(wanted))
     }
 
     /// The font called `name`, or - when there is none - one of the same family and size in
@@ -131,7 +186,10 @@ impl FontLibrary {
             return None;
         }
         let index = self.index();
-        if let Some(f) = index.iter().find(|f| f.name.trim().eq_ignore_ascii_case(wanted)) {
+        if let Some(f) = index
+            .iter()
+            .find(|f| f.name.trim().eq_ignore_ascii_case(wanted))
+        {
             return Some(f.clone());
         }
         let family = family_of(wanted);
@@ -145,27 +203,47 @@ impl FontLibrary {
             .iter()
             .filter(|f| size_of(&f.name) == size_of(wanted))
             .find(|f| f.name.trim().eq_ignore_ascii_case(&family))
-            .or_else(|| index.iter().filter(|f| size_of(&f.name) == size_of(wanted)).find(|f| family_of(&f.name) == family));
+            .or_else(|| {
+                index
+                    .iter()
+                    .filter(|f| size_of(&f.name) == size_of(wanted))
+                    .find(|f| family_of(&f.name) == family)
+            });
         let Some(sibling) = sibling else {
             // a display whose font is missing is worth a line in the log: it is the first
             // thing to look at when letters come out wrong on a matrix or a plate
             log::warn!("font \"{wanted}\" is in no Fonts folder of any content root");
             return None;
         };
-        log::warn!("font \"{wanted}\" not found; drawing with \"{}\" (same family and size)", sibling.name.trim());
+        log::warn!(
+            "font \"{wanted}\" not found; drawing with \"{}\" (same family and size)",
+            sibling.name.trim()
+        );
         Some(sibling.clone())
     }
 
     /// `get` with the registered picture decoder (`crate::image_decode`).
     pub fn load(&mut self, name: &str) -> Option<Arc<FontAtlas>> {
-        self.get(name, &|p| crate::image_decode::decode(p).ok().map(|i| (i.width, i.height, i.rgba)))
+        self.get(name, &|p| {
+            crate::image_decode::decode(p)
+                .ok()
+                .map(|i| (i.width, i.height, i.rgba))
+        })
     }
 
-    fn decoded_image(&mut self, file: std::path::PathBuf, decode: &dyn Fn(&Path) -> Option<(u32, u32, Vec<u8>)>) -> Option<DecodedFontBitmap> {
+    fn decoded_image(
+        &mut self,
+        file: std::path::PathBuf,
+        decode: &dyn Fn(&Path) -> Option<(u32, u32, Vec<u8>)>,
+    ) -> Option<DecodedFontBitmap> {
         if let Some(image) = self.images.get(&file) {
             return image.clone();
         }
-        let image = decode(&file).map(|(width, height, rgba)| DecodedFontBitmap { width, height, pixels: rgba.into() });
+        let image = decode(&file).map(|(width, height, rgba)| DecodedFontBitmap {
+            width,
+            height,
+            pixels: rgba.into(),
+        });
         self.images.insert(file, image.clone());
         image
     }
@@ -174,7 +252,11 @@ impl FontLibrary {
     /// content root (installed mods first, then the installation): a mod's display fonts
     /// live in the content folder, and looking only in the installation's `Fonts` left the
     /// O530's number plate, matrix and dashboard displays empty.
-    pub fn get(&mut self, name: &str, decode: &dyn Fn(&Path) -> Option<(u32, u32, Vec<u8>)>) -> Option<Arc<FontAtlas>> {
+    pub fn get(
+        &mut self,
+        name: &str,
+        decode: &dyn Fn(&Path) -> Option<(u32, u32, Vec<u8>)>,
+    ) -> Option<Arc<FontAtlas>> {
         let key = name.to_ascii_lowercase();
         if let Some(a) = self.atlases.get(&key) {
             return a.clone();
@@ -182,19 +264,33 @@ impl FontLibrary {
         let found = self.find(name);
         let atlas = found.and_then(|f| {
             // the bitmaps sit beside the .oft that names them
-            let fonts_dir = f.path.parent().map(Path::to_path_buf).unwrap_or_else(|| self.root.join("Fonts"));
+            let fonts_dir = f
+                .path
+                .parent()
+                .map(Path::to_path_buf)
+                .unwrap_or_else(|| self.root.join("Fonts"));
             let alpha_path = omsi_cfg::resolve_path(&fonts_dir, &f.alpha);
             let color_path = omsi_cfg::resolve_path(&fonts_dir, &f.bitmap);
             let alpha = self.decoded_image(alpha_path, decode)?;
             let (aw, ah) = (alpha.width, alpha.height);
             let color = match self.decoded_image(color_path, decode) {
                 Some(c) if (c.width, c.height) == (aw, ah) => c.pixels,
-                Some(c) if c.width > 0 && c.height > 0 && c.pixels.len() == (c.width as usize * c.height as usize * 4) => {
+                Some(c)
+                    if c.width > 0
+                        && c.height > 0
+                        && c.pixels.len() == (c.width as usize * c.height as usize * 4) =>
+                {
                     color_at_alpha_pixels(&c.pixels, c.width, c.height, aw, ah).into()
                 }
                 _ => alpha.pixels.clone(),
             };
-            Some(Arc::new(FontAtlas::from_shared(f, aw, ah, color, alpha.pixels)))
+            Some(Arc::new(FontAtlas::from_shared(
+                f,
+                aw,
+                ah,
+                color,
+                alpha.pixels,
+            )))
         });
         if atlas.is_none() && !name.trim().is_empty() {
             log::warn!("font \"{name}\" not found");
@@ -235,7 +331,12 @@ pub struct TextTextureState {
 
 impl TextTextureState {
     pub fn new(def: TextTexture, atlas: Option<Arc<FontAtlas>>) -> Self {
-        Self { def, atlas, last_text: None, pending: None }
+        Self {
+            def,
+            atlas,
+            last_text: None,
+            pending: None,
+        }
     }
 
     /// Re-render when the string variable changed. Returns true when a new image is pending.
@@ -251,8 +352,15 @@ impl TextTextureState {
     /// The picture of `text` in this texture's font, size, colour and placement.
     pub fn image(&self, text: &str) -> Vec<u8> {
         let (w, h) = (self.def.width.max(1) as u32, self.def.height.max(1) as u32);
-        let rgb = [self.def.color[0] as u8, self.def.color[1] as u8, self.def.color[2] as u8];
-        let align = omsi_content::font::TextAlign { orientation: self.def.orientation, grid: self.def.grid };
+        let rgb = [
+            self.def.color[0] as u8,
+            self.def.color[1] as u8,
+            self.def.color[2] as u8,
+        ];
+        let align = omsi_content::font::TextAlign {
+            orientation: self.def.orientation,
+            grid: self.def.grid,
+        };
         match &self.atlas {
             Some(a) => a.render_aligned(text, w, h, self.def.full_color, rgb, align),
             None => vec![0u8; (w * h * 4) as usize],
@@ -271,7 +379,12 @@ mod tests {
             bitmap: "shared.bmp".into(),
             alpha: "shared.bmp".into(),
             height: 2,
-            chars: vec![omsi_content::font::FontChar { ch: 'A', x0: 0, x1: 1, y: 0 }],
+            chars: vec![omsi_content::font::FontChar {
+                ch: 'A',
+                x0: 0,
+                x1: 1,
+                y: 0,
+            }],
             ..Default::default()
         }
     }
@@ -298,7 +411,10 @@ mod tests {
         assert_eq!(wide.text_width("AA"), 8);
         for (actual, font) in [(&small, first), (&wide, second)] {
             let uncached = FontAtlas::new(font, 2, 2, pixels.clone(), pixels.clone());
-            assert_eq!(actual.render("AA", 12, 4, true, [0; 3]), uncached.render("AA", 12, 4, true, [0; 3]));
+            assert_eq!(
+                actual.render("AA", 12, 4, true, [0; 3]),
+                uncached.render("AA", 12, 4, true, [0; 3])
+            );
         }
         assert!(Arc::ptr_eq(&small, &lib.get("SMALL", &decode).unwrap()));
         assert_eq!(reads.get(), 1);
@@ -307,11 +423,18 @@ mod tests {
     #[test]
     fn equal_bitmap_names_in_different_folders_stay_separate() {
         let mut lib = FontLibrary::new(Path::new("fonts"));
-        lib.index = Some(vec![bitmap_font("Pack A", "pack_a"), bitmap_font("Pack B", "pack_b")]);
+        lib.index = Some(vec![
+            bitmap_font("Pack A", "pack_a"),
+            bitmap_font("Pack B", "pack_b"),
+        ]);
         let reads = std::cell::Cell::new(0);
         let decode = |p: &Path| {
             reads.set(reads.get() + 1);
-            Some((2, 2, vec![if p.starts_with("pack_a") { 10 } else { 20 }; 16]))
+            Some((
+                2,
+                2,
+                vec![if p.starts_with("pack_a") { 10 } else { 20 }; 16],
+            ))
         };
         let a = lib.get("Pack A", &decode).unwrap();
         let b = lib.get("Pack B", &decode).unwrap();
@@ -322,7 +445,10 @@ mod tests {
 
     #[test]
     fn failed_images_are_remembered_only_in_this_library() {
-        let fonts = vec![bitmap_font("First", "fonts"), bitmap_font("Second", "fonts")];
+        let fonts = vec![
+            bitmap_font("First", "fonts"),
+            bitmap_font("Second", "fonts"),
+        ];
         let mut lib = FontLibrary::new(Path::new("fonts"));
         lib.index = Some(fonts.clone());
         let reads = std::cell::Cell::new(0);
@@ -335,7 +461,9 @@ mod tests {
         assert_eq!(reads.get(), 1);
         let mut next = FontLibrary::new(Path::new("fonts"));
         next.index = Some(fonts);
-        assert!(next.get("First", &|_| Some((2, 2, vec![255; 16]))).is_some());
+        assert!(next
+            .get("First", &|_| Some((2, 2, vec![255; 16])))
+            .is_some());
     }
 
     /// A full-colour font whose colour bitmap is not the alpha's size takes each glyph
@@ -344,11 +472,24 @@ mod tests {
     #[test]
     fn a_colour_bitmap_of_another_size_still_colours_the_glyphs() {
         let dir = std::path::PathBuf::from("/fonts");
-        let font = Font { path: dir.join("colour.oft"), name: "Colour".into(), bitmap: "colour.bmp".into(), alpha: "colour_alpha.bmp".into(), height: 4, gap: 0, chars: Vec::new() };
+        let font = Font {
+            path: dir.join("colour.oft"),
+            name: "Colour".into(),
+            bitmap: "colour.bmp".into(),
+            alpha: "colour_alpha.bmp".into(),
+            height: 4,
+            gap: 0,
+            chars: Vec::new(),
+        };
         let mut lib = FontLibrary::new(&dir);
         lib.index = Some(vec![font]);
         // a 4 x 4 white alpha under a 2 x 2 swatch: red, green / blue, yellow
-        let swatch = [[255, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255], [255, 255, 0, 255]];
+        let swatch = [
+            [255, 0, 0, 255],
+            [0, 255, 0, 255],
+            [0, 0, 255, 255],
+            [255, 255, 0, 255],
+        ];
         let decode = |p: &Path| -> Option<(u32, u32, Vec<u8>)> {
             match p.file_name()?.to_str()? {
                 "colour_alpha.bmp" => Some((4, 4, vec![255; 64])),
@@ -360,13 +501,20 @@ mod tests {
         assert_eq!((atlas.width, atlas.height), (4, 4));
         for (x, y) in [(0usize, 0usize), (1, 0), (0, 1), (1, 1), (3, 2)] {
             let i = (y * 4 + x) * 4;
-            assert_eq!(atlas.color[i..i + 4], swatch[(y % 2) * 2 + x % 2], "pixel ({x}, {y})");
+            assert_eq!(
+                atlas.color[i..i + 4],
+                swatch[(y % 2) * 2 + x % 2],
+                "pixel ({x}, {y})"
+            );
         }
     }
 
     #[test]
     fn font_families() {
-        assert_eq!(family_of("churafont++ Numeric 26x11 Bold"), "churafont++ numeric 26x11");
+        assert_eq!(
+            family_of("churafont++ Numeric 26x11 Bold"),
+            "churafont++ numeric 26x11"
+        );
         assert_eq!(family_of("churafont++ 32x10 Heavy"), "churafont++ 32x10");
         assert_eq!(family_of("churafont++ 14x10"), "churafont++ 14x10");
         assert_eq!(family_of("Bold"), "bold");

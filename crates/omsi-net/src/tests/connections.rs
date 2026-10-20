@@ -116,8 +116,13 @@ fn discovery_finds_a_host() {
 #[test]
 fn a_join_nobody_answers_gives_up_with_a_message() {
     // an address where nothing answers (TEST-NET-1: never routed)
-    let mut c = LanSession::join("192.0.2.1:27015", "c", world("m"), Duration::from_millis(10))
-        .unwrap();
+    let mut c = LanSession::join(
+        "192.0.2.1:27015",
+        "c",
+        world("m"),
+        Duration::from_millis(10),
+    )
+    .unwrap();
     c.join_timeout = Duration::from_millis(400);
     let t0 = Instant::now();
     while c.rejected.is_none() && t0.elapsed() < Duration::from_secs(3) {
@@ -148,13 +153,16 @@ fn a_code_with_a_dead_address_still_joins_by_the_live_one() {
         port,
         session: host.session,
     };
-    let mut c = LanSession::join(&code.encode(), "c", world("m"), Duration::from_millis(10))
-        .unwrap();
+    let mut c =
+        LanSession::join(&code.encode(), "c", world("m"), Duration::from_millis(10)).unwrap();
     assert_eq!(c.candidates.len(), 2);
     assert_eq!(c.host, None);
-    pump(&mut [&mut host, &mut c], &[pose(1.0), pose(2.0)], 100, |s| {
-        find(s[0], 2.0).is_some() && find(s[1], 1.0).is_some()
-    });
+    pump(
+        &mut [&mut host, &mut c],
+        &[pose(1.0), pose(2.0)],
+        100,
+        |s| find(s[0], 2.0).is_some() && find(s[1], 1.0).is_some(),
+    );
     assert!(c.connected);
     assert_eq!(c.host, Some(SocketAddr::from((Ipv4Addr::LOCALHOST, port))));
     assert_eq!(host.peer_count(), 1);
@@ -218,8 +226,13 @@ fn until_connected(c: &mut LanSession, host: &mut LanSession) -> bool {
 fn a_client_that_gave_up_comes_back_when_the_host_does() {
     let port = 28210;
     // nobody hosts yet: the client gives up
-    let mut c = LanSession::join(&format!("127.0.0.1:{port}"), "c", world("m"), Duration::from_millis(10))
-        .unwrap();
+    let mut c = LanSession::join(
+        &format!("127.0.0.1:{port}"),
+        "c",
+        world("m"),
+        Duration::from_millis(10),
+    )
+    .unwrap();
     c.join_timeout = Duration::from_millis(300);
     let t0 = Instant::now();
     while c.rejected.is_none() && t0.elapsed() < Duration::from_secs(3) {
@@ -237,7 +250,13 @@ fn a_client_that_gave_up_comes_back_when_the_host_does() {
 #[test]
 fn reconnect_tries_again_after_the_host_sent_us_away() {
     let mut host = LanSession::host(28220, "host", world("m"), false).unwrap();
-    let mut c = LanSession::join("127.0.0.1:28220", "c", world("m"), Duration::from_millis(10)).unwrap();
+    let mut c = LanSession::join(
+        "127.0.0.1:28220",
+        "c",
+        world("m"),
+        Duration::from_millis(10),
+    )
+    .unwrap();
     assert!(until_connected(&mut c, &mut host));
     // the host sends us away: we stay out, with its reason
     host.kick(c.my_id, "test", false);
@@ -262,7 +281,13 @@ fn reconnect_tries_again_after_the_host_sent_us_away() {
 #[test]
 fn a_banned_player_hears_why_at_the_door() {
     let mut host = LanSession::host(28230, "host", world("m"), false).unwrap();
-    let mut c = LanSession::join("127.0.0.1:28230", "c", world("m"), Duration::from_millis(10)).unwrap();
+    let mut c = LanSession::join(
+        "127.0.0.1:28230",
+        "c",
+        world("m"),
+        Duration::from_millis(10),
+    )
+    .unwrap();
     assert!(until_connected(&mut c, &mut host));
     host.kick(c.my_id, "Banni : conduite dangereuse", true);
     // (until the word arrives: a fixed number of rounds was too few on a busy machine)
@@ -272,7 +297,10 @@ fn a_banned_player_hears_why_at_the_door() {
         host.tick(0.05, &pose(0.0));
         std::thread::sleep(Duration::from_millis(20));
     }
-    assert_eq!(c.turned_away.as_deref(), Some("Banni : conduite dangereuse"));
+    assert_eq!(
+        c.turned_away.as_deref(),
+        Some("Banni : conduite dangereuse")
+    );
     // back again: turned away at the door, with the same reason
     assert!(c.reconnect());
     let t0 = Instant::now();
@@ -282,7 +310,13 @@ fn a_banned_player_hears_why_at_the_door() {
         std::thread::sleep(Duration::from_millis(20));
     }
     assert!(!c.connected);
-    assert!(c.turned_away.as_deref().is_some_and(|r| r.contains("Banni : conduite dangereuse")), "{:?}", c.turned_away);
+    assert!(
+        c.turned_away
+            .as_deref()
+            .is_some_and(|r| r.contains("Banni : conduite dangereuse")),
+        "{:?}",
+        c.turned_away
+    );
 }
 
 #[test]
@@ -303,8 +337,9 @@ fn repeated_passenger_requests_reach_the_vehicle_owner_and_ai_host() {
     let mut a = LanSession::join_addr(vec![addr], None, "a", world("m")).unwrap();
     let mut b = LanSession::join_addr(vec![addr], None, "b", world("m")).unwrap();
     let poses = [pose(100.0), pose(200.0), pose(300.0)];
-    pump(&mut [&mut host, &mut a, &mut b], &poses, 150, |sessions|
-        find(sessions[2], 200.0).is_some() && find(sessions[0], 300.0).is_some());
+    pump(&mut [&mut host, &mut a, &mut b], &poses, 150, |sessions| {
+        find(sessions[2], 200.0).is_some() && find(sessions[0], 300.0).is_some()
+    });
     assert!(a.connected && b.connected);
     let player_request = "pax_request player 0 entry 2";
     let ai_request = "pax_request ai 7 exit 1";
@@ -313,8 +348,12 @@ fn repeated_passenger_requests_reach_the_vehicle_owner_and_ai_host() {
         a.command(host.my_id, ai_request);
         host.tick(0.2, &poses[0]);
         b.tick(0.2, &poses[2]);
-        assert!(host.take_commands().contains(&(a.my_id, ai_request.to_owned())));
-        assert!(b.take_commands().contains(&(a.my_id, player_request.to_owned())));
+        assert!(host
+            .take_commands()
+            .contains(&(a.my_id, ai_request.to_owned())));
+        assert!(b
+            .take_commands()
+            .contains(&(a.my_id, player_request.to_owned())));
         // Discarding the first received state does not lose the active request:
         // the next refresh still carries the whole target and door index.
     }
@@ -322,7 +361,10 @@ fn repeated_passenger_requests_reach_the_vehicle_owner_and_ai_host() {
     let message = format!("CMD|{}|{}|{player_request}", a.my_id, b.my_id);
     host.on_command(&message.split('|').collect::<Vec<_>>(), false_source);
     b.tick(0.2, &poses[2]);
-    assert!(b.take_commands().is_empty(), "another address cannot request a door for this player");
+    assert!(
+        b.take_commands().is_empty(),
+        "another address cannot request a door for this player"
+    );
 }
 
 #[test]
@@ -332,30 +374,67 @@ fn sound_events_relay_between_clients_and_host_ai_without_echo_or_spoofing() {
     let mut a = LanSession::join(&port, "a", world("m"), Duration::from_secs(1)).unwrap();
     let mut b = LanSession::join(&port, "b", world("m"), Duration::from_secs(1)).unwrap();
     let poses = [pose(1.0), pose(2.0), pose(3.0)];
-    pump(&mut [&mut host, &mut a, &mut b], &poses, 80, |s| s.iter().all(|s| s.peers.len() == 2));
+    pump(&mut [&mut host, &mut a, &mut b], &poses, 80, |s| {
+        s.iter().all(|s| s.peers.len() == 2)
+    });
     assert_eq!(a.peers.len(), 2);
-    let tl = sounds::Event { ai: 0, bus: "Vehicles/x.bus".into(), trigger: "door".into(), file: None, values: vec![("doorSpeed".into(), 5.0)] };
-    let tf = sounds::Event { trigger: "announcement".into(), file: Some("..\\Announcements\\árvíztűrő.wav".into()), values: Vec::new(), ..tl.clone() };
-    a.publish_sound(tl.clone()); a.publish_sound(tf.clone());
-    let ai = sounds::Event { ai: 77, trigger: "horn".into(), ..tl.clone() };
+    let tl = sounds::Event {
+        ai: 0,
+        bus: "Vehicles/x.bus".into(),
+        trigger: "door".into(),
+        file: None,
+        values: vec![("doorSpeed".into(), 5.0)],
+    };
+    let tf = sounds::Event {
+        trigger: "announcement".into(),
+        file: Some("..\\Announcements\\árvíztűrő.wav".into()),
+        values: Vec::new(),
+        ..tl.clone()
+    };
+    a.publish_sound(tl.clone());
+    a.publish_sound(tf.clone());
+    let ai = sounds::Event {
+        ai: 77,
+        trigger: "horn".into(),
+        ..tl.clone()
+    };
     host.publish_sound(ai.clone());
     // A client cannot originate AI events.
-    b.publish_sound(sounds::Event { ai: 88, ..tl.clone() });
+    b.publish_sound(sounds::Event {
+        ai: 88,
+        ..tl.clone()
+    });
     pump(&mut [&mut host, &mut a, &mut b], &poses, 40, |_| false);
-    let hs = host.take_sounds(); let as_ = a.take_sounds(); let bs = b.take_sounds();
-    assert_eq!(hs.iter().map(|s| &s.event).collect::<Vec<_>>(), vec![&tl, &tf]);
+    let hs = host.take_sounds();
+    let as_ = a.take_sounds();
+    let bs = b.take_sounds();
+    assert_eq!(
+        hs.iter().map(|s| &s.event).collect::<Vec<_>>(),
+        vec![&tl, &tf]
+    );
     assert!(hs.iter().all(|s| s.owner == a.my_id));
-    assert_eq!(as_.len(), 1); assert_eq!(as_[0].event, ai);
-    assert_eq!(bs.iter().filter(|s| s.owner == a.my_id).map(|s| &s.event).collect::<Vec<_>>(), vec![&tl, &tf]);
-    assert!(bs.iter().any(|s| s.owner == 1 && s.event == ai)); assert_eq!(bs.len(), 3);
+    assert_eq!(as_.len(), 1);
+    assert_eq!(as_[0].event, ai);
+    assert_eq!(
+        bs.iter()
+            .filter(|s| s.owner == a.my_id)
+            .map(|s| &s.event)
+            .collect::<Vec<_>>(),
+        vec![&tl, &tf]
+    );
+    assert!(bs.iter().any(|s| s.owner == 1 && s.event == ai));
+    assert_eq!(bs.len(), 3);
     // Authentication uses the socket address as well as the claimed player ID.
-    let mut fake = sounds::Sync::default(); fake.publish(&[host.my_id], tl);
+    let mut fake = sounds::Sync::default();
+    fake.publish(&[host.my_id], tl);
     for packet in fake.tick(PROTOCOL as u8, b.my_id, 0.0) {
         host.on_sound(&packet, host.peers[&a.my_id].addr.unwrap());
     }
     assert!(host.take_sounds().is_empty());
     pump(&mut [&mut host, &mut a, &mut b], &poses, 10, |_| false);
-    assert!(host.take_sounds().is_empty()); assert!(a.take_sounds().is_empty()); assert!(b.take_sounds().is_empty());
+    assert!(host.take_sounds().is_empty());
+    assert!(a.take_sounds().is_empty());
+    assert!(b.take_sounds().is_empty());
 }
 
 #[test]
@@ -364,12 +443,25 @@ fn restarting_host_replaces_retained_versions_and_rejects_old_session_packets() 
     let addr = SocketAddr::from(([127, 0, 0, 1], host.local_addr().unwrap().port()));
     let mut client = LanSession::join_addr(vec![addr], None, "client", world("m")).unwrap();
     let poses = [pose(100.0), pose(200.0)];
-    pump(&mut [&mut host, &mut client], &poses, 100, |s| s[1].connected && s[1].peers.contains_key(&1));
+    pump(&mut [&mut host, &mut client], &poses, 100, |s| {
+        s[1].connected && s[1].peers.contains_key(&1)
+    });
     let old_secret = client.rebind_secret.unwrap();
-    let old_welcome = format!("WELCOME|{PROTOCOL}|{}|{}|host|{}|2|{}|{:016x}", client.my_id,
-        session_hex(host.session), host.world.fields(), admission::secret_hex(&old_secret), client.nonce);
-    let sound = |trigger: &str| sounds::Event { ai: 0, bus: "Vehicles/x.bus".into(),
-        trigger: trigger.into(), file: None, values: vec![] };
+    let old_welcome = format!(
+        "WELCOME|{PROTOCOL}|{}|{}|host|{}|2|{}|{:016x}",
+        client.my_id,
+        session_hex(host.session),
+        host.world.fields(),
+        admission::secret_hex(&old_secret),
+        client.nonce
+    );
+    let sound = |trigger: &str| sounds::Event {
+        ai: 0,
+        bus: "Vehicles/x.bus".into(),
+        trigger: trigger.into(),
+        file: None,
+        values: vec![],
+    };
     host.publish_sound(sound("old"));
     let old_sound = host.sounds.tick(PROTOCOL as u8, 1, 0.2).remove(0);
     pump(&mut [&mut host, &mut client], &poses, 40, |_| false);
@@ -381,30 +473,61 @@ fn restarting_host_replaces_retained_versions_and_rejects_old_session_packets() 
         client.tick(0.1, &poses[1]);
     }
     let mut old_tx = vars::VarSender::default();
-    let old_packet = old_tx.tick(PROTOCOL as u8, 1, 99, &[], &[], &[0], &["stale".into()], 0.2).remove(0);
+    let old_packet = old_tx
+        .tick(
+            PROTOCOL as u8,
+            1,
+            99,
+            &[],
+            &[],
+            &[0],
+            &["stale".into()],
+            0.2,
+        )
+        .remove(0);
     drop(host);
     // Keep peer 1: deliberately do not tick long enough for retention to expire.
     let mut host = LanSession::host(addr.port(), "host", world("m"), false).unwrap();
     client.connected = false;
     client.hello_acc = 10.0;
-    pump(&mut [&mut host, &mut client], &poses, 150, |s| s[1].connected && s[1].peers.contains_key(&1) && s[1].rebind_secret != Some(old_secret));
+    pump(&mut [&mut host, &mut client], &poses, 150, |s| {
+        s[1].connected && s[1].peers.contains_key(&1) && s[1].rebind_secret != Some(old_secret)
+    });
     assert!(client.connected);
     assert_ne!(client.rebind_secret, Some(old_secret));
     client.on_welcome(&old_welcome.split('|').collect::<Vec<_>>(), addr);
-    assert_ne!(client.rebind_secret, Some(old_secret), "delayed welcome must not restore the old session");
-    client.take_vars(); client.take_var_schemas();
-    let mut stale = vec![0xEA]; stale.extend_from_slice(&old_secret); stale.extend_from_slice(&old_packet);
+    assert_ne!(
+        client.rebind_secret,
+        Some(old_secret),
+        "delayed welcome must not restore the old session"
+    );
+    client.take_vars();
+    client.take_var_schemas();
+    let mut stale = vec![0xEA];
+    stale.extend_from_slice(&old_secret);
+    stale.extend_from_slice(&old_packet);
     host.socket.send_to(&stale, to_client(&client)).unwrap();
-    let mut stale_sound = vec![0xEA]; stale_sound.extend_from_slice(&old_secret); stale_sound.extend_from_slice(&old_sound);
-    host.socket.send_to(&stale_sound, to_client(&client)).unwrap();
+    let mut stale_sound = vec![0xEA];
+    stale_sound.extend_from_slice(&old_secret);
+    stale_sound.extend_from_slice(&old_sound);
+    host.socket
+        .send_to(&stale_sound, to_client(&client))
+        .unwrap();
     // The same obsolete connection credential is rejected in the reverse direction.
     client.socket.send_to(&stale, addr).unwrap();
     host.publish_sound(sound("fresh"));
     host.send_vars(99, &[], &[], &[0], &["fresh".into()], 0.2);
     host.send_var_schema(99, "fresh schema", 0.2);
-    client.tick(0.1, &poses[1]); host.tick(0.1, &poses[0]);
-    assert!(client.take_vars().iter().any(|v| v.strings == vec![(0, "fresh".into())]));
-    assert!(client.take_var_schemas().iter().any(|v| v.strings == vec![(0, "fresh schema".into())]));
+    client.tick(0.1, &poses[1]);
+    host.tick(0.1, &poses[0]);
+    assert!(client
+        .take_vars()
+        .iter()
+        .any(|v| v.strings == vec![(0, "fresh".into())]));
+    assert!(client
+        .take_var_schemas()
+        .iter()
+        .any(|v| v.strings == vec![(0, "fresh schema".into())]));
     assert!(host.take_vars().is_empty());
     pump(&mut [&mut host, &mut client], &poses, 30, |_| false);
     let sounds = client.take_sounds();
@@ -418,7 +541,9 @@ fn restarting_client_on_the_same_socket_invalidates_host_receive_state() {
     let addr = SocketAddr::from(([127, 0, 0, 1], host.local_addr().unwrap().port()));
     let mut client = LanSession::join_addr(vec![addr], None, "client", world("m")).unwrap();
     let poses = [pose(100.0), pose(200.0)];
-    pump(&mut [&mut host, &mut client], &poses, 100, |s| s[1].connected && s[0].peers.values().any(|p| p.has_pose));
+    pump(&mut [&mut host, &mut client], &poses, 100, |s| {
+        s[1].connected && s[0].peers.values().any(|p| p.has_pose)
+    });
     let id = client.my_id;
     let old_nonce = client.nonce;
     let old_secret = client.rebind_secret.unwrap();
@@ -427,23 +552,35 @@ fn restarting_client_on_the_same_socket_invalidates_host_receive_state() {
         client.send_var_schema(99, &format!("schema {n}"), 0.2);
         host.tick(0.1, &poses[0]);
     }
-    host.take_vars(); host.take_var_schemas();
+    host.take_vars();
+    host.take_var_schemas();
     client.nonce = random_session_id();
     client.rebind_secret = None;
     client.connected = false;
     client.var_sender = vars::VarSender::default();
     client.schema_sender = vars::VarSender::default();
     client.hello_acc = 10.0;
-    pump(&mut [&mut host, &mut client], &poses, 100, |s| s[1].connected && s[1].rebind_secret != Some(old_secret));
+    pump(&mut [&mut host, &mut client], &poses, 100, |s| {
+        s[1].connected && s[1].rebind_secret != Some(old_secret)
+    });
     assert_eq!(client.my_id, id);
     assert_ne!(client.rebind_secret, Some(old_secret));
     // A late old HELLO must not change the credential back or reset the new stream.
-    let hello = format!("HELLO|{PROTOCOL}|-|client||{}|{old_nonce:016X}", client.world.fields());
+    let hello = format!(
+        "HELLO|{PROTOCOL}|-|client||{}|{old_nonce:016X}",
+        client.world.fields()
+    );
     host.on_hello(&hello.split('|').collect::<Vec<_>>(), to_client(&client));
     assert_eq!(host.peers[&id].nonce, Some(client.nonce));
     client.send_vars(99, &[], &[], &[0], &["new".into()], 0.2);
     client.send_var_schema(99, "new schema", 0.2);
     host.tick(0.1, &poses[0]);
-    assert!(host.take_vars().iter().any(|v| v.strings == vec![(0, "new".into())]));
-    assert!(host.take_var_schemas().iter().any(|v| v.strings == vec![(0, "new schema".into())]));
+    assert!(host
+        .take_vars()
+        .iter()
+        .any(|v| v.strings == vec![(0, "new".into())]));
+    assert!(host
+        .take_var_schemas()
+        .iter()
+        .any(|v| v.strings == vec![(0, "new schema".into())]));
 }

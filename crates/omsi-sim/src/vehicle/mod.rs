@@ -1,8 +1,8 @@
 //! A road vehicle: its type (definition + compiled scripts + model) and instances.
 
-use crate::particles::ParticleSet;
 use crate::anim::{pivot_from_mesh, MeshAnimator};
 use crate::host::VehicleHost;
+use crate::particles::ParticleSet;
 use crate::physics::{Controls, VehiclePhysics};
 use anyhow::{Context, Result};
 use glam::{DVec3, Mat4, Quat, Vec3, Vec4};
@@ -37,9 +37,9 @@ mod vars;
 mod visuals;
 mod weather;
 
+pub use car_run::CarRun;
 pub use contact::*;
 pub use coupling::*;
-pub use car_run::CarRun;
 #[cfg(test)]
 use drive::*;
 pub use pose::*;

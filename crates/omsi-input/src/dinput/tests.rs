@@ -107,7 +107,10 @@ fn invalid_state_releases_shared_wheel_shifter_and_cannot_drive() {
     state.pov[3] = 18000;
     let mut valid = true;
     let mut events = Vec::new();
-    assert_eq!(state_axes(&state, valid, &[true; 8], &[(-RANGE, RANGE); 8])[0], (0, 1.0));
+    assert_eq!(
+        state_axes(&state, valid, &[true; 8], &[(-RANGE, RANGE); 8])[0],
+        (0, 1.0)
+    );
     invalidate_state("G27", &mut state, &mut valid, &mut events);
     assert!(!valid);
     assert!(state_axes(&state, valid, &[true; 8], &[(-RANGE, RANGE); 8]).is_empty());
@@ -147,17 +150,15 @@ fn button_offsets_follow_instances_not_enumeration_order() {
 /// The window that hears of devices plugged in or out opens (it is a thread's own).
 #[test]
 fn notification_window_opens() {
-    let w = std::thread::spawn(|| {
-        notification_window().map(|w| unsafe { DestroyWindow(w).is_ok() })
-    })
-    .join()
-    .unwrap();
+    let w =
+        std::thread::spawn(|| notification_window().map(|w| unsafe { DestroyWindow(w).is_ok() }))
+            .join()
+            .unwrap();
     assert_eq!(w, Some(true));
 }
 
 #[test]
-fn controller_device_filter_accepts_controllers_and_rejects_mice_keyboards_and_vendor_devices()
-{
+fn controller_device_filter_accepts_controllers_and_rejects_mice_keyboards_and_vendor_devices() {
     assert!(is_controller_device(DI8DEVTYPE_JOYSTICK, 0, 0));
     assert!(is_controller_device(DI8DEVTYPE_GAMEPAD, 0, 0));
     assert!(is_controller_device(DI8DEVTYPE_DRIVING, 0, 0));

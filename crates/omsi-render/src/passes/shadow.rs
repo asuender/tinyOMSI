@@ -45,7 +45,15 @@ fn mix(h: u64, x: u64) -> u64 {
 /// One draw of a lamp tile, as `LampSigs` sums them: the mesh, its range and pose, the
 /// material (and the slot's alpha, a script's fading part) and the instance's place.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn lamp_item_hash(inst: &Instance, pose: u32, kind: u8, range: u32, material: u32, look: u32, alpha: f32) -> u64 {
+pub(crate) fn lamp_item_hash(
+    inst: &Instance,
+    pose: u32,
+    kind: u8,
+    range: u32,
+    material: u32,
+    look: u32,
+    alpha: f32,
+) -> u64 {
     let mut h = mix(0x9e37_79b9_7f4a_7c15, inst.mesh as u64);
     h = mix(h, alpha.to_bits() as u64);
     h = mix(h, (range as u64) << 32 | pose as u64);
@@ -78,8 +86,16 @@ pub(crate) fn lamp_tile_key(sums: &LampSigs, k: usize, view_proj: Mat4) -> u64 {
 impl Renderer {
     /// The near cascade (with the close one beside it in the atlas) and the far cascade,
     /// each when it is redrawn this frame.
-    pub(crate) fn encode_shadow_maps(&self, shadow_encoder: &mut wgpu::CommandEncoder, scene: &Scene, sh: &ShadowPlan, shadow_batches: &[Vec<Batch>; SHADOW_LISTS], timers: &mut PassTimers) {
-        let (draw_shadows, redraw_near, redraw_far) = (sh.draw_shadows, sh.redraw_near, sh.redraw_far);
+    pub(crate) fn encode_shadow_maps(
+        &self,
+        shadow_encoder: &mut wgpu::CommandEncoder,
+        scene: &Scene,
+        sh: &ShadowPlan,
+        shadow_batches: &[Vec<Batch>; SHADOW_LISTS],
+        timers: &mut PassTimers,
+    ) {
+        let (draw_shadows, redraw_near, redraw_far) =
+            (sh.draw_shadows, sh.redraw_near, sh.redraw_far);
         for cascade in [0usize, 1] {
             if !draw_shadows || (cascade == 1 && !redraw_far) {
                 continue;
@@ -91,14 +107,25 @@ impl Renderer {
             };
             let keep_near = cascade == 0 && !redraw_near;
             // (the far map keeps the street lamps' tiles under it when they are kept)
-            let keep_lamps = cascade == 1 && self.shadows.lamp_tiles.get().drawn.iter().any(|d| d.is_some());
+            let keep_lamps = cascade == 1
+                && self
+                    .shadows
+                    .lamp_tiles
+                    .get()
+                    .drawn
+                    .iter()
+                    .any(|d| d.is_some());
             let mut pass = shadow_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shadow"),
                 color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view,
                     depth_ops: Some(wgpu::Operations {
-                        load: if keep_near || keep_lamps { wgpu::LoadOp::Load } else { wgpu::LoadOp::Clear(1.0) },
+                        load: if keep_near || keep_lamps {
+                            wgpu::LoadOp::Load
+                        } else {
+                            wgpu::LoadOp::Clear(1.0)
+                        },
                         store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
@@ -151,7 +178,14 @@ impl Renderer {
 
     // the street lamps' maps: tiles of a quarter of the shadow size under the far map,
     // each cleared and drawn when what it shows has changed (see `LampTiles`)
-    pub(crate) fn encode_lamp_shadows(&self, shadow_encoder: &mut wgpu::CommandEncoder, scene: &Scene, f: &FrameCtx, shadow_batches: &[Vec<Batch>; SHADOW_LISTS], timers: &mut PassTimers) {
+    pub(crate) fn encode_lamp_shadows(
+        &self,
+        shadow_encoder: &mut wgpu::CommandEncoder,
+        scene: &Scene,
+        f: &FrameCtx,
+        shadow_batches: &[Vec<Batch>; SHADOW_LISTS],
+        timers: &mut PassTimers,
+    ) {
         let lamp_shadows = &f.lamp_shadows;
         // (the frames that draw the lamps' maps keep the record: a mirror's has none)
         if !f.with_overlays || f.projection.is_some() {
@@ -165,9 +199,21 @@ impl Renderer {
                 continue;
             };
             let key = lamp_tile_key(&tiles.frame, k, l.view_proj());
-            if *d != Some(key) || tiles.frame.volatile & (1 << k) != 0 || f.env.lamp_shadows_every_frame {
+            if *d != Some(key)
+                || tiles.frame.volatile & (1 << k) != 0
+                || f.env.lamp_shadows_every_frame
+            {
                 if f.env.debug_draws {
-                    log::info!("lamp shadow tile {k} drawn: {} (lamp at {:?}, {} batches)", if *d != Some(key) { "changed" } else { "moving foliage" }, l.position, shadow_batches[3 + k].len());
+                    log::info!(
+                        "lamp shadow tile {k} drawn: {} (lamp at {:?}, {} batches)",
+                        if *d != Some(key) {
+                            "changed"
+                        } else {
+                            "moving foliage"
+                        },
+                        l.position,
+                        shadow_batches[3 + k].len()
+                    );
                 }
                 redraw[k] = true;
                 *d = Some(key);
@@ -175,7 +221,11 @@ impl Renderer {
         }
         self.shadows.lamp_tiles.set(tiles);
         if f.env.debug_draws {
-            *self.counts.borrow_mut().entry("lamp shadow tiles drawn").or_default() += redraw.iter().filter(|r| **r).count() as f64;
+            *self
+                .counts
+                .borrow_mut()
+                .entry("lamp shadow tiles drawn")
+                .or_default() += redraw.iter().filter(|r| **r).count() as f64;
         }
         if redraw.iter().any(|r| *r) {
             let mut pass = shadow_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -183,10 +233,17 @@ impl Renderer {
                 color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.shadows.shadow_view_far,
-                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store }),
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    }),
                     stencil_ops: None,
                 }),
-                timestamp_writes: pass_timer(timers.set.as_ref(), &mut timers.timed, "lamp shadows"),
+                timestamp_writes: pass_timer(
+                    timers.set.as_ref(),
+                    &mut timers.timed,
+                    "lamp shadows",
+                ),
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
@@ -214,7 +271,11 @@ mod tests {
     #[test]
     fn lamp_tile_keys() {
         let items = [3u64, 0xdead_beef, 77, 1 << 40];
-        let (mut a, mut b, mut c) = (LampSigs::default(), LampSigs::default(), LampSigs::default());
+        let (mut a, mut b, mut c) = (
+            LampSigs::default(),
+            LampSigs::default(),
+            LampSigs::default(),
+        );
         for &h in &items {
             a.add(1, h);
         }

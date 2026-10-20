@@ -22,12 +22,12 @@
 mod session;
 pub use session::query_session;
 
+use crate::ws_http::{header, last_header, peek_head, read_body, read_head, refuse, REQUEST_TIME};
 use std::io::{ErrorKind, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use crate::ws_http::{header, last_header, peek_head, read_body, read_head, refuse, REQUEST_TIME};
 use tungstenite::protocol::WebSocketConfig;
 use tungstenite::{Message, WebSocket};
 
@@ -130,7 +130,13 @@ pub struct PlayerInfo {
 
 impl PlayerInfo {
     pub fn to_json(&self) -> String {
-        let num = |v: f64, digits: usize| if v.is_finite() { format!("{v:.digits$}") } else { "null".into() };
+        let num = |v: f64, digits: usize| {
+            if v.is_finite() {
+                format!("{v:.digits$}")
+            } else {
+                "null".into()
+            }
+        };
         let (lat, lon) = match self.lat_lon {
             Some((a, o)) => (num(a, 6), num(o, 6)),
             None => ("null".into(), "null".into()),
@@ -157,7 +163,14 @@ impl PlayerInfo {
 
 /// `GET /players`: a JSON array of the players.
 pub fn players_json(players: &[PlayerInfo]) -> String {
-    format!("[{}]", players.iter().map(PlayerInfo::to_json).collect::<Vec<_>>().join(","))
+    format!(
+        "[{}]",
+        players
+            .iter()
+            .map(PlayerInfo::to_json)
+            .collect::<Vec<_>>()
+            .join(",")
+    )
 }
 
 impl ServerInfo {
@@ -182,7 +195,17 @@ impl ServerInfo {
 
     /// Read what `to_json` wrote (the launcher asking a server).
     pub fn from_json(s: &str) -> Option<ServerInfo> {
-        let text = |k: &str| json_value(s, k).map(|v| v.strip_prefix('"').and_then(|v| v.strip_suffix('"')).unwrap_or(&v).to_string().replace("\\\"", "\"").replace("\\\\", "\\").replace("\\n", "\n"));
+        let text = |k: &str| {
+            json_value(s, k).map(|v| {
+                v.strip_prefix('"')
+                    .and_then(|v| v.strip_suffix('"'))
+                    .unwrap_or(&v)
+                    .to_string()
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\")
+                    .replace("\\n", "\n")
+            })
+        };
         let num = |k: &str| json_value(s, k).and_then(|v| v.trim().parse::<usize>().ok());
         Some(ServerInfo {
             name: text("name")?,
@@ -191,11 +214,27 @@ impl ServerInfo {
             players: num("players").unwrap_or(0),
             max_players: num("max_players").unwrap_or(0),
             version: text("version").unwrap_or_default(),
-            icon: if json_value(s, "icon").map(|v| v.trim() == "true").unwrap_or(false) { vec![1] } else { Vec::new() },
+            icon: if json_value(s, "icon")
+                .map(|v| v.trim() == "true")
+                .unwrap_or(false)
+            {
+                vec![1]
+            } else {
+                Vec::new()
+            },
             time: text("time").unwrap_or_default(),
             weather: text("weather").unwrap_or_default(),
-            password: json_value(s, "password").map(|v| v.trim() == "true").unwrap_or(false),
-            vehicles: text("vehicles").map(|v| v.split(';').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect()).unwrap_or_default(),
+            password: json_value(s, "password")
+                .map(|v| v.trim() == "true")
+                .unwrap_or(false),
+            vehicles: text("vehicles")
+                .map(|v| {
+                    v.split(';')
+                        .map(|x| x.trim().to_string())
+                        .filter(|x| !x.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default(),
             reached_at: String::new(),
             ..Default::default()
         })
@@ -263,7 +302,11 @@ pub fn ws_url(target: &str) -> Option<String> {
         return None;
     };
     let rest = rest.trim_end_matches('/');
-    Some(if rest.ends_with("/ws") { format!("{scheme}{rest}") } else { format!("{scheme}{rest}/ws") })
+    Some(if rest.ends_with("/ws") {
+        format!("{scheme}{rest}")
+    } else {
+        format!("{scheme}{rest}/ws")
+    })
 }
 
 fn is_tunnel(t: &str) -> bool {
@@ -275,7 +318,12 @@ fn is_tunnel(t: &str) -> bool {
     };
     let host = host.to_ascii_lowercase();
     host.strip_suffix(".trycloudflare.com").is_some_and(|name| {
-        name.split('.').all(|label| !label.is_empty() && label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+        name.split('.').all(|label| {
+            !label.is_empty()
+                && label
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        })
     })
 }
 
@@ -283,7 +331,10 @@ fn is_tunnel(t: &str) -> bool {
 pub fn http_base(target: &str) -> Option<String> {
     let u = ws_url(target)?;
     let u = u.strip_suffix("/ws").unwrap_or(&u).to_string();
-    Some(u.replacen("wss://", "https://", 1).replacen("ws://", "http://", 1))
+    Some(
+        u.replacen("wss://", "https://", 1)
+            .replacen("ws://", "http://", 1),
+    )
 }
 
 /// The web addresses a server may answer at, for whatever address a player gave: a web
@@ -302,10 +353,12 @@ pub fn web_bases(target: &str) -> Vec<String> {
     }
     // (an IPv6 address is written in brackets with a port: [::1]:27025)
     let (host, port) = match t.rsplit_once(':') {
-        Some((h, p)) if !h.is_empty() && (!h.contains(':') || h.ends_with(']')) => match p.parse::<u16>() {
-            Ok(p) => (h.to_string(), Some(p)),
-            Err(_) => (t.to_string(), None),
-        },
+        Some((h, p)) if !h.is_empty() && (!h.contains(':') || h.ends_with(']')) => {
+            match p.parse::<u16>() {
+                Ok(p) => (h.to_string(), Some(p)),
+                Err(_) => (t.to_string(), None),
+            }
+        }
         _ if t.contains(':') && !t.starts_with('[') => (format!("[{t}]"), None),
         _ => (t.to_string(), None),
     };
@@ -337,11 +390,19 @@ pub fn query(target: &str, with_icon: bool) -> Result<ServerInfo, String> {
     if bases.is_empty() {
         return Err("no address given".into());
     }
-    let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(6)).user_agent("openOMSI").build();
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_secs(6))
+        .user_agent("openOMSI")
+        .build();
     let mut err = String::new();
     let mut found = None;
     for base in bases {
-        match agent.get(&format!("{base}/status")).call().map_err(|e| e.to_string()).and_then(|r| r.into_string().map_err(|e| e.to_string())) {
+        match agent
+            .get(&format!("{base}/status"))
+            .call()
+            .map_err(|e| e.to_string())
+            .and_then(|r| r.into_string().map_err(|e| e.to_string()))
+        {
             Ok(body) => match ServerInfo::from_json(&body) {
                 Some(i) => {
                     found = Some((base, i));
@@ -362,7 +423,12 @@ pub fn query(target: &str, with_icon: bool) -> Result<ServerInfo, String> {
         info.icon.clear();
         if let Ok(r) = agent.get(&format!("{base}/icon.png")).call() {
             let mut buf = Vec::new();
-            if r.into_reader().take(512 * 1024).read_to_end(&mut buf).is_ok() && buf.starts_with(b"\x89PNG") {
+            if r.into_reader()
+                .take(512 * 1024)
+                .read_to_end(&mut buf)
+                .is_ok()
+                && buf.starts_with(b"\x89PNG")
+            {
                 info.icon = buf;
             }
         }
@@ -390,34 +456,51 @@ const DATAGRAM_LIMIT: usize = 4096;
 const STREAM_LIMIT: usize = 128 * 1024;
 
 fn datagram_config() -> WebSocketConfig {
-    WebSocketConfig::default().read_buffer_size(8 * 1024).max_message_size(Some(DATAGRAM_LIMIT)).max_frame_size(Some(DATAGRAM_LIMIT))
+    WebSocketConfig::default()
+        .read_buffer_size(8 * 1024)
+        .max_message_size(Some(DATAGRAM_LIMIT))
+        .max_frame_size(Some(DATAGRAM_LIMIT))
 }
 
 fn stream_config() -> WebSocketConfig {
-    WebSocketConfig::default().max_message_size(Some(STREAM_LIMIT)).max_frame_size(Some(STREAM_LIMIT))
+    WebSocketConfig::default()
+        .max_message_size(Some(STREAM_LIMIT))
+        .max_frame_size(Some(STREAM_LIMIT))
 }
 
 fn gateway_clients() -> &'static Mutex<std::collections::HashMap<SocketAddr, std::net::IpAddr>> {
-    static CLIENTS: std::sync::OnceLock<Mutex<std::collections::HashMap<SocketAddr, std::net::IpAddr>>> = std::sync::OnceLock::new();
+    static CLIENTS: std::sync::OnceLock<
+        Mutex<std::collections::HashMap<SocketAddr, std::net::IpAddr>>,
+    > = std::sync::OnceLock::new();
     CLIENTS.get_or_init(Default::default)
 }
 
 pub(crate) fn gateway_client(local: SocketAddr) -> Option<std::net::IpAddr> {
-    gateway_clients().lock().unwrap_or_else(|e| e.into_inner()).get(&local).copied()
+    gateway_clients()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(&local)
+        .copied()
 }
 
 pub(crate) struct GatewayClient(SocketAddr);
 
 impl GatewayClient {
     pub(crate) fn register(local: SocketAddr, ip: std::net::IpAddr) -> GatewayClient {
-        gateway_clients().lock().unwrap_or_else(|e| e.into_inner()).insert(local, ip);
+        gateway_clients()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(local, ip);
         GatewayClient(local)
     }
 }
 
 impl Drop for GatewayClient {
     fn drop(&mut self) {
-        gateway_clients().lock().unwrap_or_else(|e| e.into_inner()).remove(&self.0);
+        gateway_clients()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&self.0);
     }
 }
 
@@ -461,7 +544,12 @@ struct Place<'a>(&'a AtomicUsize);
 impl Places {
     /// A place, when fewer than `max` are taken.
     fn take(&self, max: usize) -> Option<Place<'_>> {
-        self.0.fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < max).then_some(n + 1)).ok().map(|_| Place(&self.0))
+        self.0
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
+                (n < max).then_some(n + 1)
+            })
+            .ok()
+            .map(|_| Place(&self.0))
     }
 }
 
@@ -495,7 +583,11 @@ impl Drop for WsGateway {
 
 impl WsGateway {
     /// Listen on `listen` (TCP) and carry WebSockets to the session at `target` (UDP).
-    pub fn start(listen: SocketAddr, target: SocketAddr, info: ServerInfo) -> std::io::Result<WsGateway> {
+    pub fn start(
+        listen: SocketAddr,
+        target: SocketAddr,
+        info: ServerInfo,
+    ) -> std::io::Result<WsGateway> {
         let listener = TcpListener::bind(listen)?;
         let addr = listener.local_addr()?;
         listener.set_nonblocking(true)?;
@@ -549,7 +641,12 @@ impl WsGateway {
             }
         })?;
         log::info!("ws gateway: WebSockets on {addr} carry the session at {target} (GET /status, /icon.png)");
-        Ok(WsGateway { addr, info, connected, stop })
+        Ok(WsGateway {
+            addr,
+            info,
+            connected,
+            stop,
+        })
     }
 }
 
@@ -577,10 +674,14 @@ fn client_ip(head: &str, peer: Option<SocketAddr>, cf_first: bool) -> Option<std
     // writes both, the same - unless the operator says Cloudflare is in front)
     let forwarded = || last_header(head, "x-forwarded-for").and_then(|v| v.rsplit(',').next());
     let cf = || last_header(head, "cf-connecting-ip");
-    if cf_first { cf().or_else(forwarded) } else { forwarded().or_else(cf) }
-        .map(str::trim)
-        .and_then(|v| v.parse::<std::net::IpAddr>().ok())
-        .filter(|ip| !ip.is_loopback())
+    if cf_first {
+        cf().or_else(forwarded)
+    } else {
+        forwarded().or_else(cf)
+    }
+    .map(str::trim)
+    .and_then(|v| v.parse::<std::net::IpAddr>().ok())
+    .filter(|ip| !ip.is_loopback())
 }
 
 pub(crate) fn source_key(ip: std::net::IpAddr) -> std::net::IpAddr {
@@ -610,7 +711,11 @@ fn same_secret(a: &str, b: &str) -> bool {
 /// server's admin password in `X-Admin-Password`; five wrong ones in two minutes close it
 /// for a while. A reverse proxy on the same machine forwards from 127.0.0.1 too: it must
 /// not pass `/admin` on.
-pub fn local_admin(request: &[u8], peer: Option<SocketAddr>, info: &Mutex<ServerInfo>) -> (&'static str, String) {
+pub fn local_admin(
+    request: &[u8],
+    peer: Option<SocketAddr>,
+    info: &Mutex<ServerInfo>,
+) -> (&'static str, String) {
     let text = String::from_utf8_lossy(request);
     let (head, body) = text.split_once("\r\n\r\n").unwrap_or((&text, ""));
     let mut i = info.lock().unwrap_or_else(|e| e.into_inner());
@@ -623,21 +728,49 @@ pub fn local_admin(request: &[u8], peer: Option<SocketAddr>, info: &Mutex<Server
     // A tunnel or a proxy on this machine connects from the loopback as well: the server's
     // own cloudflared tunnel (`tunnel --url http://127.0.0.1:<web_port>`) would have put the
     // door on the internet behind the password alone. What came through one says so.
-    if ["cf-connecting-ip", "cf-ray", "x-forwarded-for", "forwarded", "x-real-ip"].iter().any(|h| header(head, h).is_some()) {
-        return ("403 Forbidden", "only from this machine, not through a tunnel or proxy".into());
+    if [
+        "cf-connecting-ip",
+        "cf-ray",
+        "x-forwarded-for",
+        "forwarded",
+        "x-real-ip",
+    ]
+    .iter()
+    .any(|h| header(head, h).is_some())
+    {
+        return (
+            "403 Forbidden",
+            "only from this machine, not through a tunnel or proxy".into(),
+        );
     }
     if !head.starts_with("POST ") {
-        return ("405 Method Not Allowed", "POST admin commands, one a line".into());
+        return (
+            "405 Method Not Allowed",
+            "POST admin commands, one a line".into(),
+        );
     }
-    i.local_admin_failures.retain(|t| t.elapsed() < ADMIN_LOCK_WINDOW);
+    i.local_admin_failures
+        .retain(|t| t.elapsed() < ADMIN_LOCK_WINDOW);
     if i.local_admin_failures.len() >= ADMIN_LOCK_AFTER {
-        return ("429 Too Many Requests", "too many wrong passwords: try again later".into());
+        return (
+            "429 Too Many Requests",
+            "too many wrong passwords: try again later".into(),
+        );
     }
-    if !same_secret(header(head, "x-admin-password").unwrap_or(""), &i.local_admin_password) {
+    if !same_secret(
+        header(head, "x-admin-password").unwrap_or(""),
+        &i.local_admin_password,
+    ) {
         i.local_admin_failures.push(Instant::now());
         return ("401 Unauthorized", "wrong admin password".into());
     }
-    let commands: Vec<String> = body.lines().map(str::trim).filter(|l| !l.is_empty()).take(10).map(|l| l.chars().take(200).collect()).collect();
+    let commands: Vec<String> = body
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .take(10)
+        .map(|l| l.chars().take(200).collect())
+        .collect();
     let n = commands.len();
     i.local_admin_queue.extend(commands);
     ("202 Accepted", format!("{n} command(s) taken"))
@@ -646,22 +779,42 @@ pub fn local_admin(request: &[u8], peer: Option<SocketAddr>, info: &Mutex<Server
 /// One TCP connection to the gateway: a status request, the icon, a player's WebSocket or a
 /// mod stream.
 #[allow(clippy::too_many_arguments)]
-fn serve(stream: TcpStream, slot: Option<SourceSlot>, target: SocketAddr, info: &Mutex<ServerInfo>, stop: &AtomicBool, connected: &AtomicUsize, sources: &Arc<Sources>, admission: &Admission) -> Result<(), String> {
+fn serve(
+    stream: TcpStream,
+    slot: Option<SourceSlot>,
+    target: SocketAddr,
+    info: &Mutex<ServerInfo>,
+    stop: &AtomicBool,
+    connected: &AtomicUsize,
+    sources: &Arc<Sources>,
+    admission: &Admission,
+) -> Result<(), String> {
     let peer = stream.peer_addr().ok();
     stream.set_nonblocking(false).map_err(|e| e.to_string())?;
-    stream.set_read_timeout(Some(HEAD_WAIT)).map_err(|e| e.to_string())?;
+    stream
+        .set_read_timeout(Some(HEAD_WAIT))
+        .map_err(|e| e.to_string())?;
     let mut first = [0u8; 1];
     stream.peek(&mut first).map_err(|e| e.to_string())?;
     let deadline = Instant::now() + REQUEST_TIME;
     let req = String::from_utf8_lossy(&peek_head(&stream, deadline)).to_string();
-    stream.set_read_timeout(Some(HEAD_WAIT)).map_err(|e| e.to_string())?;
+    stream
+        .set_read_timeout(Some(HEAD_WAIT))
+        .map_err(|e| e.to_string())?;
     let path = req.split_whitespace().nth(1).unwrap_or("/").to_string();
     let upgrade = req.to_ascii_lowercase().contains("upgrade: websocket");
     let client = client_ip(&req, peer, CF_FIRST.load(Ordering::Relaxed));
-    let source = client.map(|ip| ip.to_string()).unwrap_or_else(|| peer.map(|p| p.ip().to_string()).unwrap_or_else(|| "?".into()));
+    let source = client.map(|ip| ip.to_string()).unwrap_or_else(|| {
+        peer.map(|p| p.ip().to_string())
+            .unwrap_or_else(|| "?".into())
+    });
     let _slot = match (slot, client) {
         (Some(slot), _) => Some(slot),
-        (None, Some(ip)) => Some(sources.take(ip).ok_or_else(|| format!("{source}: {PER_SOURCE} connections open already"))?),
+        (None, Some(ip)) => Some(
+            sources
+                .take(ip)
+                .ok_or_else(|| format!("{source}: {PER_SOURCE} connections open already"))?,
+        ),
         (None, None) => None,
     };
     let tunnel = upgrade && path.starts_with("/tcp");
@@ -680,7 +833,9 @@ fn serve(stream: TcpStream, slot: Option<SourceSlot>, target: SocketAddr, info: 
         }
     };
     if !upgrade || tunnel {
-        stream.set_read_timeout(Some(Duration::from_secs(10))).map_err(|e| e.to_string())?;
+        stream
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .map_err(|e| e.to_string())?;
     }
     if !upgrade {
         let mut s = stream;
@@ -711,13 +866,28 @@ fn serve(stream: TcpStream, slot: Option<SourceSlot>, target: SocketAddr, info: 
                 let (status, text) = local_admin(&request, peer, info);
                 (status, "text/plain; charset=utf-8", text.into_bytes())
             }
-            "/status" | "/status.json" => ("200 OK", "application/json", info.lock().unwrap_or_else(|e| e.into_inner()).to_json().into_bytes()),
+            "/status" | "/status.json" => (
+                "200 OK",
+                "application/json",
+                info.lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .to_json()
+                    .into_bytes(),
+            ),
             "/players" | "/players.json" => {
                 let i = info.lock().unwrap_or_else(|e| e.into_inner());
                 if i.players_public {
-                    ("200 OK", "application/json", players_json(&i.player_list).into_bytes())
+                    (
+                        "200 OK",
+                        "application/json",
+                        players_json(&i.player_list).into_bytes(),
+                    )
                 } else {
-                    ("404 Not Found", "text/plain", b"this server does not share its players' positions".to_vec())
+                    (
+                        "404 Not Found",
+                        "text/plain",
+                        b"this server does not share its players' positions".to_vec(),
+                    )
                 }
             }
             "/icon.png" => {
@@ -742,9 +912,12 @@ fn serve(stream: TcpStream, slot: Option<SourceSlot>, target: SocketAddr, info: 
     if tunnel {
         // a byte stream to the session's TCP port (the host's mods): the way the files go
         // where only HTTP gets through
-        let mut ws = tungstenite::accept_with_config(stream, Some(stream_config())).map_err(|e| e.to_string())?;
+        let mut ws = tungstenite::accept_with_config(stream, Some(stream_config()))
+            .map_err(|e| e.to_string())?;
         let Some(_place) = admission.tunnels.take(MAX_TUNNELS) else {
-            log::info!("ws gateway: {MAX_TUNNELS} mod streams open already; one more told to come back");
+            log::info!(
+                "ws gateway: {MAX_TUNNELS} mod streams open already; one more told to come back"
+            );
             // (what the mods server says when it has no place: the game knows to ask again)
             let _ = ws.send(Message::Binary(b"ERR busy\n".to_vec().into()));
             let _ = ws.close(None);
@@ -752,11 +925,15 @@ fn serve(stream: TcpStream, slot: Option<SourceSlot>, target: SocketAddr, info: 
             return Ok(());
         };
         // (the 10 s of the request's read held every chunk that long)
-        ws.get_mut().set_read_timeout(Some(Duration::from_millis(5))).map_err(|e| e.to_string())?;
-        let tcp = TcpStream::connect(SocketAddr::from(([127, 0, 0, 1], target.port()))).map_err(|e| e.to_string())?;
+        ws.get_mut()
+            .set_read_timeout(Some(Duration::from_millis(5)))
+            .map_err(|e| e.to_string())?;
+        let tcp = TcpStream::connect(SocketAddr::from(([127, 0, 0, 1], target.port())))
+            .map_err(|e| e.to_string())?;
         return pump_tcp(&mut ws, tcp, stop);
     }
-    let mut ws = tungstenite::accept_with_config(stream, Some(datagram_config())).map_err(|e| e.to_string())?;
+    let mut ws = tungstenite::accept_with_config(stream, Some(datagram_config()))
+        .map_err(|e| e.to_string())?;
     let udp = UdpSocket::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
     udp.set_nonblocking(true).map_err(|e| e.to_string())?;
     // the session sees this player at the socket's 127.0.0.1 address ("joined from
@@ -765,7 +942,9 @@ fn serve(stream: TcpStream, slot: Option<SourceSlot>, target: SocketAddr, info: 
         log::info!("gateway: player WebSocket from {source} on {local}");
         client.map(|ip| GatewayClient::register(local, ip))
     });
-    ws.get_mut().set_read_timeout(Some(Duration::from_millis(5))).map_err(|e| e.to_string())?;
+    ws.get_mut()
+        .set_read_timeout(Some(Duration::from_millis(5)))
+        .map_err(|e| e.to_string())?;
     connected.fetch_add(1, Ordering::Relaxed);
     let r = pump(&mut ws, &udp, |u, d| u.send_to(d, target).map(|_| ()), stop);
     connected.fetch_sub(1, Ordering::Relaxed);
@@ -773,12 +952,19 @@ fn serve(stream: TcpStream, slot: Option<SourceSlot>, target: SocketAddr, info: 
 }
 
 fn html(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// Carry datagrams both ways between a WebSocket and a UDP socket until either side goes.
 /// `send` hands a message from the WebSocket to the UDP side.
-fn pump<S: Read + Write>(ws: &mut WebSocket<S>, udp: &UdpSocket, mut send: impl FnMut(&UdpSocket, &[u8]) -> std::io::Result<()>, stop: &AtomicBool) -> Result<(), String> {
+fn pump<S: Read + Write>(
+    ws: &mut WebSocket<S>,
+    udp: &UdpSocket,
+    mut send: impl FnMut(&UdpSocket, &[u8]) -> std::io::Result<()>,
+    stop: &AtomicBool,
+) -> Result<(), String> {
     let mut buf = vec![0u8; 2048];
     let mut last_in = Instant::now();
     let mut last_ping = Instant::now();
@@ -794,8 +980,13 @@ fn pump<S: Read + Write>(ws: &mut WebSocket<S>, udp: &UdpSocket, mut send: impl 
                 }
                 Ok(Message::Close(_)) => return Ok(()),
                 Ok(_) => last_in = Instant::now(),
-                Err(tungstenite::Error::Io(e)) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => break,
-                Err(tungstenite::Error::ConnectionClosed) | Err(tungstenite::Error::AlreadyClosed) => return Ok(()),
+                Err(tungstenite::Error::Io(e))
+                    if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) =>
+                {
+                    break
+                }
+                Err(tungstenite::Error::ConnectionClosed)
+                | Err(tungstenite::Error::AlreadyClosed) => return Ok(()),
                 Err(e) => return Err(e.to_string()),
             }
         }
@@ -805,7 +996,8 @@ fn pump<S: Read + Write>(ws: &mut WebSocket<S>, udp: &UdpSocket, mut send: impl 
                 Ok((n, _)) => {
                     idle = false;
                     if let Err(e) = ws.send(Message::Binary(buf[..n].to_vec().into())) {
-                        if !matches!(&e, tungstenite::Error::Io(io) if io.kind() == ErrorKind::WouldBlock) {
+                        if !matches!(&e, tungstenite::Error::Io(io) if io.kind() == ErrorKind::WouldBlock)
+                        {
                             return Err(e.to_string());
                         }
                     }
@@ -833,7 +1025,11 @@ fn pump<S: Read + Write>(ws: &mut WebSocket<S>, udp: &UdpSocket, mut send: impl 
 }
 
 /// Carry a TCP stream both ways over a WebSocket until either side closes.
-fn pump_tcp<S: Read + Write>(ws: &mut WebSocket<S>, mut tcp: TcpStream, stop: &AtomicBool) -> Result<(), String> {
+fn pump_tcp<S: Read + Write>(
+    ws: &mut WebSocket<S>,
+    mut tcp: TcpStream,
+    stop: &AtomicBool,
+) -> Result<(), String> {
     tcp.set_nonblocking(true).map_err(|e| e.to_string())?;
     let mut buf = vec![0u8; 64 * 1024];
     let mut last = Instant::now();
@@ -851,8 +1047,13 @@ fn pump_tcp<S: Read + Write>(ws: &mut WebSocket<S>, mut tcp: TcpStream, stop: &A
                 }
                 Ok(Message::Close(_)) => return Ok(()),
                 Ok(_) => {}
-                Err(tungstenite::Error::Io(e)) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => break,
-                Err(tungstenite::Error::ConnectionClosed) | Err(tungstenite::Error::AlreadyClosed) => return Ok(()),
+                Err(tungstenite::Error::Io(e))
+                    if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) =>
+                {
+                    break
+                }
+                Err(tungstenite::Error::ConnectionClosed)
+                | Err(tungstenite::Error::AlreadyClosed) => return Ok(()),
                 Err(e) => return Err(e.to_string()),
             }
         }
@@ -868,7 +1069,8 @@ fn pump_tcp<S: Read + Write>(ws: &mut WebSocket<S>, mut tcp: TcpStream, stop: &A
                 Ok(n) => {
                     idle = false;
                     last = Instant::now();
-                    ws.write(Message::Binary(buf[..n].to_vec().into())).map_err(|e| e.to_string())?;
+                    ws.write(Message::Binary(buf[..n].to_vec().into()))
+                        .map_err(|e| e.to_string())?;
                 }
                 Err(e) if e.kind() == ErrorKind::WouldBlock => break,
                 Err(e) => return Err(e.to_string()),
@@ -891,26 +1093,37 @@ pub fn tcp_forward(url: &str) -> std::io::Result<SocketAddr> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let addr = listener.local_addr()?;
     let url = url.to_string();
-    std::thread::Builder::new().name("ws tcp forward".into()).spawn(move || {
-        for conn in listener.incoming().flatten() {
-            let url = url.clone();
-            std::thread::spawn(move || {
-                let r = (|| -> Result<(), String> {
-                    let (mut ws, _) = tungstenite::client::connect_with_config(&url, Some(stream_config()), 3).map_err(|e| format!("{url}: {e}"))?;
-                    match ws.get_mut() {
-                        tungstenite::stream::MaybeTlsStream::Plain(s) => s.set_read_timeout(Some(Duration::from_millis(5))),
-                        tungstenite::stream::MaybeTlsStream::Rustls(s) => s.get_mut().set_read_timeout(Some(Duration::from_millis(5))),
-                        _ => Ok(()),
+    std::thread::Builder::new()
+        .name("ws tcp forward".into())
+        .spawn(move || {
+            for conn in listener.incoming().flatten() {
+                let url = url.clone();
+                std::thread::spawn(move || {
+                    let r = (|| -> Result<(), String> {
+                        let (mut ws, _) = tungstenite::client::connect_with_config(
+                            &url,
+                            Some(stream_config()),
+                            3,
+                        )
+                        .map_err(|e| format!("{url}: {e}"))?;
+                        match ws.get_mut() {
+                            tungstenite::stream::MaybeTlsStream::Plain(s) => {
+                                s.set_read_timeout(Some(Duration::from_millis(5)))
+                            }
+                            tungstenite::stream::MaybeTlsStream::Rustls(s) => {
+                                s.get_mut().set_read_timeout(Some(Duration::from_millis(5)))
+                            }
+                            _ => Ok(()),
+                        }
+                        .map_err(|e| e.to_string())?;
+                        pump_tcp(&mut ws, conn, &AtomicBool::new(false))
+                    })();
+                    if let Err(e) = r {
+                        log::warn!("ws tcp forward: {e}");
                     }
-                    .map_err(|e| e.to_string())?;
-                    pump_tcp(&mut ws, conn, &AtomicBool::new(false))
-                })();
-                if let Err(e) = r {
-                    log::warn!("ws tcp forward: {e}");
-                }
-            });
-        }
-    })?;
+                });
+            }
+        })?;
     Ok(addr)
 }
 
@@ -934,16 +1147,28 @@ impl Drop for WsClient {
 impl WsClient {
     /// One WebSocket to `url`, with the short read timeout the bridge loop needs (a dead
     /// tunnel must not hold the game for ever).
-    fn open(url: &str) -> Result<WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>, String> {
+    fn open(
+        url: &str,
+    ) -> Result<WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>, String> {
         let (tx, rx) = std::sync::mpsc::channel();
         let u = url.to_string();
         std::thread::spawn(move || {
-            let _ = tx.send(tungstenite::client::connect_with_config(&u, Some(datagram_config()), 3).map(|x| x.0).map_err(|e| format!("{u}: {e}")));
+            let _ = tx.send(
+                tungstenite::client::connect_with_config(&u, Some(datagram_config()), 3)
+                    .map(|x| x.0)
+                    .map_err(|e| format!("{u}: {e}")),
+            );
         });
-        let mut ws = rx.recv_timeout(Duration::from_secs(12)).map_err(|_| format!("{url}: no answer within 12 s"))??;
+        let mut ws = rx
+            .recv_timeout(Duration::from_secs(12))
+            .map_err(|_| format!("{url}: no answer within 12 s"))??;
         match ws.get_mut() {
-            tungstenite::stream::MaybeTlsStream::Plain(s) => s.set_read_timeout(Some(Duration::from_millis(5))),
-            tungstenite::stream::MaybeTlsStream::Rustls(s) => s.get_mut().set_read_timeout(Some(Duration::from_millis(5))),
+            tungstenite::stream::MaybeTlsStream::Plain(s) => {
+                s.set_read_timeout(Some(Duration::from_millis(5)))
+            }
+            tungstenite::stream::MaybeTlsStream::Rustls(s) => {
+                s.get_mut().set_read_timeout(Some(Duration::from_millis(5)))
+            }
             _ => Ok(()),
         }
         .map_err(|e| e.to_string())?;
@@ -1062,7 +1287,12 @@ impl WsClient {
             })
             .map_err(|e| e.to_string())?;
         log::info!("ws client: the session is reached through {local}");
-        Ok(WsClient { local, stop, alive, reconnects })
+        Ok(WsClient {
+            local,
+            stop,
+            alive,
+            reconnects,
+        })
     }
 
     /// How many times the connection was made again after a break.
@@ -1077,31 +1307,119 @@ mod tests {
 
     #[test]
     fn urls() {
-        assert_eq!(ws_url("https://abc.trycloudflare.com").as_deref(), Some("wss://abc.trycloudflare.com/ws"));
-        assert_eq!(ws_url("abc.trycloudflare.com").as_deref(), Some("wss://abc.trycloudflare.com/ws"));
-        assert_eq!(ws_url("http://10.0.0.2:27025/").as_deref(), Some("ws://10.0.0.2:27025/ws"));
+        assert_eq!(
+            ws_url("https://abc.trycloudflare.com").as_deref(),
+            Some("wss://abc.trycloudflare.com/ws")
+        );
+        assert_eq!(
+            ws_url("abc.trycloudflare.com").as_deref(),
+            Some("wss://abc.trycloudflare.com/ws")
+        );
+        assert_eq!(
+            ws_url("http://10.0.0.2:27025/").as_deref(),
+            Some("ws://10.0.0.2:27025/ws")
+        );
         assert_eq!(ws_url("192.168.1.4:27015"), None);
-        assert_eq!(ws_url("abc.trycloudflare.com/ws").as_deref(), Some("wss://abc.trycloudflare.com/ws"));
-        assert_eq!(ws_url("abc.trycloudflare.com:443/ws").as_deref(), Some("wss://abc.trycloudflare.com:443/ws"));
-        assert_eq!(ws_url("ABC.TryCloudflare.com/ws").as_deref(), Some("wss://ABC.TryCloudflare.com/ws"));
-        assert_eq!(ws_url("me@abc.trycloudflare.com/ws").as_deref(), Some("wss://me@abc.trycloudflare.com/ws"));
-        for bogus in ["play.example.org/abc.trycloudflare.com/", "play.example.org?abc.trycloudflare.com", "play.example.org#abc.trycloudflare.com", "play.example.org:1/abc.trycloudflare.com/", "evil.example\\.trycloudflare.com/ws", "abc.trycloudflare.com@evil.example/ws", "abc.trycloudflare.com:1@evil.example/ws", "evil.example%5C.trycloudflare.com/ws", "evil example.trycloudflare.com", ".trycloudflare.com", "a..trycloudflare.com", "abc.trycloudflare.com:x/ws"] {
+        assert_eq!(
+            ws_url("abc.trycloudflare.com/ws").as_deref(),
+            Some("wss://abc.trycloudflare.com/ws")
+        );
+        assert_eq!(
+            ws_url("abc.trycloudflare.com:443/ws").as_deref(),
+            Some("wss://abc.trycloudflare.com:443/ws")
+        );
+        assert_eq!(
+            ws_url("ABC.TryCloudflare.com/ws").as_deref(),
+            Some("wss://ABC.TryCloudflare.com/ws")
+        );
+        assert_eq!(
+            ws_url("me@abc.trycloudflare.com/ws").as_deref(),
+            Some("wss://me@abc.trycloudflare.com/ws")
+        );
+        for bogus in [
+            "play.example.org/abc.trycloudflare.com/",
+            "play.example.org?abc.trycloudflare.com",
+            "play.example.org#abc.trycloudflare.com",
+            "play.example.org:1/abc.trycloudflare.com/",
+            "evil.example\\.trycloudflare.com/ws",
+            "abc.trycloudflare.com@evil.example/ws",
+            "abc.trycloudflare.com:1@evil.example/ws",
+            "evil.example%5C.trycloudflare.com/ws",
+            "evil example.trycloudflare.com",
+            ".trycloudflare.com",
+            "a..trycloudflare.com",
+            "abc.trycloudflare.com:x/ws",
+        ] {
             assert_eq!(ws_url(bogus), None);
         }
-        assert_eq!(http_base("https://abc.trycloudflare.com").as_deref(), Some("https://abc.trycloudflare.com"));
-        assert_eq!(web_bases("192.168.1.4:27015"), ["http://192.168.1.4:27015", "http://192.168.1.4:27025", "https://192.168.1.4"]);
-        assert_eq!(web_bases("play.example.org"), ["http://play.example.org:27025", "https://play.example.org", "http://play.example.org"]);
-        assert_eq!(web_bases("play.example.org:47015"), ["http://play.example.org:47015", "http://play.example.org:47025", "https://play.example.org", "http://play.example.org:27025"]);
-        assert_eq!(web_bases("play.example.org:65535"), ["http://play.example.org:65535", "https://play.example.org", "http://play.example.org:27025"]);
-        assert_eq!(web_bases("http://play.example.org:47015"), ["http://play.example.org:47015"]);
-        assert_eq!(web_bases("https://play.example.org"), ["https://play.example.org"]);
+        assert_eq!(
+            http_base("https://abc.trycloudflare.com").as_deref(),
+            Some("https://abc.trycloudflare.com")
+        );
+        assert_eq!(
+            web_bases("192.168.1.4:27015"),
+            [
+                "http://192.168.1.4:27015",
+                "http://192.168.1.4:27025",
+                "https://192.168.1.4"
+            ]
+        );
+        assert_eq!(
+            web_bases("play.example.org"),
+            [
+                "http://play.example.org:27025",
+                "https://play.example.org",
+                "http://play.example.org"
+            ]
+        );
+        assert_eq!(
+            web_bases("play.example.org:47015"),
+            [
+                "http://play.example.org:47015",
+                "http://play.example.org:47025",
+                "https://play.example.org",
+                "http://play.example.org:27025"
+            ]
+        );
+        assert_eq!(
+            web_bases("play.example.org:65535"),
+            [
+                "http://play.example.org:65535",
+                "https://play.example.org",
+                "http://play.example.org:27025"
+            ]
+        );
+        assert_eq!(
+            web_bases("http://play.example.org:47015"),
+            ["http://play.example.org:47015"]
+        );
+        assert_eq!(
+            web_bases("https://play.example.org"),
+            ["https://play.example.org"]
+        );
         assert_eq!(web_bases("::1")[0], "http://[::1]:27025");
-        assert_eq!(web_bases("[::1]:27025"), ["http://[::1]:27025", "http://[::1]:27035", "https://[::1]"]);
+        assert_eq!(
+            web_bases("[::1]:27025"),
+            ["http://[::1]:27025", "http://[::1]:27035", "https://[::1]"]
+        );
     }
 
     #[test]
     fn status_round_trip() {
-        let i = ServerInfo { name: "Spandau \"1\"".into(), motd: "hi".into(), map: "maps/Berlin-Spandau/global.cfg".into(), players: 2, max_players: 16, version: "0.1".into(), icon: vec![1, 2], time: "08:00".into(), weather: "Sommerlich".into(), password: false, vehicles: vec!["Vehicles/MAN_SD202/SD202.bus".into()], ..Default::default() };
+        let i = ServerInfo {
+            name: "Spandau \"1\"".into(),
+            motd: "hi".into(),
+            map: "maps/Berlin-Spandau/global.cfg".into(),
+            players: 2,
+            max_players: 16,
+            version: "0.1".into(),
+            icon: vec![1, 2],
+            time: "08:00".into(),
+            weather: "Sommerlich".into(),
+            password: false,
+            vehicles: vec!["Vehicles/MAN_SD202/SD202.bus".into()],
+            ..Default::default()
+        };
         let j = i.to_json();
         let b = ServerInfo::from_json(&j).unwrap();
         assert_eq!(b.name, i.name);
@@ -1120,45 +1438,109 @@ mod tests {
         fn client_ip_x(h: &str, p: Option<SocketAddr>) -> Option<std::net::IpAddr> {
             client_ip(h, p, false)
         }
-        assert_eq!(client_ip_x(&req("X-Forwarded-For: 10.0.0.1, 198.51.100.4\r\n"), Some(local)), ip("198.51.100.4"));
-        assert_eq!(client_ip_x(&req("X-Real-IP: 2001:db8::1\r\n"), Some(local)), None);
+        assert_eq!(
+            client_ip_x(
+                &req("X-Forwarded-For: 10.0.0.1, 198.51.100.4\r\n"),
+                Some(local)
+            ),
+            ip("198.51.100.4")
+        );
+        assert_eq!(
+            client_ip_x(&req("X-Real-IP: 2001:db8::1\r\n"), Some(local)),
+            None
+        );
         // (the proxy's own address, the last X-Forwarded-For: a CF-Connecting-IP through a
         // proxy on this machine may be the client's own)
-        assert_eq!(client_ip_x(&req("CF-Connecting-IP: 192.0.2.9\r\nX-Forwarded-For: 198.51.100.4\r\n"), Some(local)), ip("198.51.100.4"));
-        assert_eq!(client_ip_x(&req("X-Forwarded-For: 192.0.2.9\r\nX-Forwarded-For: 198.51.100.4\r\n"), Some(local)), ip("198.51.100.4"));
-        assert_eq!(client_ip_x(&req("CF-Connecting-IP: 192.0.2.9\r\n"), Some(local)), ip("192.0.2.9"));
+        assert_eq!(
+            client_ip_x(
+                &req("CF-Connecting-IP: 192.0.2.9\r\nX-Forwarded-For: 198.51.100.4\r\n"),
+                Some(local)
+            ),
+            ip("198.51.100.4")
+        );
+        assert_eq!(
+            client_ip_x(
+                &req("X-Forwarded-For: 192.0.2.9\r\nX-Forwarded-For: 198.51.100.4\r\n"),
+                Some(local)
+            ),
+            ip("198.51.100.4")
+        );
+        assert_eq!(
+            client_ip_x(&req("CF-Connecting-IP: 192.0.2.9\r\n"), Some(local)),
+            ip("192.0.2.9")
+        );
         // no proxy: the peer; a header from the internet is not believed
         assert_eq!(client_ip_x(&req(""), Some(local)), None);
-        assert_eq!(client_ip_x(&req("X-Forwarded-For: 127.0.0.1\r\n"), Some(local)), None);
-        assert_eq!(client_ip_x(&req("X-Forwarded-For: 198.51.100.4\r\n"), Some(far)), ip("203.0.113.7"));
-        assert_eq!(client_ip_x(&req("X-Forwarded-For: not-an-address\r\n"), Some(local)), None);
+        assert_eq!(
+            client_ip_x(&req("X-Forwarded-For: 127.0.0.1\r\n"), Some(local)),
+            None
+        );
+        assert_eq!(
+            client_ip_x(&req("X-Forwarded-For: 198.51.100.4\r\n"), Some(far)),
+            ip("203.0.113.7")
+        );
+        assert_eq!(
+            client_ip_x(&req("X-Forwarded-For: not-an-address\r\n"), Some(local)),
+            None
+        );
         assert_eq!(client_ip_x(&req(""), None), None);
         // Cloudflare in front of a proxy of this machine (`gateway_proxy_header =
         // cf-connecting-ip`): the player, not the edge the last X-Forwarded-For names
         let both = req("CF-Connecting-IP: 192.0.2.9\r\nX-Forwarded-For: 192.0.2.9, 172.70.1.1\r\n");
         assert_eq!(client_ip(&both, Some(local), true), ip("192.0.2.9"));
         assert_eq!(client_ip(&both, Some(local), false), ip("172.70.1.1"));
-        assert_eq!(client_ip(&req("X-Forwarded-For: 198.51.100.4\r\n"), Some(local), true), ip("198.51.100.4"));
-        assert_eq!(client_ip(&req("CF-Connecting-IP: 192.0.2.9\r\n"), Some(far), true), ip("203.0.113.7"));
+        assert_eq!(
+            client_ip(&req("X-Forwarded-For: 198.51.100.4\r\n"), Some(local), true),
+            ip("198.51.100.4")
+        );
+        assert_eq!(
+            client_ip(&req("CF-Connecting-IP: 192.0.2.9\r\n"), Some(far), true),
+            ip("203.0.113.7")
+        );
     }
 
     #[test]
     fn status_counts_a_servers_world() {
-        let mut i = ServerInfo { name: "NEROSY".into(), players: 2, vehicles: vec!["Vehicles/A/a.bus".into()], ..Default::default() };
+        let mut i = ServerInfo {
+            name: "NEROSY".into(),
+            players: 2,
+            vehicles: vec!["Vehicles/A/a.bus".into()],
+            ..Default::default()
+        };
         assert!(i.to_json().ends_with(",\"world\":null}"));
-        i.world = Some(WorldCounts { cars: 41, buses: 7, dormant: 12, parked: 230, walking: 55, waiting: 18, aboard: 9, traffic: 30, passengers: true, passenger_density: 1.5 });
+        i.world = Some(WorldCounts {
+            cars: 41,
+            buses: 7,
+            dormant: 12,
+            parked: 230,
+            walking: 55,
+            waiting: 18,
+            aboard: 9,
+            traffic: 30,
+            passengers: true,
+            passenger_density: 1.5,
+        });
         let j = i.to_json();
         assert!(j.ends_with(",\"world\":{\"cars\":41,\"buses\":7,\"dormant\":12,\"parked\":230,\"walking\":55,\"waiting\":18,\"aboard\":9,\"traffic\":30,\"passengers\":true,\"passenger_density\":1.50}}"), "{j}");
         // the launcher still reads the rest (the world's keys are none of the server's own)
         let back = ServerInfo::from_json(&j).unwrap();
-        assert_eq!((back.name.as_str(), back.players, back.vehicles.len()), ("NEROSY", 2, 1));
+        assert_eq!(
+            (back.name.as_str(), back.players, back.vehicles.len()),
+            ("NEROSY", 2, 1)
+        );
     }
 
     #[test]
     fn local_admin_door_is_shut_to_tunnels() {
-        let info = Mutex::new(ServerInfo { local_admin_password: "s3cret".into(), ..Default::default() });
+        let info = Mutex::new(ServerInfo {
+            local_admin_password: "s3cret".into(),
+            ..Default::default()
+        });
         let req = b"POST /admin HTTP/1.1\r\nX-Admin-Password: s3cret\r\nCf-Connecting-Ip: 203.0.113.9\r\nContent-Length: 6\r\n\r\nsay hi";
-        assert_eq!(local_admin(req, Some(SocketAddr::from(([127, 0, 0, 1], 5000))), &info).0, "403 Forbidden");
+        assert_eq!(
+            local_admin(req, Some(SocketAddr::from(([127, 0, 0, 1], 5000))), &info).0,
+            "403 Forbidden"
+        );
         assert!(info.lock().unwrap().local_admin_queue.is_empty());
     }
 
@@ -1166,24 +1548,66 @@ mod tests {
     fn local_admin_door() {
         let info = Mutex::new(ServerInfo::default());
         let here = Some(SocketAddr::from(([127, 0, 0, 1], 5000)));
-        let post = |pw: &str, body: &str| format!("POST /admin HTTP/1.1\r\nHost: x\r\nX-Admin-Password: {pw}\r\nContent-Length: {}\r\n\r\n{body}", body.len()).into_bytes();
+        let post = |pw: &str, body: &str| {
+            format!("POST /admin HTTP/1.1\r\nHost: x\r\nX-Admin-Password: {pw}\r\nContent-Length: {}\r\n\r\n{body}", body.len()).into_bytes()
+        };
         // no password: no door
-        assert_eq!(local_admin(&post("", "say hi"), here, &info).0, "404 Not Found");
+        assert_eq!(
+            local_admin(&post("", "say hi"), here, &info).0,
+            "404 Not Found"
+        );
         info.lock().unwrap().local_admin_password = "s3cret".into();
         // not from this machine
-        assert_eq!(local_admin(&post("s3cret", "say hi"), Some(SocketAddr::from(([10, 0, 0, 2], 5000))), &info).0, "403 Forbidden");
-        assert_eq!(local_admin(b"GET /admin HTTP/1.1\r\nX-Admin-Password: s3cret\r\n\r\n", here, &info).0, "405 Method Not Allowed");
-        assert_eq!(local_admin(&post("s3cre", "say hi"), here, &info).0, "401 Unauthorized");
+        assert_eq!(
+            local_admin(
+                &post("s3cret", "say hi"),
+                Some(SocketAddr::from(([10, 0, 0, 2], 5000))),
+                &info
+            )
+            .0,
+            "403 Forbidden"
+        );
+        assert_eq!(
+            local_admin(
+                b"GET /admin HTTP/1.1\r\nX-Admin-Password: s3cret\r\n\r\n",
+                here,
+                &info
+            )
+            .0,
+            "405 Method Not Allowed"
+        );
+        assert_eq!(
+            local_admin(&post("s3cre", "say hi"), here, &info).0,
+            "401 Unauthorized"
+        );
         assert!(info.lock().unwrap().local_admin_queue.is_empty());
-        let (st, _) = local_admin(&post("s3cret", "clock 30600\r\n\r\nweather set Weather/#CAVOK.owt\n"), here, &info);
+        let (st, _) = local_admin(
+            &post(
+                "s3cret",
+                "clock 30600\r\n\r\nweather set Weather/#CAVOK.owt\n",
+            ),
+            here,
+            &info,
+        );
         assert_eq!(st, "202 Accepted");
-        assert_eq!(info.lock().unwrap().local_admin_queue, ["clock 30600", "weather set Weather/#CAVOK.owt"]);
+        assert_eq!(
+            info.lock().unwrap().local_admin_queue,
+            ["clock 30600", "weather set Weather/#CAVOK.owt"]
+        );
         // five wrong passwords close the door, the right one included
         for _ in 0..4 {
             local_admin(&post("nope", "say x"), here, &info);
         }
-        assert_eq!(local_admin(&post("s3cret", "say x"), here, &info).0, "429 Too Many Requests");
-        assert!(same_secret("abc", "abc") && !same_secret("abc", "abd") && !same_secret("abc", "abcd") && !same_secret("", "a"));
+        assert_eq!(
+            local_admin(&post("s3cret", "say x"), here, &info).0,
+            "429 Too Many Requests"
+        );
+        assert!(
+            same_secret("abc", "abc")
+                && !same_secret("abc", "abd")
+                && !same_secret("abc", "abcd")
+                && !same_secret("", "a")
+        );
     }
 
     /// The whole head is read, however long (within its cap) and however it comes in pieces: a
@@ -1191,7 +1615,15 @@ mod tests {
     /// head past the cap is refused.
     #[test]
     fn the_whole_head_is_read() {
-        let gw = WsGateway::start("127.0.0.1:0".parse().unwrap(), "127.0.0.1:9".parse().unwrap(), ServerInfo { local_admin_password: "s3cret".into(), ..Default::default() }).unwrap();
+        let gw = WsGateway::start(
+            "127.0.0.1:0".parse().unwrap(),
+            "127.0.0.1:9".parse().unwrap(),
+            ServerInfo {
+                local_admin_password: "s3cret".into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
         let ask = |pieces: &[Vec<u8>]| {
             let mut c = TcpStream::connect(gw.addr).unwrap();
             c.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
@@ -1211,10 +1643,18 @@ mod tests {
         assert!(out.starts_with("HTTP/1.1 403"), "{out}");
         assert!(gw.info.lock().unwrap().local_admin_queue.is_empty());
         // the same, from this machine itself and in pieces: taken
-        let out = ask(&[start.into_bytes(), b"Content-Length: 6\r\n".to_vec(), b"\r\nsay hi".to_vec()]);
+        let out = ask(&[
+            start.into_bytes(),
+            b"Content-Length: 6\r\n".to_vec(),
+            b"\r\nsay hi".to_vec(),
+        ]);
         assert!(out.starts_with("HTTP/1.1 202"), "{out}");
         // past the cap
-        let out = ask(&[format!("GET /status HTTP/1.1\r\nX-Pad: {}\r\n\r\n", "a".repeat(crate::ws_http::HEAD_MAX)).into_bytes()]);
+        let out = ask(&[format!(
+            "GET /status HTTP/1.1\r\nX-Pad: {}\r\n\r\n",
+            "a".repeat(crate::ws_http::HEAD_MAX)
+        )
+        .into_bytes()]);
         assert!(out.starts_with("HTTP/1.1 431"), "{out}");
         // who the client is, from the whole head: a proxy's mark past a padded first part
         let pad = format!("X-Pad: {}\r\n", "a".repeat(3000));
@@ -1222,28 +1662,61 @@ mod tests {
             let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
             let mut c = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
             let (srv, _) = listener.accept().unwrap();
-            c.write_all(format!("GET /ws HTTP/1.1\r\nHost: x\r\n{pad}").as_bytes()).unwrap();
+            c.write_all(format!("GET /ws HTTP/1.1\r\nHost: x\r\n{pad}").as_bytes())
+                .unwrap();
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(60));
                 let _ = c.write_all(b"X-Forwarded-For: 198.51.100.4\r\nUpgrade: websocket\r\n\r\n");
                 std::thread::sleep(Duration::from_millis(500));
             });
-            String::from_utf8_lossy(&peek_head(&srv, Instant::now() + Duration::from_secs(5))).to_string()
+            String::from_utf8_lossy(&peek_head(&srv, Instant::now() + Duration::from_secs(5)))
+                .to_string()
         };
         assert!(peeked.contains("Upgrade: websocket"), "{}", peeked.len());
-        assert_eq!(client_ip(&peeked, Some(SocketAddr::from(([127, 0, 0, 1], 1))), false), Some("198.51.100.4".parse().unwrap()));
+        assert_eq!(
+            client_ip(&peeked, Some(SocketAddr::from(([127, 0, 0, 1], 1))), false),
+            Some("198.51.100.4".parse().unwrap())
+        );
     }
-
 
     #[test]
     fn players_list() {
-        let p = PlayerInfo { id: 3, name: "Anna \"A\"".into(), bus: "Vehicles/MAN_SD200/MAN_SD77.bus".into(), line: "37".into(), x: 894179.74, y: 4196165.3, heading: 200.0, speed_kmh: 31.25, lat_lon: Some((52.535412, 13.199642)), ..Default::default() };
-        let j = players_json(&[p.clone(), PlayerInfo { id: 4, x: f64::NAN, ..Default::default() }]);
-        assert!(j.starts_with("[{\"id\":3,\"name\":\"Anna \\\"A\\\"\""), "{j}");
+        let p = PlayerInfo {
+            id: 3,
+            name: "Anna \"A\"".into(),
+            bus: "Vehicles/MAN_SD200/MAN_SD77.bus".into(),
+            line: "37".into(),
+            x: 894179.74,
+            y: 4196165.3,
+            heading: 200.0,
+            speed_kmh: 31.25,
+            lat_lon: Some((52.535412, 13.199642)),
+            ..Default::default()
+        };
+        let j = players_json(&[
+            p.clone(),
+            PlayerInfo {
+                id: 4,
+                x: f64::NAN,
+                ..Default::default()
+            },
+        ]);
+        assert!(
+            j.starts_with("[{\"id\":3,\"name\":\"Anna \\\"A\\\"\""),
+            "{j}"
+        );
         assert!(j.contains("\"line\":\"37\""), "{j}");
         assert!(j.contains("\"x\":894179.7,"), "{j}");
-        assert!(j.contains("\"on_foot\":false,\"aboard\":null,\"lat\":52.535412,\"lon\":13.199642}"), "{j}");
-        assert!(j.contains("\"id\":4,") && j.contains("\"x\":null") && j.ends_with("\"lat\":null,\"lon\":null}]"), "{j}");
+        assert!(
+            j.contains("\"on_foot\":false,\"aboard\":null,\"lat\":52.535412,\"lon\":13.199642}"),
+            "{j}"
+        );
+        assert!(
+            j.contains("\"id\":4,")
+                && j.contains("\"x\":null")
+                && j.ends_with("\"lat\":null,\"lon\":null}]"),
+            "{j}"
+        );
         assert_eq!(players_json(&[]), "[]");
     }
 
@@ -1256,7 +1729,9 @@ mod tests {
         std::thread::spawn(move || {
             for round in 0..2 {
                 let Ok((s, _)) = l.accept() else { return };
-                let Ok(mut ws) = tungstenite::accept(s) else { return };
+                let Ok(mut ws) = tungstenite::accept(s) else {
+                    return;
+                };
                 loop {
                     match ws.read() {
                         Ok(Message::Binary(d)) => {
@@ -1273,7 +1748,8 @@ mod tests {
         });
         let client = WsClient::connect(&format!("ws://{addr}/ws")).unwrap();
         let game = UdpSocket::bind("127.0.0.1:0").unwrap();
-        game.set_read_timeout(Some(Duration::from_millis(250))).unwrap();
+        game.set_read_timeout(Some(Duration::from_millis(250)))
+            .unwrap();
         let mut got = [0u8; 64];
         let mut first = false;
         for _ in 0..20 {
@@ -1294,7 +1770,10 @@ mod tests {
                 }
             }
         }
-        assert!(again, "the datagram came back through the second connection");
+        assert!(
+            again,
+            "the datagram came back through the second connection"
+        );
         assert!(client.alive.load(Ordering::Relaxed));
         assert_eq!(client.reconnects(), 1);
     }
@@ -1313,13 +1792,22 @@ mod tests {
                 held.push(c);
             }
         });
-        let gw = WsGateway::start("127.0.0.1:0".parse().unwrap(), target, ServerInfo::default()).unwrap();
+        let gw = WsGateway::start(
+            "127.0.0.1:0".parse().unwrap(),
+            target,
+            ServerInfo::default(),
+        )
+        .unwrap();
         let forward = tcp_forward(&format!("ws://{}/tcp", gw.addr)).unwrap();
-        let mut streams: Vec<TcpStream> = (0..MAX_TUNNELS).map(|_| TcpStream::connect(forward).unwrap()).collect();
+        let mut streams: Vec<TcpStream> = (0..MAX_TUNNELS)
+            .map(|_| TcpStream::connect(forward).unwrap())
+            .collect();
         // (each through the gateway to the mods server before the next is counted)
         std::thread::sleep(Duration::from_millis(500));
         let mut one_more = TcpStream::connect(forward).unwrap();
-        one_more.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        one_more
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
         let mut said = String::new();
         let _ = one_more.read_to_string(&mut said);
         assert_eq!(said, "ERR busy\n");
@@ -1329,14 +1817,22 @@ mod tests {
         while gw.connected.load(Ordering::Relaxed) == 0 && t.elapsed() < Duration::from_secs(5) {
             std::thread::sleep(Duration::from_millis(20));
         }
-        assert_eq!(gw.connected.load(Ordering::Relaxed), 1, "the player's session is carried");
+        assert_eq!(
+            gw.connected.load(Ordering::Relaxed),
+            1,
+            "the player's session is carried"
+        );
         // and a stream that ends gives its place to the next
         drop(streams.pop());
         std::thread::sleep(Duration::from_millis(300));
         let mut next = TcpStream::connect(forward).unwrap();
-        next.set_read_timeout(Some(Duration::from_millis(800))).unwrap();
+        next.set_read_timeout(Some(Duration::from_millis(800)))
+            .unwrap();
         let mut b = [0u8; 16];
-        assert!(matches!(next.read(&mut b), Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut)), "carried, not refused");
+        assert!(
+            matches!(next.read(&mut b), Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut)),
+            "carried, not refused"
+        );
         drop(player);
     }
 
@@ -1354,16 +1850,26 @@ mod tests {
                 held.push(c);
             }
         });
-        let gw = WsGateway::start("127.0.0.1:0".parse().unwrap(), target, ServerInfo::default()).unwrap();
-        let mut players: Vec<WsClient> = (0..MAX_ORDINARY).map(|_| WsClient::connect(&format!("ws://{}/ws", gw.addr)).unwrap()).collect();
+        let gw = WsGateway::start(
+            "127.0.0.1:0".parse().unwrap(),
+            target,
+            ServerInfo::default(),
+        )
+        .unwrap();
+        let mut players: Vec<WsClient> = (0..MAX_ORDINARY)
+            .map(|_| WsClient::connect(&format!("ws://{}/ws", gw.addr)).unwrap())
+            .collect();
         let t = Instant::now();
-        while gw.connected.load(Ordering::Relaxed) < MAX_ORDINARY && t.elapsed() < Duration::from_secs(5) {
+        while gw.connected.load(Ordering::Relaxed) < MAX_ORDINARY
+            && t.elapsed() < Duration::from_secs(5)
+        {
             std::thread::sleep(Duration::from_millis(20));
         }
         assert_eq!(gw.connected.load(Ordering::Relaxed), MAX_ORDINARY);
         let status = || {
             let mut s = TcpStream::connect(gw.addr).unwrap();
-            s.write_all(b"GET /status HTTP/1.1\r\nHost: gateway\r\n\r\n").unwrap();
+            s.write_all(b"GET /status HTTP/1.1\r\nHost: gateway\r\n\r\n")
+                .unwrap();
             s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
             let mut said = String::new();
             let _ = s.read_to_string(&mut said);
@@ -1374,13 +1880,20 @@ mod tests {
         // a mod stream all the same: carried, not refused
         let forward = tcp_forward(&format!("ws://{}/tcp", gw.addr)).unwrap();
         let mut stream = TcpStream::connect(forward).unwrap();
-        stream.set_read_timeout(Some(Duration::from_millis(800))).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_millis(800)))
+            .unwrap();
         let mut b = [0u8; 16];
-        assert!(matches!(stream.read(&mut b), Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut)), "the mod stream is carried");
+        assert!(
+            matches!(stream.read(&mut b), Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut)),
+            "the mod stream is carried"
+        );
         // a player who leaves gives their place back
         drop(players.pop());
         let t = Instant::now();
-        while gw.connected.load(Ordering::Relaxed) >= MAX_ORDINARY && t.elapsed() < Duration::from_secs(5) {
+        while gw.connected.load(Ordering::Relaxed) >= MAX_ORDINARY
+            && t.elapsed() < Duration::from_secs(5)
+        {
             std::thread::sleep(Duration::from_millis(20));
         }
         std::thread::sleep(Duration::from_millis(100));
@@ -1390,16 +1903,24 @@ mod tests {
 
     #[test]
     fn a_message_larger_than_a_datagram_ends_the_websocket() {
-        let gw = WsGateway::start("127.0.0.1:0".parse().unwrap(), "127.0.0.1:9".parse().unwrap(), ServerInfo::default()).unwrap();
+        let gw = WsGateway::start(
+            "127.0.0.1:0".parse().unwrap(),
+            "127.0.0.1:9".parse().unwrap(),
+            ServerInfo::default(),
+        )
+        .unwrap();
         let (mut ws, _) = tungstenite::connect(format!("ws://{}/ws", gw.addr)).unwrap();
         if let tungstenite::stream::MaybeTlsStream::Plain(s) = ws.get_mut() {
-            s.set_read_timeout(Some(Duration::from_millis(500))).unwrap();
+            s.set_read_timeout(Some(Duration::from_millis(500)))
+                .unwrap();
         }
-        ws.send(Message::Binary(vec![0u8; 64 * 1024].into())).unwrap();
+        ws.send(Message::Binary(vec![0u8; 64 * 1024].into()))
+            .unwrap();
         let t0 = Instant::now();
         let ended = loop {
             match ws.read() {
-                Err(tungstenite::Error::Io(e)) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {}
+                Err(tungstenite::Error::Io(e))
+                    if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {}
                 Ok(Message::Close(_)) | Err(_) => break true,
                 Ok(_) => {}
             }
@@ -1414,12 +1935,16 @@ mod tests {
     fn one_source_holds_only_so_many_connections() {
         let sources = Arc::new(Sources::default());
         let ip = |s: &str| s.parse::<std::net::IpAddr>().unwrap();
-        let held: Vec<SourceSlot> = (0..PER_SOURCE).map(|_| sources.take(ip("198.51.100.4")).unwrap()).collect();
+        let held: Vec<SourceSlot> = (0..PER_SOURCE)
+            .map(|_| sources.take(ip("198.51.100.4")).unwrap())
+            .collect();
         assert!(sources.take(ip("198.51.100.4")).is_none());
         assert!(sources.take(ip("203.0.113.7")).is_some());
         drop(held);
         assert!(sources.take(ip("198.51.100.4")).is_some());
-        let v6: Vec<SourceSlot> = (0..PER_SOURCE).map(|i| sources.take(ip(&format!("2001:db8:1:2::{i:x}"))).unwrap()).collect();
+        let v6: Vec<SourceSlot> = (0..PER_SOURCE)
+            .map(|i| sources.take(ip(&format!("2001:db8:1:2::{i:x}"))).unwrap())
+            .collect();
         assert!(sources.take(ip("2001:db8:1:2:ffff::9")).is_none());
         assert!(sources.take(ip("2001:db8:1:3::1")).is_some());
         drop(v6);
@@ -1438,7 +1963,15 @@ mod tests {
                 }
             }
         });
-        let gw = WsGateway::start("127.0.0.1:0".parse().unwrap(), target, ServerInfo { name: "t".into(), ..Default::default() }).unwrap();
+        let gw = WsGateway::start(
+            "127.0.0.1:0".parse().unwrap(),
+            target,
+            ServerInfo {
+                name: "t".into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
         let client = WsClient::connect(&format!("ws://{}/ws", gw.addr)).unwrap();
         let game = UdpSocket::bind("127.0.0.1:0").unwrap();
         game.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
@@ -1470,15 +2003,23 @@ mod tests {
         // the players' positions only when the server shares them
         let get = |path: &str| {
             let mut s = TcpStream::connect(gw.addr).unwrap();
-            s.write_all(format!("GET {path} HTTP/1.1\r\nHost: x\r\n\r\n").as_bytes()).unwrap();
+            s.write_all(format!("GET {path} HTTP/1.1\r\nHost: x\r\n\r\n").as_bytes())
+                .unwrap();
             let mut r = String::new();
             let _ = s.read_to_string(&mut r);
             r
         };
         assert!(get("/players").starts_with("HTTP/1.1 404"));
         gw.info.lock().unwrap().players_public = true;
-        gw.info.lock().unwrap().player_list = vec![PlayerInfo { id: 1, name: "p".into(), ..Default::default() }];
+        gw.info.lock().unwrap().player_list = vec![PlayerInfo {
+            id: 1,
+            name: "p".into(),
+            ..Default::default()
+        }];
         let r = get("/players");
-        assert!(r.starts_with("HTTP/1.1 200") && r.ends_with("\"lat\":null,\"lon\":null}]"), "{r}");
+        assert!(
+            r.starts_with("HTTP/1.1 200") && r.ends_with("\"lat\":null,\"lon\":null}]"),
+            "{r}"
+        );
     }
 }

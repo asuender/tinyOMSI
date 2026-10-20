@@ -165,7 +165,22 @@ pub struct Panel {
 
 impl Default for Panel {
     fn default() -> Panel {
-        Panel { anchor: Anchor::TopLeft, x: 0.0, y: 0.0, width: 300.0, padding: 12.0, gap: 6.0, background: None, radius: 12.0, accent: None, visible: true, clickable: false, draggable: false, grab: false, children: Vec::new() }
+        Panel {
+            anchor: Anchor::TopLeft,
+            x: 0.0,
+            y: 0.0,
+            width: 300.0,
+            padding: 12.0,
+            gap: 6.0,
+            background: None,
+            radius: 12.0,
+            accent: None,
+            visible: true,
+            clickable: false,
+            draggable: false,
+            grab: false,
+            children: Vec::new(),
+        }
     }
 }
 
@@ -184,12 +199,20 @@ impl Element {
     /// Whether a click on it is a `ui_click`: a button's or a tile's always, others' with an id and
     /// `clickable = true`.
     pub fn takes_clicks(&self) -> bool {
-        matches!(self.kind, Kind::Button { .. } | Kind::Tile { .. }) || (self.clickable && self.id.is_some())
+        matches!(self.kind, Kind::Button { .. } | Kind::Tile { .. })
+            || (self.clickable && self.id.is_some())
     }
 
     /// Whether the mouse changes its value (a checkbox, a slider, a field, tabs).
     pub fn is_control(&self) -> bool {
-        self.id.is_some() && matches!(self.kind, Kind::Checkbox { .. } | Kind::Slider { .. } | Kind::Input { .. } | Kind::Tabs { .. })
+        self.id.is_some()
+            && matches!(
+                self.kind,
+                Kind::Checkbox { .. }
+                    | Kind::Slider { .. }
+                    | Kind::Input { .. }
+                    | Kind::Tabs { .. }
+            )
     }
 
     /// Its value as `ui.value` and `ui_change` give it.
@@ -237,36 +260,105 @@ pub struct Stop {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Kind {
-    Text { text: String, size: f32, weight: Weight, align: Align, wrap: bool },
+    Text {
+        text: String,
+        size: f32,
+        weight: Weight,
+        align: Align,
+        wrap: bool,
+    },
     /// A Material Symbols name of the game's icons; one it has not draws nothing.
-    Icon { name: String, size: f32 },
-    Row { children: Vec<Element>, gap: f32, align: RowAlign },
+    Icon {
+        name: String,
+        size: f32,
+    },
+    Row {
+        children: Vec<Element>,
+        gap: f32,
+        align: RowAlign,
+    },
     /// `segments` (shares and colours, side by side): a bar of several parts in place of
     /// `value`'s one.
-    Bar { value: f32, height: f32, background: Option<Rgba>, segments: Vec<(f32, Rgba)> },
-    Badge { text: String, text_color: Option<Rgba>, weight: Weight },
+    Bar {
+        value: f32,
+        height: f32,
+        background: Option<Rgba>,
+        segments: Vec<(f32, Rgba)>,
+    },
+    Badge {
+        text: String,
+        text_color: Option<Rgba>,
+        weight: Weight,
+    },
     Divider,
-    Space { size: f32 },
-    Button { text: String, icon: Option<String> },
-    Tile { text: String, icon: String },
+    Space {
+        size: f32,
+    },
+    Button {
+        text: String,
+        icon: Option<String>,
+    },
+    Tile {
+        text: String,
+        icon: String,
+    },
     /// A picture of the plugin's folder (PNG, JPEG, BMP, TGA); `path` None: no such file.
-    Image { path: Option<PathBuf>, width: f32, height: f32 },
-    Checkbox { text: String, checked: bool },
-    Slider { value: f32, min: f32, max: f32, step: f32 },
+    Image {
+        path: Option<PathBuf>,
+        width: f32,
+        height: f32,
+    },
+    Checkbox {
+        text: String,
+        checked: bool,
+    },
+    Slider {
+        value: f32,
+        min: f32,
+        max: f32,
+        step: f32,
+    },
     /// A text field: clicked, it takes what is typed until Enter, Esc or a click elsewhere.
-    Input { text: String, placeholder: String, max: usize },
-    Tabs { tabs: Vec<String>, selected: usize },
+    Input {
+        text: String,
+        placeholder: String,
+        max: usize,
+    },
+    Tabs {
+        tabs: Vec<String>,
+        selected: usize,
+    },
     /// Values over time, as a line or as bars; `min`/`max` None: the values' own.
-    Chart { values: Vec<f32>, min: Option<f32>, max: Option<f32>, height: f32, style: ChartStyle, fill: bool },
+    Chart {
+        values: Vec<f32>,
+        min: Option<f32>,
+        max: Option<f32>,
+        height: f32,
+        style: ChartStyle,
+        fill: bool,
+    },
     /// Columns of texts: the header row bold; `widths` shares of the width (none: alike),
     /// `aligns` each column's alignment (none: left), `inks` a colour of each cell's own
     /// (row by row; none: the element's).
-    Table { columns: Vec<String>, rows: Vec<Vec<String>>, widths: Vec<f32>, size: f32, aligns: Vec<Align>, inks: Vec<Vec<Option<Rgba>>> },
+    Table {
+        columns: Vec<String>,
+        rows: Vec<Vec<String>>,
+        widths: Vec<f32>,
+        size: f32,
+        aligns: Vec<Align>,
+        inks: Vec<Vec<Option<Rgba>>>,
+    },
     /// Its children stacked in a tinted box with a stripe on the left (the element's colour).
-    Box { children: Vec<Element>, gap: f32 },
+    Box {
+        children: Vec<Element>,
+        gap: f32,
+    },
     /// Stops on a rail: the ones behind the bus grey, the one it heads for marked, a time on
     /// the right (and before it when the bus will be there).
-    Stops { stops: Vec<Stop>, size: f32 },
+    Stops {
+        stops: Vec<Stop>,
+        size: f32,
+    },
 }
 
 /// A notification card of `omsi.ui.toast`.
@@ -356,7 +448,18 @@ pub struct Dock {
 impl Default for UiState {
     fn default() -> Self {
         // (until the game has drawn a frame: a 1080p screen)
-        UiState { panels: Vec::new(), toasts: Vec::new(), clicks: Vec::new(), changes: Vec::new(), focus: None, shown: true, screen: [1920.0, 1080.0, 1.0], serial: 0, typing: None, dock: None }
+        UiState {
+            panels: Vec::new(),
+            toasts: Vec::new(),
+            clicks: Vec::new(),
+            changes: Vec::new(),
+            focus: None,
+            shown: true,
+            screen: [1920.0, 1080.0, 1.0],
+            serial: 0,
+            typing: None,
+            dock: None,
+        }
     }
 }
 
@@ -367,14 +470,20 @@ impl UiState {
     }
 
     fn find(&mut self, owner: u64, id: &str) -> Option<&mut PanelEntry> {
-        self.panels.iter_mut().find(|p| p.owner == owner && p.id == id)
+        self.panels
+            .iter_mut()
+            .find(|p| p.owner == owner && p.id == id)
     }
 
     /// Create or replace a plugin's panel. The same panel again changes nothing (a plugin
     /// that sets its panels on a timer redraws nothing while they stay the same).
     pub fn set(&mut self, owner: u64, id: &str, panel: Panel) -> Result<(), String> {
         check_id("the panel id", id)?;
-        if let Some(i) = self.panels.iter().position(|p| p.owner == owner && p.id == id) {
+        if let Some(i) = self
+            .panels
+            .iter()
+            .position(|p| p.owner == owner && p.id == id)
+        {
             if self.panels[i].panel != panel {
                 let revision = self.next_serial();
                 let e = &mut self.panels[i];
@@ -387,7 +496,13 @@ impl UiState {
             return Err(format!("a plugin has at most {MAX_PANELS} panels"));
         }
         let revision = self.next_serial();
-        self.panels.push(PanelEntry { owner, id: id.to_string(), panel, revision, moved: (0.0, 0.0) });
+        self.panels.push(PanelEntry {
+            owner,
+            id: id.to_string(),
+            panel,
+            revision,
+            moved: (0.0, 0.0),
+        });
         Ok(())
     }
 
@@ -396,8 +511,13 @@ impl UiState {
         let n = self.panels.len();
         self.panels.retain(|p| !(p.owner == owner && p.id == id));
         self.clicks.retain(|c| !(c.owner == owner && c.panel == id));
-        self.changes.retain(|c| !(c.owner == owner && c.panel == id));
-        if self.typing.as_ref().is_some_and(|t| t.owner == owner && t.panel == id) {
+        self.changes
+            .retain(|c| !(c.owner == owner && c.panel == id));
+        if self
+            .typing
+            .as_ref()
+            .is_some_and(|t| t.owner == owner && t.panel == id)
+        {
             self.typing = None;
         }
         self.panels.len() != n
@@ -426,7 +546,11 @@ impl UiState {
 
     /// The ids of a plugin's panels.
     pub fn ids(&self, owner: u64) -> Vec<String> {
-        self.panels.iter().filter(|p| p.owner == owner).map(|p| p.id.clone()).collect()
+        self.panels
+            .iter()
+            .filter(|p| p.owner == owner)
+            .map(|p| p.id.clone())
+            .collect()
     }
 
     /// A plugin's panel.
@@ -451,10 +575,20 @@ impl UiState {
 
     /// Change keys of one element of a panel (`ui.update`): what an element of its type
     /// takes, read as `set` reads them. Err when there is no such panel or element.
-    pub fn update(&mut self, owner: u64, id: &str, element: &str, fields: &Value, folder: Option<&Path>) -> Result<(), String> {
+    pub fn update(
+        &mut self,
+        owner: u64,
+        id: &str,
+        element: &str,
+        fields: &Value,
+        folder: Option<&Path>,
+    ) -> Result<(), String> {
         let serial = self.next_serial();
-        let e = self.find(owner, id).ok_or_else(|| format!("no panel \"{id}\""))?;
-        let el = find_element(&mut e.panel.children, element).ok_or_else(|| format!("no element \"{element}\" in panel \"{id}\""))?;
+        let e = self
+            .find(owner, id)
+            .ok_or_else(|| format!("no panel \"{id}\""))?;
+        let el = find_element(&mut e.panel.children, element)
+            .ok_or_else(|| format!("no element \"{element}\" in panel \"{id}\""))?;
         let before = el.clone();
         patch(el, fields, folder)?;
         if *el != before {
@@ -465,12 +599,19 @@ impl UiState {
 
     /// Whether `element` of a plugin's panel is a text field (a click on it starts typing).
     pub fn is_field(&self, owner: u64, id: &str, element: &str) -> bool {
-        self.panels.iter().find(|p| p.owner == owner && p.id == id).and_then(|e| find_in(&e.panel.children, element)).is_some_and(|e| matches!(e.kind, Kind::Input { .. }))
+        self.panels
+            .iter()
+            .find(|p| p.owner == owner && p.id == id)
+            .and_then(|e| find_in(&e.panel.children, element))
+            .is_some_and(|e| matches!(e.kind, Kind::Input { .. }))
     }
 
     /// The value of a checkbox, slider, field or tabs.
     pub fn value(&self, owner: u64, id: &str, element: &str) -> Option<Value> {
-        let e = self.panels.iter().find(|p| p.owner == owner && p.id == id)?;
+        let e = self
+            .panels
+            .iter()
+            .find(|p| p.owner == owner && p.id == id)?;
         find_in(&e.panel.children, element).map(Element::value)
     }
 
@@ -483,8 +624,23 @@ impl UiState {
             }
         }
         let serial = self.next_serial();
-        let ToastSpec { text, title, icon, color, seconds } = spec;
-        self.toasts.push(Toast { owner, serial, text, title, icon, color, seconds, age: 0.0 });
+        let ToastSpec {
+            text,
+            title,
+            icon,
+            color,
+            seconds,
+        } = spec;
+        self.toasts.push(Toast {
+            owner,
+            serial,
+            text,
+            title,
+            icon,
+            color,
+            seconds,
+            age: 0.0,
+        });
     }
 
     /// The panels have the mouse (`on`, asked by plugin `owner`) or let it go. They cannot
@@ -565,21 +721,33 @@ impl UiState {
         if self.clicks.len() >= MAX_CLICKS {
             self.clicks.remove(0);
         }
-        self.clicks.push(Click { owner, panel: panel.to_string(), element: element.map(str::to_string) });
+        self.clicks.push(Click {
+            owner,
+            panel: panel.to_string(),
+            element: element.map(str::to_string),
+        });
     }
 
     /// A click on a control; false when `el` is none.
     fn control_click(&mut self, owner: u64, panel: &str, el: &str) -> bool {
         let serial = self.next_serial();
-        let Some(e) = self.find(owner, panel) else { return false };
-        let Some(c) = find_element(&mut e.panel.children, el) else { return false };
+        let Some(e) = self.find(owner, panel) else {
+            return false;
+        };
+        let Some(c) = find_element(&mut e.panel.children, el) else {
+            return false;
+        };
         let value = match &mut c.kind {
             Kind::Checkbox { checked, .. } => {
                 *checked = !*checked;
                 Value::Bool(*checked)
             }
             Kind::Input { .. } => {
-                self.typing = Some(Typing { owner, panel: panel.to_string(), element: el.to_string() });
+                self.typing = Some(Typing {
+                    owner,
+                    panel: panel.to_string(),
+                    element: el.to_string(),
+                });
                 return true;
             }
             _ => return false,
@@ -591,27 +759,46 @@ impl UiState {
 
     fn push_change(&mut self, owner: u64, panel: &str, element: &str, value: Value) {
         // (a slider dragged: only its latest value waits)
-        if let Some(c) = self.changes.iter_mut().find(|c| c.owner == owner && c.panel == panel && c.element == element) {
+        if let Some(c) = self
+            .changes
+            .iter_mut()
+            .find(|c| c.owner == owner && c.panel == panel && c.element == element)
+        {
             c.value = value;
             return;
         }
         if self.changes.len() >= MAX_CLICKS {
             self.changes.remove(0);
         }
-        self.changes.push(Change { owner, panel: panel.to_string(), element: element.to_string(), value });
+        self.changes.push(Change {
+            owner,
+            panel: panel.to_string(),
+            element: element.to_string(),
+            value,
+        });
     }
 
     /// The game sets a control's value (a slider at `fraction` of its range, a tab chosen):
     /// changed, it is a change for the plugin.
     pub fn set_control(&mut self, owner: u64, panel: &str, element: &str, fraction: f32) {
         let serial = self.next_serial();
-        let Some(e) = self.find(owner, panel) else { return };
-        let Some(c) = find_element(&mut e.panel.children, element) else { return };
+        let Some(e) = self.find(owner, panel) else {
+            return;
+        };
+        let Some(c) = find_element(&mut e.panel.children, element) else {
+            return;
+        };
         let value = match &mut c.kind {
-            Kind::Slider { value, min, max, step } => {
+            Kind::Slider {
+                value,
+                min,
+                max,
+                step,
+            } => {
                 let mut v = *min + fraction.clamp(0.0, 1.0) * (*max - *min);
                 if *step > 0.0 {
-                    v = (*min + ((v - *min) / *step).round() * *step).clamp(min.min(*max), max.max(*min));
+                    v = (*min + ((v - *min) / *step).round() * *step)
+                        .clamp(min.min(*max), max.max(*min));
                 }
                 if v == *value {
                     return;
@@ -643,9 +830,18 @@ impl UiState {
     pub fn type_text(&mut self, text: Option<&str>) {
         let Some(t) = self.typing.clone() else { return };
         let serial = self.next_serial();
-        let Some(e) = self.find(t.owner, &t.panel) else { return };
-        let Some(c) = find_element(&mut e.panel.children, &t.element) else { return };
-        let Kind::Input { text: have, max, .. } = &mut c.kind else { return };
+        let Some(e) = self.find(t.owner, &t.panel) else {
+            return;
+        };
+        let Some(c) = find_element(&mut e.panel.children, &t.element) else {
+            return;
+        };
+        let Kind::Input {
+            text: have, max, ..
+        } = &mut c.kind
+        else {
+            return;
+        };
         match text {
             Some(s) => {
                 for ch in s.chars().filter(|c| !c.is_control()) {
@@ -671,7 +867,11 @@ impl UiState {
                 self.clicks.remove(0);
             }
             // (Enter in a field is a click on it: the plugin takes the text)
-            self.clicks.push(Click { owner: t.owner, panel: t.panel, element: Some(t.element) });
+            self.clicks.push(Click {
+                owner: t.owner,
+                panel: t.panel,
+                element: Some(t.element),
+            });
         }
     }
 
@@ -688,7 +888,9 @@ impl UiState {
         if self.clicks.is_empty() {
             return Vec::new();
         }
-        let (mine, rest) = std::mem::take(&mut self.clicks).into_iter().partition(|c| c.owner == owner);
+        let (mine, rest) = std::mem::take(&mut self.clicks)
+            .into_iter()
+            .partition(|c| c.owner == owner);
         self.clicks = rest;
         mine
     }
@@ -698,7 +900,9 @@ impl UiState {
         if self.changes.is_empty() {
             return Vec::new();
         }
-        let (mine, rest) = std::mem::take(&mut self.changes).into_iter().partition(|c| c.owner == owner);
+        let (mine, rest) = std::mem::take(&mut self.changes)
+            .into_iter()
+            .partition(|c| c.owner == owner);
         self.changes = rest;
         mine
     }
@@ -751,7 +955,11 @@ type TableRows = (Vec<Vec<String>>, Vec<Vec<Option<Rgba>>>);
 /// so a plugin written for a later game still shows here; a key of the wrong kind is an
 /// error that says where it is. `folder`: the plugin's own, where its images are.
 pub fn parse_panel(t: &Value, folder: Option<&Path>) -> Result<Panel, String> {
-    let r = Reader { t, path: String::new(), folder };
+    let r = Reader {
+        t,
+        path: String::new(),
+        folder,
+    };
     if !t.is_table() {
         return Err("the panel is a table".into());
     }
@@ -797,9 +1005,19 @@ pub fn parse_toast(text: &Value, opts: Option<&Value>) -> Result<ToastSpec, Stri
     if text.chars().count() > MAX_TEXT {
         return Err(format!("the text is longer than {MAX_TEXT} characters"));
     }
-    let mut spec = ToastSpec { text, title: None, icon: None, color: None, seconds: 5.0 };
+    let mut spec = ToastSpec {
+        text,
+        title: None,
+        icon: None,
+        color: None,
+        seconds: 5.0,
+    };
     if let Some(t) = opts {
-        let r = Reader { t, path: "opts".into(), folder: None };
+        let r = Reader {
+            t,
+            path: "opts".into(),
+            folder: None,
+        };
         spec.title = r.string("title")?;
         spec.icon = r.string("icon")?;
         spec.color = r.color("color")?;
@@ -812,27 +1030,41 @@ pub fn parse_toast(text: &Value, opts: Option<&Value>) -> Result<ToastSpec, Stri
 /// read in a Lua state of its own: for the game's tests and pictures of panels.
 pub fn panel_from_source(src: &str) -> Result<Panel, String> {
     let lua = mlua::Lua::new();
-    let t: mlua::Value = lua.load(format!("return {src}")).eval().map_err(|e| e.to_string())?;
+    let t: mlua::Value = lua
+        .load(format!("return {src}"))
+        .eval()
+        .map_err(|e| e.to_string())?;
     parse_panel(&crate::lua::to_value(&t)?, None)
 }
 
 /// Change the keys `fields` gives of an element (`ui.update`).
 fn patch(e: &mut Element, fields: &Value, folder: Option<&Path>) -> Result<(), String> {
-    let r = Reader { t: fields, path: e.id.clone().unwrap_or_default(), folder };
+    let r = Reader {
+        t: fields,
+        path: e.id.clone().unwrap_or_default(),
+        folder,
+    };
     if let Some(c) = r.color("color")? {
         e.color = Some(c);
     }
     let visible = r.boolean("visible", true)?;
     let has = |k: &str| fields.get(k).is_some_and(|v| !v.is_nil());
     match &mut e.kind {
-        Kind::Text { text, .. } | Kind::Badge { text, .. } | Kind::Button { text, .. } | Kind::Checkbox { text, .. } if has("text") => {
+        Kind::Text { text, .. }
+        | Kind::Badge { text, .. }
+        | Kind::Button { text, .. }
+        | Kind::Checkbox { text, .. }
+            if has("text") =>
+        {
             *text = r.string("text")?.unwrap_or_default();
         }
         Kind::Input { text, .. } if has("text") => *text = r.string("text")?.unwrap_or_default(),
         _ => {}
     }
     match &mut e.kind {
-        Kind::Bar { value, segments, .. } if has("value") || has("segments") => {
+        Kind::Bar {
+            value, segments, ..
+        } if has("value") || has("segments") => {
             if has("value") {
                 *value = r.number("value", 0.0, 0.0, 1.0)?;
             }
@@ -841,12 +1073,21 @@ fn patch(e: &mut Element, fields: &Value, folder: Option<&Path>) -> Result<(), S
             }
         }
         Kind::Stops { stops, .. } if has("stops") => *stops = r.stops("stops")?,
-        Kind::Slider { value, min, max, .. } if has("value") => *value = r.number("value", *min, min.min(*max), max.max(*min))?,
-        Kind::Checkbox { checked, .. } if has("checked") => *checked = r.boolean("checked", false)?,
-        Kind::Tabs { selected, tabs } if has("selected") => *selected = (r.number("selected", 1.0, 1.0, tabs.len().max(1) as f32)? as usize).saturating_sub(1),
+        Kind::Slider {
+            value, min, max, ..
+        } if has("value") => *value = r.number("value", *min, min.min(*max), max.max(*min))?,
+        Kind::Checkbox { checked, .. } if has("checked") => {
+            *checked = r.boolean("checked", false)?
+        }
+        Kind::Tabs { selected, tabs } if has("selected") => {
+            *selected = (r.number("selected", 1.0, 1.0, tabs.len().max(1) as f32)? as usize)
+                .saturating_sub(1)
+        }
         Kind::Icon { name, .. } if has("name") => *name = r.string("name")?.unwrap_or_default(),
         Kind::Chart { values, .. } if has("values") => *values = r.numbers("values")?,
-        Kind::Table { rows, inks, aligns, .. } if has("rows") || has("aligns") => {
+        Kind::Table {
+            rows, inks, aligns, ..
+        } if has("rows") || has("aligns") => {
             if has("rows") {
                 (*rows, *inks) = r.rows("rows")?;
             }
@@ -860,7 +1101,19 @@ fn patch(e: &mut Element, fields: &Value, folder: Option<&Path>) -> Result<(), S
     // (an element hidden by an update stays in the panel, empty: `visible = true` brings it back)
     if !visible {
         e.kind = match &e.kind {
-            Kind::Text { size, weight, align, wrap, .. } => Kind::Text { text: String::new(), size: *size, weight: *weight, align: *align, wrap: *wrap },
+            Kind::Text {
+                size,
+                weight,
+                align,
+                wrap,
+                ..
+            } => Kind::Text {
+                text: String::new(),
+                size: *size,
+                weight: *weight,
+                align: *align,
+                wrap: *wrap,
+            },
             k => k.clone(),
         };
     }
@@ -920,7 +1173,10 @@ impl Reader<'_> {
             _ => return Err(format!("{}: a text is expected", self.at(key))),
         };
         if s.chars().count() > MAX_TEXT {
-            return Err(format!("{}: longer than {MAX_TEXT} characters", self.at(key)));
+            return Err(format!(
+                "{}: longer than {MAX_TEXT} characters",
+                self.at(key)
+            ));
         }
         Ok(Some(s))
     }
@@ -928,7 +1184,12 @@ impl Reader<'_> {
     fn color(&self, key: &str) -> Result<Option<Rgba>, String> {
         match self.string(key)? {
             None => Ok(None),
-            Some(s) => Rgba::parse(&s).map(Some).ok_or_else(|| format!("{}: \"{s}\" is no colour (\"#RRGGBB\" or \"#RRGGBBAA\")", self.at(key))),
+            Some(s) => Rgba::parse(&s).map(Some).ok_or_else(|| {
+                format!(
+                    "{}: \"{s}\" is no colour (\"#RRGGBB\" or \"#RRGGBBAA\")",
+                    self.at(key)
+                )
+            }),
         }
     }
 
@@ -949,7 +1210,9 @@ impl Reader<'_> {
         l.iter()
             .enumerate()
             .map(|(i, v)| {
-                let s = v.to_text().ok_or_else(|| format!("{}[{}]: a text is expected", self.at(key), i + 1))?;
+                let s = v
+                    .to_text()
+                    .ok_or_else(|| format!("{}[{}]: a text is expected", self.at(key), i + 1))?;
                 Ok(s.chars().take(MAX_TEXT).collect())
             })
             .collect()
@@ -960,7 +1223,15 @@ impl Reader<'_> {
         if l.len() > MAX_POINTS {
             return Err(format!("{}: at most {MAX_POINTS} values", self.at(key)));
         }
-        l.iter().enumerate().map(|(i, v)| v.as_f64().filter(|n| n.is_finite()).map(|n| n as f32).ok_or_else(|| format!("{}[{}]: a number is expected", self.at(key), i + 1))).collect()
+        l.iter()
+            .enumerate()
+            .map(|(i, v)| {
+                v.as_f64()
+                    .filter(|n| n.is_finite())
+                    .map(|n| n as f32)
+                    .ok_or_else(|| format!("{}[{}]: a number is expected", self.at(key), i + 1))
+            })
+            .collect()
     }
 
     /// A table's rows, and the colours of the cells that have their own (none at all: an
@@ -971,14 +1242,27 @@ impl Reader<'_> {
         let mut out = Vec::new();
         let mut inks = Vec::new();
         for (i, row) in l.iter().enumerate() {
-            let r = Reader { t: row, path: format!("{}[{}]", self.at(key), i + 1), folder: None };
-            let Value::List(c) = row else { return Err(format!("{}: a row is a list of texts", r.path)) };
+            let r = Reader {
+                t: row,
+                path: format!("{}[{}]", self.at(key), i + 1),
+                folder: None,
+            };
+            let Value::List(c) = row else {
+                return Err(format!("{}: a row is a list of texts", r.path));
+            };
             let mut cols = Vec::with_capacity(c.len());
             let mut colors = Vec::with_capacity(c.len());
             for (j, v) in c.iter().enumerate() {
                 let (text, ink) = if v.is_table() {
-                    let cell = Reader { t: v, path: format!("{}[{}]", r.path, j + 1), folder: None };
-                    (cell.string("text")?.unwrap_or_default(), cell.color("color")?)
+                    let cell = Reader {
+                        t: v,
+                        path: format!("{}[{}]", r.path, j + 1),
+                        folder: None,
+                    };
+                    (
+                        cell.string("text")?.unwrap_or_default(),
+                        cell.color("color")?,
+                    )
                 } else {
                     (v.to_text().unwrap_or_default(), None)
                 };
@@ -987,7 +1271,10 @@ impl Reader<'_> {
             }
             cells += cols.len();
             if cells > MAX_POINTS {
-                return Err(format!("{}: a table has at most {MAX_POINTS} cells", self.at(key)));
+                return Err(format!(
+                    "{}: a table has at most {MAX_POINTS} cells",
+                    self.at(key)
+                ));
             }
             out.push(cols);
             inks.push(colors);
@@ -1006,7 +1293,10 @@ impl Reader<'_> {
                 "left" => Ok(Align::Left),
                 "center" => Ok(Align::Center),
                 "right" => Ok(Align::Right),
-                _ => Err(format!("{}: \"{a}\" is no alignment (left, center, right)", self.at(key))),
+                _ => Err(format!(
+                    "{}: \"{a}\" is no alignment (left, center, right)",
+                    self.at(key)
+                )),
             })
             .collect()
     }
@@ -1017,7 +1307,12 @@ impl Reader<'_> {
             Some("regular") => Weight::Regular,
             Some("medium") => Weight::Medium,
             Some("bold") => Weight::Bold,
-            Some(w) => return Err(format!("{}: \"{w}\" is no weight (regular, medium, bold)", self.at("weight"))),
+            Some(w) => {
+                return Err(format!(
+                    "{}: \"{w}\" is no weight (regular, medium, bold)",
+                    self.at("weight")
+                ))
+            }
         })
     }
 
@@ -1030,11 +1325,18 @@ impl Reader<'_> {
         l.iter()
             .enumerate()
             .map(|(i, t)| {
-                let r = Reader { t, path: format!("{}[{}]", self.at(key), i + 1), folder: None };
+                let r = Reader {
+                    t,
+                    path: format!("{}[{}]", self.at(key), i + 1),
+                    folder: None,
+                };
                 if !t.is_table() {
                     return Err(format!("{}: a part is a table", r.path));
                 }
-                Ok((r.number("value", 0.0, 0.0, 1e9)?, r.color("color")?.unwrap_or(Rgba([232, 160, 48, 255]))))
+                Ok((
+                    r.number("value", 0.0, 0.0, 1e9)?,
+                    r.color("color")?.unwrap_or(Rgba([232, 160, 48, 255])),
+                ))
             })
             .collect()
     }
@@ -1044,12 +1346,20 @@ impl Reader<'_> {
     fn stops(&self, key: &str) -> Result<Vec<Stop>, String> {
         let l = self.list(key)?;
         if l.len() > MAX_POINTS / 4 {
-            return Err(format!("{}: at most {} stops", self.at(key), MAX_POINTS / 4));
+            return Err(format!(
+                "{}: at most {} stops",
+                self.at(key),
+                MAX_POINTS / 4
+            ));
         }
         l.iter()
             .enumerate()
             .map(|(i, t)| {
-                let r = Reader { t, path: format!("{}[{}]", self.at(key), i + 1), folder: None };
+                let r = Reader {
+                    t,
+                    path: format!("{}[{}]", self.at(key), i + 1),
+                    folder: None,
+                };
                 if !t.is_table() {
                     return Err(format!("{}: a stop is a table", r.path));
                 }
@@ -1062,7 +1372,12 @@ impl Reader<'_> {
                         None | Some("ahead") => StopState::Ahead,
                         Some("now") => StopState::Now,
                         Some("done") => StopState::Done,
-                        Some(s) => return Err(format!("{}: \"{s}\" is no state (done, now, ahead)", r.at("state"))),
+                        Some(s) => {
+                            return Err(format!(
+                                "{}: \"{s}\" is no state (done, now, ahead)",
+                                r.at("state")
+                            ))
+                        }
                     },
                     tag: r.string("tag")?.unwrap_or_default(),
                 })
@@ -1072,9 +1387,14 @@ impl Reader<'_> {
 
     /// An image of the plugin's folder: the file when it is there.
     fn image(&self, key: &str) -> Result<Option<PathBuf>, String> {
-        let Some(src) = self.string(key)? else { return Ok(None) };
-        let Some(folder) = self.folder else { return Ok(None) };
-        let p = crate::api::paths::inside(folder, &src).map_err(|e| format!("{}: {e}", self.at(key)))?;
+        let Some(src) = self.string(key)? else {
+            return Ok(None);
+        };
+        let Some(folder) = self.folder else {
+            return Ok(None);
+        };
+        let p = crate::api::paths::inside(folder, &src)
+            .map_err(|e| format!("{}: {e}", self.at(key)))?;
         Ok(p.is_file().then_some(p))
     }
 
@@ -1086,7 +1406,10 @@ impl Reader<'_> {
             _ => return Err(format!("{}: a list of elements is expected", self.at(key))),
         };
         if depth >= MAX_DEPTH {
-            return Err(format!("{}: rows go at most {MAX_DEPTH} deep", self.at(key)));
+            return Err(format!(
+                "{}: rows go at most {MAX_DEPTH} deep",
+                self.at(key)
+            ));
         }
         let mut out = Vec::new();
         for (i, t) in list.iter().enumerate() {
@@ -1098,7 +1421,13 @@ impl Reader<'_> {
             if *count > MAX_ELEMENTS {
                 return Err(format!("a panel has at most {MAX_ELEMENTS} elements"));
             }
-            if let Some(e) = (Reader { t, path, folder: self.folder }).element(depth, count)? {
+            if let Some(e) = (Reader {
+                t,
+                path,
+                folder: self.folder,
+            })
+            .element(depth, count)?
+            {
                 out.push(e);
             }
         }
@@ -1107,7 +1436,9 @@ impl Reader<'_> {
 
     /// One element; None when it is hidden or of a type this game does not know.
     fn element(&self, depth: usize, count: &mut usize) -> Result<Option<Element>, String> {
-        let ty = self.string("type")?.ok_or_else(|| format!("{}: no type", self.path))?;
+        let ty = self
+            .string("type")?
+            .ok_or_else(|| format!("{}: no type", self.path))?;
         let id = self.string("id")?;
         if let Some(id) = id.as_deref() {
             check_id(&self.at("id"), id)?;
@@ -1128,11 +1459,19 @@ impl Reader<'_> {
                     None | Some("left") => Align::Left,
                     Some("center") => Align::Center,
                     Some("right") => Align::Right,
-                    Some(a) => return Err(format!("{}: \"{a}\" is no alignment (left, center, right)", self.at("align"))),
+                    Some(a) => {
+                        return Err(format!(
+                            "{}: \"{a}\" is no alignment (left, center, right)",
+                            self.at("align")
+                        ))
+                    }
                 },
                 wrap: self.boolean("wrap", true)?,
             },
-            "icon" => Kind::Icon { name: self.string("name")?.unwrap_or_default(), size: self.number("size", 20.0, 6.0, 128.0)? },
+            "icon" => Kind::Icon {
+                name: self.string("name")?.unwrap_or_default(),
+                size: self.number("size", 20.0, 6.0, 128.0)?,
+            },
             "row" => Kind::Row {
                 children: self.children("children", depth + 1, count)?,
                 gap: self.number("gap", 8.0, 0.0, 64.0)?,
@@ -1141,40 +1480,84 @@ impl Reader<'_> {
                     Some("center") => RowAlign::Center,
                     Some("end") => RowAlign::End,
                     Some("between") => RowAlign::Between,
-                    Some(a) => return Err(format!("{}: \"{a}\" is no alignment (start, center, end, between)", self.at("align"))),
+                    Some(a) => {
+                        return Err(format!(
+                            "{}: \"{a}\" is no alignment (start, center, end, between)",
+                            self.at("align")
+                        ))
+                    }
                 },
             },
-            "bar" => Kind::Bar { value: self.number("value", 0.0, 0.0, 1.0)?, height: self.number("height", 6.0, 1.0, 64.0)?, background: self.color("background")?, segments: self.segments("segments")? },
-            "badge" => Kind::Badge { text: text()?, text_color: self.color("text_color")?, weight: self.weight(Weight::Medium)? },
-            "box" => Kind::Box { children: self.children("children", depth + 1, count)?, gap: self.number("gap", 4.0, 0.0, 64.0)? },
-            "stops" => Kind::Stops { stops: self.stops("stops")?, size: self.number("size", 13.0, 6.0, 48.0)? },
+            "bar" => Kind::Bar {
+                value: self.number("value", 0.0, 0.0, 1.0)?,
+                height: self.number("height", 6.0, 1.0, 64.0)?,
+                background: self.color("background")?,
+                segments: self.segments("segments")?,
+            },
+            "badge" => Kind::Badge {
+                text: text()?,
+                text_color: self.color("text_color")?,
+                weight: self.weight(Weight::Medium)?,
+            },
+            "box" => Kind::Box {
+                children: self.children("children", depth + 1, count)?,
+                gap: self.number("gap", 4.0, 0.0, 64.0)?,
+            },
+            "stops" => Kind::Stops {
+                stops: self.stops("stops")?,
+                size: self.number("size", 13.0, 6.0, 48.0)?,
+            },
             "divider" => Kind::Divider,
-            "space" => Kind::Space { size: self.number("size", 8.0, 0.0, 1000.0)? },
+            "space" => Kind::Space {
+                size: self.number("size", 8.0, 0.0, 1000.0)?,
+            },
             "button" => {
                 needs_id("button")?;
-                Kind::Button { text: text()?, icon: self.string("icon")? }
+                Kind::Button {
+                    text: text()?,
+                    icon: self.string("icon")?,
+                }
             }
-            "image" => Kind::Image { path: self.image("src")?, width: self.number("width", 64.0, 1.0, 4000.0)?, height: self.number("height", 64.0, 1.0, 4000.0)? },
+            "image" => Kind::Image {
+                path: self.image("src")?,
+                width: self.number("width", 64.0, 1.0, 4000.0)?,
+                height: self.number("height", 64.0, 1.0, 4000.0)?,
+            },
             "checkbox" => {
                 needs_id("checkbox")?;
-                Kind::Checkbox { text: text()?, checked: self.boolean("checked", false)? }
+                Kind::Checkbox {
+                    text: text()?,
+                    checked: self.boolean("checked", false)?,
+                }
             }
             "slider" => {
                 needs_id("slider")?;
                 let min = self.number("min", 0.0, -1e9, 1e9)?;
                 let max = self.number("max", 1.0, -1e9, 1e9)?;
-                Kind::Slider { value: self.number("value", min, min.min(max), max.max(min))?, min, max, step: self.number("step", 0.0, 0.0, 1e9)? }
+                Kind::Slider {
+                    value: self.number("value", min, min.min(max), max.max(min))?,
+                    min,
+                    max,
+                    step: self.number("step", 0.0, 0.0, 1e9)?,
+                }
             }
             "input" => {
                 needs_id("text field")?;
                 let max = self.number("max", 100.0, 1.0, MAX_TEXT as f32)? as usize;
-                Kind::Input { text: text()?.chars().take(max).collect(), placeholder: self.string("placeholder")?.unwrap_or_default(), max }
+                Kind::Input {
+                    text: text()?.chars().take(max).collect(),
+                    placeholder: self.string("placeholder")?.unwrap_or_default(),
+                    max,
+                }
             }
             "tabs" => {
                 needs_id("tabs element")?;
                 let tabs = self.texts("tabs")?;
                 let n = tabs.len().max(1) as f32;
-                Kind::Tabs { selected: (self.number("selected", 1.0, 1.0, n)? as usize).saturating_sub(1), tabs }
+                Kind::Tabs {
+                    selected: (self.number("selected", 1.0, 1.0, n)? as usize).saturating_sub(1),
+                    tabs,
+                }
             }
             "chart" => Kind::Chart {
                 values: self.numbers("values")?,
@@ -1184,18 +1567,36 @@ impl Reader<'_> {
                 style: match self.string("style")?.as_deref() {
                     None | Some("line") => ChartStyle::Line,
                     Some("bars") => ChartStyle::Bars,
-                    Some(s) => return Err(format!("{}: \"{s}\" is no chart style (line, bars)", self.at("style"))),
+                    Some(s) => {
+                        return Err(format!(
+                            "{}: \"{s}\" is no chart style (line, bars)",
+                            self.at("style")
+                        ))
+                    }
                 },
                 fill: self.boolean("fill", false)?,
             },
             "table" => {
                 let (rows, inks) = self.rows("rows")?;
-                Kind::Table { columns: self.texts("columns")?, rows, widths: self.numbers("widths")?, size: self.number("size", 13.0, 6.0, 48.0)?, aligns: self.aligns("aligns")?, inks }
+                Kind::Table {
+                    columns: self.texts("columns")?,
+                    rows,
+                    widths: self.numbers("widths")?,
+                    size: self.number("size", 13.0, 6.0, 48.0)?,
+                    aligns: self.aligns("aligns")?,
+                    inks,
+                }
             }
             // (an element of a later version of the API: left out)
             _ => return Ok(None),
         };
-        let e = Element { id, color: self.color("color")?, grow: self.boolean("grow", false)?, clickable: self.boolean("clickable", false)?, kind };
+        let e = Element {
+            id,
+            color: self.color("color")?,
+            grow: self.boolean("grow", false)?,
+            clickable: self.boolean("clickable", false)?,
+            kind,
+        };
         Ok(self.boolean("visible", true)?.then_some(e))
     }
 }
@@ -1211,7 +1612,10 @@ mod tests {
     #[test]
     fn colours() {
         assert_eq!(Rgba::parse("#F47F30"), Some(Rgba([0xF4, 0x7F, 0x30, 255])));
-        assert_eq!(Rgba::parse("#14161acc"), Some(Rgba([0x14, 0x16, 0x1A, 0xCC])));
+        assert_eq!(
+            Rgba::parse("#14161acc"),
+            Some(Rgba([0x14, 0x16, 0x1A, 0xCC]))
+        );
         for bad in ["F47F30", "#F47F3", "#GGGGGG", "#F47F30C", "#ÄÄÄ"] {
             assert_eq!(Rgba::parse(bad), None, "{bad}");
         }
@@ -1232,41 +1636,117 @@ mod tests {
             } }"##,
         )
         .unwrap();
-        let Kind::Box { children, .. } = &p.children[0].kind else { panic!("{:?}", p.children[0]) };
+        let Kind::Box { children, .. } = &p.children[0].kind else {
+            panic!("{:?}", p.children[0])
+        };
         assert_eq!(children.len(), 1);
-        let Kind::Stops { stops, size } = &p.children[1].kind else { panic!("{:?}", p.children[1]) };
-        assert_eq!((stops[0].state, stops[1].state, stops[1].tag.as_str(), *size), (StopState::Now, StopState::Ahead, "terminus", 13.0));
+        let Kind::Stops { stops, size } = &p.children[1].kind else {
+            panic!("{:?}", p.children[1])
+        };
+        assert_eq!(
+            (stops[0].state, stops[1].state, stops[1].tag.as_str(), *size),
+            (StopState::Now, StopState::Ahead, "terminus", 13.0)
+        );
         assert_eq!(stops[0].expected_color, Rgba::parse("#FF5F57"));
-        let Kind::Bar { segments, .. } = &p.children[2].kind else { panic!("{:?}", p.children[2]) };
-        assert_eq!(segments, &[(2.0, Rgba([0x2A, 0x75, 0xF7, 255])), (5.0, Rgba([232, 160, 48, 255]))]);
-        let Kind::Table { rows, aligns, inks, .. } = &p.children[3].kind else { panic!("{:?}", p.children[3]) };
-        assert_eq!(rows, &[vec!["Zoo".to_string(), "+3:12".into()], vec!["Markt".into(), "12:05".into()]]);
+        let Kind::Bar { segments, .. } = &p.children[2].kind else {
+            panic!("{:?}", p.children[2])
+        };
+        assert_eq!(
+            segments,
+            &[
+                (2.0, Rgba([0x2A, 0x75, 0xF7, 255])),
+                (5.0, Rgba([232, 160, 48, 255]))
+            ]
+        );
+        let Kind::Table {
+            rows, aligns, inks, ..
+        } = &p.children[3].kind
+        else {
+            panic!("{:?}", p.children[3])
+        };
+        assert_eq!(
+            rows,
+            &[
+                vec!["Zoo".to_string(), "+3:12".into()],
+                vec!["Markt".into(), "12:05".into()]
+            ]
+        );
         assert_eq!(aligns, &[Align::Left, Align::Right]);
-        assert_eq!(inks, &[vec![None, Rgba::parse("#FF5F57")], vec![None, None]]);
+        assert_eq!(
+            inks,
+            &[vec![None, Rgba::parse("#FF5F57")], vec![None, None]]
+        );
         // (a table without a coloured cell keeps no colours)
-        let Kind::Table { inks, .. } = &p.children[4].kind else { panic!("{:?}", p.children[4]) };
+        let Kind::Table { inks, .. } = &p.children[4].kind else {
+            panic!("{:?}", p.children[4])
+        };
         assert!(inks.is_empty());
-        assert!(matches!(p.children[5].kind, Kind::Badge { weight: Weight::Bold, .. }));
+        assert!(matches!(
+            p.children[5].kind,
+            Kind::Badge {
+                weight: Weight::Bold,
+                ..
+            }
+        ));
         // an element in a box is found by its id, as one in a row
         let mut ui = UiState::default();
         ui.set(1, "p", p).unwrap();
-        ui.update(1, "p", "next", &Value::map([("text", "Next 08:20".into())]), None).unwrap();
-        assert!(matches!(&ui.get(1, "p").unwrap().panel.children[0].kind, Kind::Box { children, .. } if matches!(&children[0].kind, Kind::Text { text, .. } if text == "Next 08:20")));
+        ui.update(
+            1,
+            "p",
+            "next",
+            &Value::map([("text", "Next 08:20".into())]),
+            None,
+        )
+        .unwrap();
+        assert!(
+            matches!(&ui.get(1, "p").unwrap().panel.children[0].kind, Kind::Box { children, .. } if matches!(&children[0].kind, Kind::Text { text, .. } if text == "Next 08:20"))
+        );
         // a table's alignments and a bar's parts change in place too, with its rows or value
         let mut p = panel(r##"{ children = { { type = "table", id = "t", rows = { { "a", "b" } } }, { type = "bar", id = "b", value = 0.5 } } }"##).unwrap();
         p.children[0].id = Some("t".into());
         ui.set(1, "q", p).unwrap();
         let cells = Value::List(vec![Value::List(vec!["x".into(), "y".into()])]);
-        ui.update(1, "q", "t", &Value::map([("aligns", Value::List(vec!["left".into(), "right".into()])), ("rows", cells)]), None).unwrap();
+        ui.update(
+            1,
+            "q",
+            "t",
+            &Value::map([
+                ("aligns", Value::List(vec!["left".into(), "right".into()])),
+                ("rows", cells),
+            ]),
+            None,
+        )
+        .unwrap();
         let parts = Value::List(vec![Value::map([("value", 1i64.into())])]);
-        ui.update(1, "q", "b", &Value::map([("value", 0.25.into()), ("segments", parts)]), None).unwrap();
+        ui.update(
+            1,
+            "q",
+            "b",
+            &Value::map([("value", 0.25.into()), ("segments", parts)]),
+            None,
+        )
+        .unwrap();
         let q = &ui.get(1, "q").unwrap().panel;
-        assert!(matches!(&q.children[0].kind, Kind::Table { aligns, rows, .. } if aligns == &[Align::Left, Align::Right] && rows[0][1] == "y"));
-        assert!(matches!(&q.children[1].kind, Kind::Bar { value, segments, .. } if *value == 0.25 && segments.len() == 1));
+        assert!(
+            matches!(&q.children[0].kind, Kind::Table { aligns, rows, .. } if aligns == &[Align::Left, Align::Right] && rows[0][1] == "y")
+        );
+        assert!(
+            matches!(&q.children[1].kind, Kind::Bar { value, segments, .. } if *value == 0.25 && segments.len() == 1)
+        );
         for (src, want) in [
-            (r#"{ children = { { type = "table", aligns = { "middle" } } } }"#, "children[1].aligns: \"middle\" is no alignment"),
-            (r#"{ children = { { type = "stops", stops = { { state = "gone" } } } } }"#, "children[1].stops[1].state: \"gone\" is no state"),
-            (r#"{ children = { { type = "bar", segments = { 1 } } } }"#, "children[1].segments[1]: a part is a table"),
+            (
+                r#"{ children = { { type = "table", aligns = { "middle" } } } }"#,
+                "children[1].aligns: \"middle\" is no alignment",
+            ),
+            (
+                r#"{ children = { { type = "stops", stops = { { state = "gone" } } } } }"#,
+                "children[1].stops[1].state: \"gone\" is no state",
+            ),
+            (
+                r#"{ children = { { type = "bar", segments = { 1 } } } }"#,
+                "children[1].segments[1]: a part is a table",
+            ),
         ] {
             let e = panel(src).unwrap_err();
             assert!(e.contains(want), "{src}: {e}");
@@ -1275,12 +1755,23 @@ mod tests {
 
     #[test]
     fn a_panel_for_the_navigators_board() {
-        let p = panel(r##"{ anchor = "navigator", children = { { type = "text", text = "Next: Markt" } } }"##).unwrap();
-        assert_eq!((p.anchor, p.anchor.factors()), (Anchor::Navigator, (0.0, 0.0)));
+        let p = panel(
+            r##"{ anchor = "navigator", children = { { type = "text", text = "Next: Markt" } } }"##,
+        )
+        .unwrap();
+        assert_eq!(
+            (p.anchor, p.anchor.factors()),
+            (Anchor::Navigator, (0.0, 0.0))
+        );
         // the game says where the board is, or that there is none
         let mut ui = UiState::default();
         assert_eq!(ui.dock(), None);
-        let d = Dock { width: 360.0, room: 420.0, height: 96.0, owner: Some(7) };
+        let d = Dock {
+            width: 360.0,
+            room: 420.0,
+            height: 96.0,
+            owner: Some(7),
+        };
         ui.set_dock(Some(d));
         assert_eq!(ui.dock(), Some(d));
     }
@@ -1303,23 +1794,63 @@ mod tests {
         )
         .unwrap();
         assert_eq!(p.anchor, Anchor::BottomRight);
-        assert_eq!((p.x, p.y, p.width, p.padding, p.gap, p.radius), (16.0, 0.0, 340.0, 12.0, 6.0, 12.0));
+        assert_eq!(
+            (p.x, p.y, p.width, p.padding, p.gap, p.radius),
+            (16.0, 0.0, 340.0, 12.0, 6.0, 12.0)
+        );
         assert_eq!(p.accent, Some(Rgba([0xF4, 0x7F, 0x30, 255])));
         assert!(p.visible && !p.clickable && !p.grab && p.background.is_none());
         assert!(panel("{ grab = true }").unwrap().grab);
         // (a click from a grab starts no typing: the game asks which parts are fields)
         let mut ui = UiState::default();
         ui.set(1, "p", panel(r#"{ children = { { type = "input", id = "name" }, { type = "button", id = "ok", text = "OK" } } }"#).unwrap()).unwrap();
-        assert!(ui.is_field(1, "p", "name") && !ui.is_field(1, "p", "ok") && !ui.is_field(2, "p", "name"));
+        assert!(
+            ui.is_field(1, "p", "name")
+                && !ui.is_field(1, "p", "ok")
+                && !ui.is_field(2, "p", "name")
+        );
         // (the hidden text and the unknown type are left out)
         assert_eq!(p.children.len(), 4);
-        assert_eq!(p.children[0].kind, Kind::Text { text: "Linie 42".into(), size: 18.0, weight: Weight::Bold, align: Align::Left, wrap: true });
-        let Kind::Row { children, gap, align } = &p.children[1].kind else { panic!("{:?}", p.children[1]) };
+        assert_eq!(
+            p.children[0].kind,
+            Kind::Text {
+                text: "Linie 42".into(),
+                size: 18.0,
+                weight: Weight::Bold,
+                align: Align::Left,
+                wrap: true
+            }
+        );
+        let Kind::Row {
+            children,
+            gap,
+            align,
+        } = &p.children[1].kind
+        else {
+            panic!("{:?}", p.children[1])
+        };
         assert_eq!((*gap, *align, children.len()), (8.0, RowAlign::Between, 3));
         assert!(children[1].grow);
-        assert_eq!(children[1].kind, Kind::Text { text: "12.5".into(), size: 14.0, weight: Weight::Regular, align: Align::Left, wrap: true });
+        assert_eq!(
+            children[1].kind,
+            Kind::Text {
+                text: "12.5".into(),
+                size: 14.0,
+                weight: Weight::Regular,
+                align: Align::Left,
+                wrap: true
+            }
+        );
         // (held to its range)
-        assert_eq!(p.children[2].kind, Kind::Bar { value: 1.0, height: 6.0, background: None, segments: Vec::new() });
+        assert_eq!(
+            p.children[2].kind,
+            Kind::Bar {
+                value: 1.0,
+                height: 6.0,
+                background: None,
+                segments: Vec::new()
+            }
+        );
         assert!(p.children[3].takes_clicks() && !p.children[0].takes_clicks());
     }
 
@@ -1327,16 +1858,46 @@ mod tests {
     fn mistakes_say_where_they_are() {
         let cases = [
             (r#"{ width = "wide" }"#, "width: a number is expected"),
-            (r#"{ anchor = "middle" }"#, "anchor: \"middle\" is no anchor"),
-            (r#"{ background = "red" }"#, "background: \"red\" is no colour"),
-            (r#"{ children = { { type = "button", text = "Go" } } }"#, "children[1]: a button needs an id"),
-            (r#"{ children = { { type = "row", children = { { type = "text", size = {} } } } } }"#, "children[1].children[1].size: a number is expected"),
-            (r#"{ children = { { text = "no type" } } }"#, "children[1]: no type"),
-            (r#"{ children = { "text" } }"#, "children[1]: an element is a table"),
-            (r#"{ children = { { type = "text", text = string.rep("x", 501) } } }"#, "children[1].text: longer than 500 characters"),
-            (r#"{ children = { { type = "text", weight = "heavy" } } }"#, "is no weight"),
-            (r#"{ children = { { type = "slider", value = 2 } } }"#, "a slider needs an id"),
-            (r#"{ children = { { type = "chart", values = { 1, "x" } } } }"#, "children[1].values[2]: a number is expected"),
+            (
+                r#"{ anchor = "middle" }"#,
+                "anchor: \"middle\" is no anchor",
+            ),
+            (
+                r#"{ background = "red" }"#,
+                "background: \"red\" is no colour",
+            ),
+            (
+                r#"{ children = { { type = "button", text = "Go" } } }"#,
+                "children[1]: a button needs an id",
+            ),
+            (
+                r#"{ children = { { type = "row", children = { { type = "text", size = {} } } } } }"#,
+                "children[1].children[1].size: a number is expected",
+            ),
+            (
+                r#"{ children = { { text = "no type" } } }"#,
+                "children[1]: no type",
+            ),
+            (
+                r#"{ children = { "text" } }"#,
+                "children[1]: an element is a table",
+            ),
+            (
+                r#"{ children = { { type = "text", text = string.rep("x", 501) } } }"#,
+                "children[1].text: longer than 500 characters",
+            ),
+            (
+                r#"{ children = { { type = "text", weight = "heavy" } } }"#,
+                "is no weight",
+            ),
+            (
+                r#"{ children = { { type = "slider", value = 2 } } }"#,
+                "a slider needs an id",
+            ),
+            (
+                r#"{ children = { { type = "chart", values = { 1, "x" } } } }"#,
+                "children[1].values[2]: a number is expected",
+            ),
         ];
         for (src, want) in cases {
             let e = panel(src).unwrap_err();
@@ -1357,7 +1918,10 @@ mod tests {
         for i in 0..MAX_PANELS {
             ui.set(1, &format!("p{i}"), p.clone()).unwrap();
         }
-        assert!(ui.set(1, "one too many", p.clone()).unwrap_err().contains("at most 16 panels"));
+        assert!(ui
+            .set(1, "one too many", p.clone())
+            .unwrap_err()
+            .contains("at most 16 panels"));
         // replacing one is no new panel; another plugin has its own sixteen
         ui.set(1, "p0", p.clone()).unwrap();
         ui.set(2, "p0", p.clone()).unwrap();
@@ -1371,11 +1935,26 @@ mod tests {
     #[test]
     fn the_same_panel_again_is_no_change() {
         let mut ui = UiState::default();
-        ui.set(1, "trip", panel(r#"{ children = { { type = "text", text = "a" } } }"#).unwrap()).unwrap();
+        ui.set(
+            1,
+            "trip",
+            panel(r#"{ children = { { type = "text", text = "a" } } }"#).unwrap(),
+        )
+        .unwrap();
         let first = ui.panels()[0].revision;
-        ui.set(1, "trip", panel(r#"{ children = { { type = "text", text = "a" } } }"#).unwrap()).unwrap();
+        ui.set(
+            1,
+            "trip",
+            panel(r#"{ children = { { type = "text", text = "a" } } }"#).unwrap(),
+        )
+        .unwrap();
         assert_eq!(ui.panels()[0].revision, first);
-        ui.set(1, "trip", panel(r#"{ children = { { type = "text", text = "b" } } }"#).unwrap()).unwrap();
+        ui.set(
+            1,
+            "trip",
+            panel(r#"{ children = { { type = "text", text = "b" } } }"#).unwrap(),
+        )
+        .unwrap();
         assert_ne!(ui.panels()[0].revision, first);
     }
 
@@ -1385,12 +1964,29 @@ mod tests {
         for i in 0..MAX_TOASTS + 2 {
             ui.toast(1, parse_toast(&Value::Str(format!("t{i}")), None).unwrap());
         }
-        let opts = Value::map([("seconds", 1i64.into()), ("title", "Pay".into()), ("icon", "payments".into()), ("color", "#2E7D32".into())]);
+        let opts = Value::map([
+            ("seconds", 1i64.into()),
+            ("title", "Pay".into()),
+            ("icon", "payments".into()),
+            ("color", "#2E7D32".into()),
+        ]);
         let spec = parse_toast(&Value::Int(42), Some(&opts)).unwrap();
-        assert_eq!(spec, ToastSpec { text: "42".into(), title: Some("Pay".into()), icon: Some("payments".into()), color: Some(Rgba([0x2E, 0x7D, 0x32, 255])), seconds: 1.0 });
+        assert_eq!(
+            spec,
+            ToastSpec {
+                text: "42".into(),
+                title: Some("Pay".into()),
+                icon: Some("payments".into()),
+                color: Some(Rgba([0x2E, 0x7D, 0x32, 255])),
+                seconds: 1.0
+            }
+        );
         ui.toast(2, spec);
         let bad = Value::map([("seconds", "long".into())]);
-        assert_eq!(parse_toast(&Value::Int(1), Some(&bad)).unwrap_err(), "opts.seconds: a number is expected");
+        assert_eq!(
+            parse_toast(&Value::Int(1), Some(&bad)).unwrap_err(),
+            "opts.seconds: a number is expected"
+        );
         assert_eq!(ui.toasts().len(), MAX_TOASTS + 1);
         assert_eq!(ui.toasts()[0].text, "t2");
         ui.tick(2.0);
@@ -1402,7 +1998,17 @@ mod tests {
     #[test]
     fn focus_clicks_and_owners() {
         let mut ui = UiState::default();
-        ui.set(7, "menu", Panel { anchor: Anchor::Center, width: 200.0, clickable: true, ..Panel::default() }).unwrap();
+        ui.set(
+            7,
+            "menu",
+            Panel {
+                anchor: Anchor::Center,
+                width: 200.0,
+                clickable: true,
+                ..Panel::default()
+            },
+        )
+        .unwrap();
         assert!(ui.set_focus(7, true) && ui.focused());
         ui.release_focus();
         assert!(!ui.focused());
@@ -1414,7 +2020,14 @@ mod tests {
         assert!(ui.set_focus(7, true));
         ui.click(7, "menu", Some("ok"));
         ui.click(8, "x", None);
-        assert_eq!(ui.take_clicks(7), [Click { owner: 7, panel: "menu".into(), element: Some("ok".into()) }]);
+        assert_eq!(
+            ui.take_clicks(7),
+            [Click {
+                owner: 7,
+                panel: "menu".into(),
+                element: Some("ok".into())
+            }]
+        );
         assert!(ui.take_clicks(7).is_empty());
         // another plugin stops: the mouse stays; the one that asked for it stops: it goes
         ui.remove_owner(8);
@@ -1448,12 +2061,31 @@ mod tests {
         ui.type_text(Some("Hello world"));
         ui.type_text(None);
         ui.stop_typing(true);
-        let changes: Vec<(String, Value)> = ui.take_changes(1).into_iter().map(|c| (c.element, c.value)).collect();
-        assert_eq!(changes, [("rain".to_string(), Value::Bool(true)), ("vol".into(), Value::Num(7.0)), ("tab".into(), Value::Int(2)), ("name".into(), Value::Str("Hell".into()))]);
+        let changes: Vec<(String, Value)> = ui
+            .take_changes(1)
+            .into_iter()
+            .map(|c| (c.element, c.value))
+            .collect();
+        assert_eq!(
+            changes,
+            [
+                ("rain".to_string(), Value::Bool(true)),
+                ("vol".into(), Value::Num(7.0)),
+                ("tab".into(), Value::Int(2)),
+                ("name".into(), Value::Str("Hell".into()))
+            ]
+        );
         // (Enter in the field is a click on it; the checkbox's click was its change)
         assert_eq!(ui.take_clicks(1).len(), 1);
         assert_eq!(ui.value(1, "p", "vol"), Some(Value::Num(7.0)));
-        ui.update(1, "p", "rain", &Value::map([("checked", false.into())]), None).unwrap();
+        ui.update(
+            1,
+            "p",
+            "rain",
+            &Value::map([("checked", false.into())]),
+            None,
+        )
+        .unwrap();
         assert_eq!(ui.value(1, "p", "rain"), Some(Value::Bool(false)));
         assert!(ui.update(1, "p", "nothing", &Value::map([]), None).is_err());
         ui.drag(1, "p", 5.0, -2.0);

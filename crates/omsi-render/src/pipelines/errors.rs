@@ -10,7 +10,11 @@ pub(crate) struct ErrorFlags {
     pub device_lost: Arc<std::sync::Mutex<Option<String>>>,
 }
 
-pub(crate) fn install(device: &wgpu::Device, format: wgpu::TextureFormat, options: &RenderOptions) -> ErrorFlags {
+pub(crate) fn install(
+    device: &wgpu::Device,
+    format: wgpu::TextureFormat,
+    options: &RenderOptions,
+) -> ErrorFlags {
     let msaa = options.msaa;
     // A GPU error while multisampling is on is logged and switches multisampling off
     // at the next frame (`render_inner`). Otherwise it is logged and the game goes on:
@@ -30,7 +34,8 @@ pub(crate) fn install(device: &wgpu::Device, format: wgpu::TextureFormat, option
                 return;
             }
             log::error!("the graphics device was lost ({reason:?}): {message}");
-            *lost.lock().unwrap_or_else(|e| e.into_inner()) = Some(format!("{reason:?}: {message}"));
+            *lost.lock().unwrap_or_else(|e| e.into_inner()) =
+                Some(format!("{reason:?}: {message}"));
         });
     }
     {
@@ -47,12 +52,22 @@ pub(crate) fn install(device: &wgpu::Device, format: wgpu::TextureFormat, option
             if rt_on {
                 // (the ray tracing goes first: the likelier cause, and the dearer feature)
                 if !rt_flag.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                    log::error!("GPU error with ray tracing (Enhanced+ draws as Enhanced from now on): {}", gpu_error_text(&e));
+                    log::error!(
+                        "GPU error with ray tracing (Enhanced+ draws as Enhanced from now on): {}",
+                        gpu_error_text(&e)
+                    );
                 }
             } else if msaa > 1 && !flag.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                log::error!("GPU error with {msaa}x MSAA (drawing without it from now on): {}", gpu_error_text(&e));
+                log::error!(
+                    "GPU error with {msaa}x MSAA (drawing without it from now on): {}",
+                    gpu_error_text(&e)
+                );
             } else if n < 20 || n % 1000 == 0 {
-                log::error!("GPU error #{} (the game goes on): {}", n + 1, gpu_error_text(&e));
+                log::error!(
+                    "GPU error #{} (the game goes on): {}",
+                    n + 1,
+                    gpu_error_text(&e)
+                );
             }
         }));
     }
@@ -76,5 +91,10 @@ pub(crate) fn install(device: &wgpu::Device, format: wgpu::TextureFormat, option
             view_formats: &[],
         });
     }
-    ErrorFlags { gpu_error, rt_error, out_of_memory, device_lost }
+    ErrorFlags {
+        gpu_error,
+        rt_error,
+        out_of_memory,
+        device_lost,
+    }
 }

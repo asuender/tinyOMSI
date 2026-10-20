@@ -46,7 +46,11 @@ pub(crate) fn prepare(args: &mut Args, path: &Path) -> Result<ServerCfg> {
         cfg.map = m.trim().replace('\\', "/");
     }
     SERVER_MODE.store(true, std::sync::atomic::Ordering::Relaxed);
-    let _ = SERVER_ADMIN.set((cfg.admin_password.clone(), cfg.moderator_password.clone(), if cfg.real_time { 1.0 } else { cfg.time_speed }));
+    let _ = SERVER_ADMIN.set((
+        cfg.admin_password.clone(),
+        cfg.moderator_password.clone(),
+        if cfg.real_time { 1.0 } else { cfg.time_speed },
+    ));
     start_administration(&cfg, path);
     crate::real_time::set_server_real(cfg.real_time);
     let _ = SERVER_VEHICLES.set(cfg.vehicles.clone());
@@ -62,9 +66,17 @@ pub(crate) fn prepare(args: &mut Args, path: &Path) -> Result<ServerCfg> {
     }
     args.weather = cfg.weather.clone();
     // the METAR sync: the report's weather from the start (the host loop downloads it again)
-    let station = cfg.metar_sync.then(|| if cfg.metar_station.is_empty() { omsi_launcher_lib::nearest_airport(&args.root.to_string_lossy(), &args.map) } else { cfg.metar_station.clone() });
+    let station = cfg.metar_sync.then(|| {
+        if cfg.metar_station.is_empty() {
+            omsi_launcher_lib::nearest_airport(&args.root.to_string_lossy(), &args.map)
+        } else {
+            cfg.metar_station.clone()
+        }
+    });
     if let Some(icao) = station.as_ref() {
-        match crate::weather_setup::try_metar(icao).and_then(|w| crate::weather_setup::report_wire(&w)) {
+        match crate::weather_setup::try_metar(icao)
+            .and_then(|w| crate::weather_setup::report_wire(&w))
+        {
             Some(wire) => args.weather = Some(wire),
             None => log::warn!("server: no METAR report for {icao} yet; trying again soon"),
         }
@@ -84,14 +96,18 @@ pub(crate) fn prepare(args: &mut Args, path: &Path) -> Result<ServerCfg> {
     if args.offscreen.is_none() {
         args.offscreen = Some(std::env::temp_dir().join("omsi-server-unused.png"));
     }
-    let density = cfg.passenger_density.map(|d| d.to_string()).unwrap_or_else(|| "as settings.cfg".into());
+    let density = cfg
+        .passenger_density
+        .map(|d| d.to_string())
+        .unwrap_or_else(|| "as settings.cfg".into());
     log::info!("server '{}': map {}, {} at {}, traffic {}, timetable {}, passengers {} (density {density}), UDP {} / web {}, at most {} players", cfg.name, cfg.map, cfg.date.as_deref().unwrap_or("today"), cfg.time, cfg.traffic, cfg.timetable, cfg.passengers, cfg.port, cfg.web_port, cfg.max_players);
     Ok(cfg)
 }
 
 /// A dedicated server's people: whether it has any (`passengers`) and its
 /// `passenger_density` (None: the machine's own passengers setting).
-pub(crate) static SERVER_PASSENGERS: std::sync::OnceLock<(bool, Option<f32>)> = std::sync::OnceLock::new();
+pub(crate) static SERVER_PASSENGERS: std::sync::OnceLock<(bool, Option<f32>)> =
+    std::sync::OnceLock::new();
 
 /// The map of `server.cfg` is installed (in the original folder or the content folder), or
 /// what to do: the maps there are.
@@ -112,7 +128,8 @@ pub(crate) static SERVER_METAR: std::sync::OnceLock<Option<String>> = std::sync:
 pub(crate) use omsi_lan::voice::SERVER_VOICE;
 
 /// A dedicated server's admin and moderator passwords and clock speed (for the host loop).
-pub(crate) static SERVER_ADMIN: std::sync::OnceLock<(String, String, f64)> = std::sync::OnceLock::new();
+pub(crate) static SERVER_ADMIN: std::sync::OnceLock<(String, String, f64)> =
+    std::sync::OnceLock::new();
 
 /// What of a dedicated server's state stays as `server.cfg` says (the rest is the loop's).
 static SERVER_STATE: std::sync::OnceLock<omsi_admin::ServerState> = std::sync::OnceLock::new();
@@ -121,15 +138,29 @@ static SERVER_STATE: std::sync::OnceLock<omsi_admin::ServerState> = std::sync::O
 /// (`admin-audit.log` beside `server.cfg`, put aside at 1 MB).
 fn start_administration(cfg: &ServerCfg, path: &Path) {
     if !cfg.moderator_password.is_empty() && cfg.moderator_password == cfg.admin_password {
-        log::warn!("server.cfg: moderator_password is the admin_password: it gives the admin's role");
+        log::warn!(
+            "server.cfg: moderator_password is the admin_password: it gives the admin's role"
+        );
     }
-    let pw = omsi_admin::Passwords { admin: cfg.admin_password.clone(), moderator: cfg.moderator_password.clone() };
+    let pw = omsi_admin::Passwords {
+        admin: cfg.admin_password.clone(),
+        moderator: cfg.moderator_password.clone(),
+    };
     let audit = path.parent().map(|d| d.join("admin-audit.log"));
-    let hub = std::sync::Arc::new(omsi_admin::Hub::new(omsi_admin::Auth::new(pw, Default::default()), omsi_admin::Audit::new(audit, 1 << 20)));
+    let hub = std::sync::Arc::new(omsi_admin::Hub::new(
+        omsi_admin::Auth::new(pw, Default::default()),
+        omsi_admin::Audit::new(audit, 1 << 20),
+    ));
     omsi_lan::admin::install_hub(hub.clone());
     omsi_net::ws::believe_cf_connecting_ip(cfg.gateway_cf_connecting_ip);
     // the web panel and its API on the gateway (`admin_web`: who may reach them)
-    let web = omsi_admin::WebCfg { mode: cfg.admin_web, origins: cfg.admin_web_origins.clone(), trusted_proxies: cfg.admin_trusted_proxies.clone(), proxy_header: cfg.admin_proxy_header, traffic_max: crate::game_lists::TRAFFIC_MAX };
+    let web = omsi_admin::WebCfg {
+        mode: cfg.admin_web,
+        origins: cfg.admin_web_origins.clone(),
+        trusted_proxies: cfg.admin_trusted_proxies.clone(),
+        proxy_header: cfg.admin_proxy_header,
+        traffic_max: crate::game_lists::TRAFFIC_MAX,
+    };
     let has_password = !cfg.admin_password.is_empty() || !cfg.moderator_password.is_empty();
     match (web.mode, has_password) {
         (omsi_admin::WebMode::Off, _) => log::info!("server: no web administration (admin_web = off)"),
@@ -153,7 +184,13 @@ fn start_administration(cfg: &ServerCfg, path: &Path) {
 
 /// The server's state for the admins' panels now (`time`: the clock, s; `world`: as for
 /// `GET /status`).
-pub(crate) fn admin_state(time: f64, speed: f64, weather: &str, metar: Option<&str>, world: omsi_net::ws::WorldCounts) -> omsi_admin::ServerState {
+pub(crate) fn admin_state(
+    time: f64,
+    speed: f64,
+    weather: &str,
+    metar: Option<&str>,
+    world: omsi_net::ws::WorldCounts,
+) -> omsi_admin::ServerState {
     let clock = time.rem_euclid(86_400.0);
     omsi_admin::ServerState {
         time: crate::schedule::hhmm(clock),
@@ -174,7 +211,8 @@ pub(crate) fn admin_state(time: f64, speed: f64, weather: &str, metar: Option<&s
 }
 
 /// A dedicated server run: graphics without a device, the whole world by interest.
-pub(crate) static SERVER_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub(crate) static SERVER_MODE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 /// Every second of a server run: what the status page says (players, time, weather) and
 /// who is where (`GET /players`, when `share_positions` is on).
@@ -182,8 +220,19 @@ pub(crate) fn tick_status(lan: &omsi_net::LanSession, time: f64, weather: &str) 
     let players = lan.peers().filter(|p| p.has_info).count();
     // (the admin's clock shift may take the time below 0 or past midnight: 23:08 had come
     // out as "00:-52")
-    crate::lan::update_server_info(players, &crate::schedule::hhmm(time.rem_euclid(86400.0)), weather);
-    let poses: Vec<&omsi_net::Pose> = lan.peers().filter(|p| p.has_info && p.has_pose).map(|p| &p.pose).collect();
-    let list = poses.iter().filter_map(|q| player_info(q, |id| poses.iter().copied().find(|o| o.id == id))).collect();
+    crate::lan::update_server_info(
+        players,
+        &crate::schedule::hhmm(time.rem_euclid(86400.0)),
+        weather,
+    );
+    let poses: Vec<&omsi_net::Pose> = lan
+        .peers()
+        .filter(|p| p.has_info && p.has_pose)
+        .map(|p| &p.pose)
+        .collect();
+    let list = poses
+        .iter()
+        .filter_map(|q| player_info(q, |id| poses.iter().copied().find(|o| o.id == id)))
+        .collect();
     crate::lan::update_server_players(list);
 }

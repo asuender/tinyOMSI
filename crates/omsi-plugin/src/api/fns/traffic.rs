@@ -19,10 +19,24 @@ fn car(c: &AiCar, from: Option<[f64; 4]>) -> Value {
         ("heading", c.pos[3].into()),
         ("speed", c.speed_kmh.into()),
         ("max_speed", c.max_speed_kmh.into()),
-        ("waiting_for", if c.why.is_empty() { Value::Nil } else { c.why.into() }),
+        (
+            "waiting_for",
+            if c.why.is_empty() {
+                Value::Nil
+            } else {
+                c.why.into()
+            },
+        ),
         ("standing", Value::from(c.standing)),
         ("braking", c.braking.into()),
-        ("blinker", ["off", "left", "right"].get(c.blinker as usize).copied().unwrap_or("off").into()),
+        (
+            "blinker",
+            ["off", "left", "right"]
+                .get(c.blinker as usize)
+                .copied()
+                .unwrap_or("off")
+                .into(),
+        ),
         ("line", c.line.clone().into()),
     ];
     if let Some(p) = from {
@@ -74,23 +88,58 @@ pub(crate) fn ticket_ask(a: TicketAsk) -> Value {
         ("stop_name", a.stop_name.into()),
         ("destination", a.destination.into()),
         ("stop_number", a.stop_index.map(|k| k + 1).into()),
-        ("destination_number", a.destination_index.map(|k| k + 1).into()),
+        (
+            "destination_number",
+            a.destination_index.map(|k| k + 1).into(),
+        ),
     ])
 }
 
 /// `people.set_ticket`'s table.
 fn ticket_change(t: &Value) -> Result<TicketChange, ApiError> {
-    let bad = |k: &str, want: &str| ApiError(format!("omsi.people.set_ticket: `{k}` must be {want}"));
+    let bad =
+        |k: &str, want: &str| ApiError(format!("omsi.people.set_ticket: `{k}` must be {want}"));
     let field = |k: &str| t.get(k).filter(|v| !v.is_nil());
-    let text = |k: &str| field(k).map(|v| v.to_text().ok_or_else(|| bad(k, "a string"))).transpose();
+    let text = |k: &str| {
+        field(k)
+            .map(|v| v.to_text().ok_or_else(|| bad(k, "a string")))
+            .transpose()
+    };
     Ok(TicketChange {
-        kind: field("kind").map(|v| v.to_text().and_then(|s| TicketKind::parse(&s)).ok_or_else(|| bad("kind", "\"none\", \"stamp\" or \"buy\""))).transpose()?,
-        ticket: field("ticket").map(|v| v.as_i64().filter(|n| (0..=255).contains(n)).map(|n| n as u8).ok_or_else(|| bad("ticket", "a ticket's number (0 to 255)"))).transpose()?,
+        kind: field("kind")
+            .map(|v| {
+                v.to_text()
+                    .and_then(|s| TicketKind::parse(&s))
+                    .ok_or_else(|| bad("kind", "\"none\", \"stamp\" or \"buy\""))
+            })
+            .transpose()?,
+        ticket: field("ticket")
+            .map(|v| {
+                v.as_i64()
+                    .filter(|n| (0..=255).contains(n))
+                    .map(|n| n as u8)
+                    .ok_or_else(|| bad("ticket", "a ticket's number (0 to 255)"))
+            })
+            .transpose()?,
         name: text("name")?,
-        price: field("price").map(|v| v.as_f64().filter(|n| n.is_finite() && *n >= 0.0).map(|n| n as f32).ok_or_else(|| bad("price", "a number of 0 or more"))).transpose()?,
+        price: field("price")
+            .map(|v| {
+                v.as_f64()
+                    .filter(|n| n.is_finite() && *n >= 0.0)
+                    .map(|n| n as f32)
+                    .ok_or_else(|| bad("price", "a number of 0 or more"))
+            })
+            .transpose()?,
         voice: text("voice")?,
         tag: text("tag")?,
-        payment: field("payment").map(|v| v.as_f64().filter(|n| n.is_finite() && *n >= 0.0).map(|n| n as f32).ok_or_else(|| bad("payment", "a number of 0 or more"))).transpose()?,
+        payment: field("payment")
+            .map(|v| {
+                v.as_f64()
+                    .filter(|n| n.is_finite() && *n >= 0.0)
+                    .map(|n| n as f32)
+                    .ok_or_else(|| bad("payment", "a number of 0 or more"))
+            })
+            .transpose()?,
     })
 }
 
@@ -98,7 +147,16 @@ fn ticket_change(t: &Value) -> Result<TicketChange, ApiError> {
 fn cars(c: &mut Ctx<'_>, r: Option<f64>) -> Vec<(f64, AiCar)> {
     let io = c.io();
     let me = io.position();
-    let mut list: Vec<(f64, AiCar)> = io.traffic_list().into_iter().map(|x| (me.map_or(0.0, |p| (x.pos[0] - p[0]).hypot(x.pos[1] - p[1])), x)).collect();
+    let mut list: Vec<(f64, AiCar)> = io
+        .traffic_list()
+        .into_iter()
+        .map(|x| {
+            (
+                me.map_or(0.0, |p| (x.pos[0] - p[0]).hypot(x.pos[1] - p[1])),
+                x,
+            )
+        })
+        .collect();
     if let (Some(r), Some(_)) = (r, me) {
         list.retain(|(d, _)| *d <= r);
     }

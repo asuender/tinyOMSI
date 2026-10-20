@@ -8,7 +8,14 @@ use crate::io::{Duty, Stop, Trip};
 const NEW: &str = crate::api::VERSION;
 
 fn stop(s: &Stop, n: usize, next: Option<usize>) -> Value {
-    let mut r = vec![("number", Value::from(n + 1)), ("name", s.name.trim().into()), ("id", Value::Int(s.id)), ("arrival", s.arr.into()), ("departure", s.dep.into()), ("stops", s.stops.into())];
+    let mut r = vec![
+        ("number", Value::from(n + 1)),
+        ("name", s.name.trim().into()),
+        ("id", Value::Int(s.id)),
+        ("arrival", s.arr.into()),
+        ("departure", s.dep.into()),
+        ("stops", s.stops.into()),
+    ];
     if let Some(p) = s.pos {
         r.extend(xyz(p));
     }
@@ -19,11 +26,25 @@ fn stop(s: &Stop, n: usize, next: Option<usize>) -> Value {
 }
 
 fn stops(t: &Trip, next: Option<usize>) -> Value {
-    Value::List(t.stops.iter().enumerate().map(|(i, s)| stop(s, i, next)).collect())
+    Value::List(
+        t.stops
+            .iter()
+            .enumerate()
+            .map(|(i, s)| stop(s, i, next))
+            .collect(),
+    )
 }
 
 fn trip(t: &Trip, n: usize) -> Value {
-    rec(vec![("number", Value::from(n + 1)), ("name", t.name.trim().into()), ("line", t.line.trim().into()), ("terminus", t.terminus.trim().into()), ("departure", t.departure.into()), ("arrival", t.end.into()), ("stops", Value::from(t.stops.len()))])
+    rec(vec![
+        ("number", Value::from(n + 1)),
+        ("name", t.name.trim().into()),
+        ("line", t.line.trim().into()),
+        ("terminus", t.terminus.trim().into()),
+        ("departure", t.departure.into()),
+        ("arrival", t.end.into()),
+        ("stops", Value::from(t.stops.len())),
+    ])
 }
 
 fn duty(d: &Duty) -> Value {
@@ -40,7 +61,21 @@ fn duty(d: &Duty) -> Value {
         ("arrival", d.current.end.into()),
         ("stops", Value::from(d.current.stops.len())),
         ("next_stop", next.map(|s| stop(s, d.next, None)).into()),
-        ("previous_stop", prev.map(|s| stop(s, d.current.stops.iter().position(|x| std::ptr::eq(x, s)).unwrap_or(0), None)).into()),
+        (
+            "previous_stop",
+            prev.map(|s| {
+                stop(
+                    s,
+                    d.current
+                        .stops
+                        .iter()
+                        .position(|x| std::ptr::eq(x, s))
+                        .unwrap_or(0),
+                    None,
+                )
+            })
+            .into(),
+        ),
         ("at_stop", d.at_stop.into()),
         ("trip_done", d.trip_done.into()),
         ("delay", d.delay.into()),

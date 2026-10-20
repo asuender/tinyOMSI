@@ -146,14 +146,40 @@ pub fn classify(ip: Ipv4Addr, interface: &str) -> AddrKind {
     // bridges of virtual machines and containers (Docker, VirtualBox, VMware, Parallels,
     // Hyper-V/WSL, libvirt, macOS's own VM bridges)
     let virtual_names = [
-        "docker", "br-", "veth", "vboxnet", "virtualbox", "vmnet", "vmware", "vethernet",
-        "hyper-v", "virbr", "lxc", "lxd", "podman", "cni", "flannel", "bridge1", "vnic",
-        "parallels", "wsl",
+        "docker",
+        "br-",
+        "veth",
+        "vboxnet",
+        "virtualbox",
+        "vmnet",
+        "vmware",
+        "vethernet",
+        "hyper-v",
+        "virbr",
+        "lxc",
+        "lxd",
+        "podman",
+        "cni",
+        "flannel",
+        "bridge1",
+        "vnic",
+        "parallels",
+        "wsl",
     ];
     if virtual_names.iter().any(|v| name.starts_with(v) || has(v)) {
         return AddrKind::Virtual;
     }
-    let tunnel = ["utun", "tun", "tap", "wg", "ppp", "ipsec", "wireguard", "openvpn", "vpn"];
+    let tunnel = [
+        "utun",
+        "tun",
+        "tap",
+        "wg",
+        "ppp",
+        "ipsec",
+        "wireguard",
+        "openvpn",
+        "vpn",
+    ];
     if tunnel.iter().any(|t| name.starts_with(t) || has(t)) {
         return AddrKind::Vpn;
     }
@@ -340,9 +366,15 @@ pub fn parse_ipconfig(text: &str) -> Vec<LocalAddr> {
 }
 
 pub fn is_local_peer(addr: std::net::SocketAddr) -> bool {
-    let std::net::SocketAddr::V4(a) = addr else { return false };
+    let std::net::SocketAddr::V4(a) = addr else {
+        return false;
+    };
     let ip = *a.ip();
-    ip.is_loopback() || classify(ip, "") != AddrKind::Public || local_addresses().iter().any(|l| l.ip.octets()[..3] == ip.octets()[..3])
+    ip.is_loopback()
+        || classify(ip, "") != AddrKind::Public
+        || local_addresses()
+            .iter()
+            .any(|l| l.ip.octets()[..3] == ip.octets()[..3])
 }
 
 /// The addresses another player may join at, best first: those of `local_addresses` a

@@ -2,7 +2,7 @@
 //! two of their states (or carried on from the last one for a moment), on a clock that
 //! follows theirs smoothly (`PlayClock`).
 
-use crate::mirror::{PlayClock, lerp_angle};
+use crate::mirror::{lerp_angle, PlayClock};
 use omsi_net::Pose;
 use std::time::Instant;
 

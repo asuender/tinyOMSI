@@ -345,22 +345,18 @@ mod tests {
         assert!(
             MapConfig::parse(s.replace("\"latitude\":50", "\"latitude\":95").as_bytes()).is_err()
         );
-        assert!(
-            MapConfig::parse(
-                s.replace("\"version\":1", "\"version\":1,\"apikey\":\"never here\"")
-                    .as_bytes()
-            )
-            .is_err()
-        );
-        assert!(
-            MapConfig::parse(
-                s.replace(
-                    "{\"object_id\":7,\"tile\":[0,0]}",
-                    "{\"object_id\":7,\"tile\":[0,0]},{\"object_id\":7,\"tile\":[0,0]}"
-                )
+        assert!(MapConfig::parse(
+            s.replace("\"version\":1", "\"version\":1,\"apikey\":\"never here\"")
                 .as_bytes()
+        )
+        .is_err());
+        assert!(MapConfig::parse(
+            s.replace(
+                "{\"object_id\":7,\"tile\":[0,0]}",
+                "{\"object_id\":7,\"tile\":[0,0]},{\"object_id\":7,\"tile\":[0,0]}"
             )
-            .is_err()
-        );
+            .as_bytes()
+        )
+        .is_err());
     }
 }

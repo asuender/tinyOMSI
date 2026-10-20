@@ -5,7 +5,11 @@
 use tauri::http::{header, Request, Response, StatusCode};
 use tauri::{Runtime, UriSchemeContext, UriSchemeResponder};
 
-pub fn handle<R: Runtime>(_ctx: UriSchemeContext<'_, R>, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
+pub fn handle<R: Runtime>(
+    _ctx: UriSchemeContext<'_, R>,
+    request: Request<Vec<u8>>,
+    responder: UriSchemeResponder,
+) {
     let path = request.uri().path().to_string();
     // (reading a picture out of a 5 GB archive must not hold the window's thread)
     std::thread::spawn(move || responder.respond(answer(&path)));
@@ -26,12 +30,21 @@ fn answer(path: &str) -> Response<Vec<u8>> {
             .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
             .body(bytes)
             .unwrap_or_default(),
-        None => Response::builder().status(StatusCode::NOT_FOUND).body(Vec::new()).unwrap_or_default(),
+        None => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Vec::new())
+            .unwrap_or_default(),
     }
 }
 
 fn mime(path: &str) -> &'static str {
-    match path.rsplit('.').next().unwrap_or("").to_ascii_lowercase().as_str() {
+    match path
+        .rsplit('.')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "jpg" | "jpeg" => "image/jpeg",
         "png" => "image/png",
         "bmp" => "image/bmp",
@@ -47,7 +60,10 @@ fn percent_decode(s: &str) -> String {
     let mut i = 0;
     while i < b.len() {
         if b[i] == b'%' && i + 2 < b.len() {
-            if let Some(v) = std::str::from_utf8(&b[i + 1..i + 3]).ok().and_then(|h| u8::from_str_radix(h, 16).ok()) {
+            if let Some(v) = std::str::from_utf8(&b[i + 1..i + 3])
+                .ok()
+                .and_then(|h| u8::from_str_radix(h, 16).ok())
+            {
                 out.push(v);
                 i += 3;
                 continue;
@@ -63,7 +79,10 @@ fn percent_decode(s: &str) -> String {
 mod tests {
     #[test]
     fn escapes_are_read() {
-        assert_eq!(super::percent_decode("maps/Berlin%20Spandau/picture.jpg"), "maps/Berlin Spandau/picture.jpg");
+        assert_eq!(
+            super::percent_decode("maps/Berlin%20Spandau/picture.jpg"),
+            "maps/Berlin Spandau/picture.jpg"
+        );
         assert_eq!(super::percent_decode("a%"), "a%");
     }
 }

@@ -53,11 +53,20 @@ impl VehicleInstance {
     /// The door release to fire now: the bus's own, the C2's switch turned over, else `bus_dooraft`.
     pub fn door_release_trigger(&self) -> Option<&'static str> {
         let p = &self.ty.program;
-        if let Some(t) = ["bus_doorall", "CG_active", "C2_CP_doorall_1"].into_iter().find(|t| p.trigger(t).is_some()) {
+        if let Some(t) = ["bus_doorall", "CG_active", "C2_CP_doorall_1"]
+            .into_iter()
+            .find(|t| p.trigger(t).is_some())
+        {
             return Some(t);
         }
-        if p.trigger("C2_CP_Tuerfreigabe_1").is_some() && p.trigger("C2_CP_Tuerfreigabe_0").is_some() {
-            return Some(if self.var("C2_CP_Tuerfreigabe").is_some_and(|x| x > 0.5) { "C2_CP_Tuerfreigabe_0" } else { "C2_CP_Tuerfreigabe_1" });
+        if p.trigger("C2_CP_Tuerfreigabe_1").is_some()
+            && p.trigger("C2_CP_Tuerfreigabe_0").is_some()
+        {
+            return Some(if self.var("C2_CP_Tuerfreigabe").is_some_and(|x| x > 0.5) {
+                "C2_CP_Tuerfreigabe_0"
+            } else {
+                "C2_CP_Tuerfreigabe_1"
+            });
         }
         p.trigger("bus_dooraft").is_some().then_some("bus_dooraft")
     }
@@ -96,7 +105,8 @@ impl VehicleInstance {
     pub fn trigger(&mut self, name: &str) -> bool {
         let p = self.ty.program.clone();
         let rear_target_was_open = self.var("doorTarget_23").is_some_and(|target| target > 0.0);
-        let rear_force_close_was_active = self.var("bdoor_embtn_cls").is_some_and(|close| close > 0.5);
+        let rear_force_close_was_active =
+            self.var("bdoor_embtn_cls").is_some_and(|close| close > 0.5);
         let rear_was_open = self.var("doorTarget_23").is_some_and(|target| target > 0.0)
             || self.var("door_2").is_some_and(|door| door > 0.05)
             || self.var("door_3").is_some_and(|door| door > 0.05);
@@ -113,7 +123,8 @@ impl VehicleInstance {
         // physically open for a few frames.
         let toggle_is_reopen_request = name.eq_ignore_ascii_case("bus_dooraft")
             && !rear_target_was_open
-            && (rear_force_close_was_active || self.var("doorTarget_23").is_some_and(|target| target > 0.0));
+            && (rear_force_close_was_active
+                || self.var("doorTarget_23").is_some_and(|target| target > 0.0));
         if (name.eq_ignore_ascii_case("bus_dooraftclose")
             || (name.eq_ignore_ascii_case("bus_dooraft") && !toggle_is_reopen_request))
             && rear_was_open
@@ -137,7 +148,12 @@ impl VehicleInstance {
     /// sounds and messages the triggers asked for.
     pub fn trial_triggers(&mut self, names: &[&str]) -> Vec<f32> {
         let (state, vm) = (self.state.clone(), self.vm.clone());
-        let (fired, fired_files, messages, time_written) = (self.host.fired_triggers.len(), self.host.fired_file_triggers.len(), self.host.messages.clone(), self.host.time_written);
+        let (fired, fired_files, messages, time_written) = (
+            self.host.fired_triggers.len(),
+            self.host.fired_file_triggers.len(),
+            self.host.messages.clone(),
+            self.host.time_written,
+        );
         let last_message = self.host.last_message.clone();
         let fired_vars = self.host.fired_trigger_vars.len();
         let network_sounds = self.host.network_sound_triggers.len();

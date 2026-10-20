@@ -2,7 +2,7 @@
 //! [`def!`]: name, group, parameters, what it returns, its documentation, the version it
 //! came with, the permission it needs, whether its result is several values, and its body.
 
-use super::{ApiFn, ApiError, Args, Ctx, Value};
+use super::{ApiError, ApiFn, Args, Ctx, Value};
 
 pub(crate) mod bus;
 pub(crate) mod core;
@@ -17,7 +17,19 @@ pub(crate) mod util;
 pub(crate) mod world;
 
 /// Every group's functions.
-pub static GROUPS: &[&[ApiFn]] = &[core::FNS, bus::FNS, duty::FNS, map::FNS, traffic::FNS, world::FNS, media::FNS, game::FNS, plugin::FNS, storage::FNS, util::FNS];
+pub static GROUPS: &[&[ApiFn]] = &[
+    core::FNS,
+    bus::FNS,
+    duty::FNS,
+    map::FNS,
+    traffic::FNS,
+    world::FNS,
+    media::FNS,
+    game::FNS,
+    plugin::FNS,
+    storage::FNS,
+    util::FNS,
+];
 
 /// What a function body may give back: a value, something that becomes one, or an error.
 pub trait Ret {

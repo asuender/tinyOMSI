@@ -7,9 +7,32 @@ use super::*;
 impl ScheduleSim {
     /// The tour's bus `ci` (in `traffic`), at the end of its previous trip, takes departure `i`
     /// on, placed by `p` (`ScheduleSim::place_departure`).
-    pub fn take_trip_on(&mut self, i: usize, ci: usize, p: Placing, traffic: &mut TrafficSim, day_time: f64) -> Placed {
-        let Placing { trip_name, stations, departure, leave, steps, station_steps, slots, end, section, mut stops, served, .. } = p;
-        let (ty, rail) = (traffic.cars[ci].vehicle.ty.clone(), traffic.cars[ci].is_rail());
+    pub fn take_trip_on(
+        &mut self,
+        i: usize,
+        ci: usize,
+        p: Placing,
+        traffic: &mut TrafficSim,
+        day_time: f64,
+    ) -> Placed {
+        let Placing {
+            trip_name,
+            stations,
+            departure,
+            leave,
+            steps,
+            station_steps,
+            slots,
+            end,
+            section,
+            mut stops,
+            served,
+            ..
+        } = p;
+        let (ty, rail) = (
+            traffic.cars[ci].vehicle.ty.clone(),
+            traffic.cars[ci].is_rail(),
+        );
         place_stops(&traffic.net, &section, 0, &mut stops, &ty, rail);
         // the tour's bus that has just finished its trip takes this one on from where
         // it stands: the section itself when it stands on it, else the shortest way
@@ -22,7 +45,11 @@ impl ScheduleSim {
                 let mut best: Option<(f32, Vec<usize>, usize)> = None;
                 for t in 0..section.len().min(TOUR_ENTRY_LANES) {
                     if let Some(p) = net.shortest_path(lane0, section[t]) {
-                        let len = p[..p.len() - 1].iter().map(|&l| net.lanes[l].length()).sum::<f32>() - s0;
+                        let len = p[..p.len() - 1]
+                            .iter()
+                            .map(|&l| net.lanes[l].length())
+                            .sum::<f32>()
+                            - s0;
                         if len < 400.0 && best.as_ref().map(|b| len < b.0).unwrap_or(true) {
                             best = Some((len, p, t));
                         }
@@ -31,7 +58,9 @@ impl ScheduleSim {
                 match best {
                     Some((_, p, t)) => (p[..p.len() - 1].to_vec(), t),
                     None => {
-                        log::debug!("trip {trip_name}: the tour's bus has no way from where it stands");
+                        log::debug!(
+                            "trip {trip_name}: the tour's bus has no way from where it stands"
+                        );
                         if omsi_cfg::flags::OMSI_DEBUG_TRAFFIC.is_set() {
                             let ln = &net.lanes[lane0];
                             log::info!("trip {trip_name}: tour bus on lane {lane0} {:?} at s {s0:.1} of {:.1}, ({:.1}, {:.1}) -> ({:.1}, {:.1}), next {:?}", ln.key, ln.length(), ln.start().x, ln.start().y, ln.end().x, ln.end().y, ln.next);
@@ -45,7 +74,11 @@ impl ScheduleSim {
                 }
             }
         };
-        let route: Vec<usize> = prefix.iter().copied().chain(section[from..].iter().copied()).collect();
+        let route: Vec<usize> = prefix
+            .iter()
+            .copied()
+            .chain(section[from..].iter().copied())
+            .collect();
         let shift = prefix.len() as isize - from as isize;
         // the stops from the bus on; one just behind it on its lane is where it stands
         let stops: Vec<(usize, f32, f32, f64, i64, f32)> = stops
@@ -75,7 +108,10 @@ impl ScheduleSim {
         let hof = car.vehicle.host.hof.clone();
         let names: Vec<&str> = names.iter().map(String::as_str).collect();
         let timetable = self.ai_timetable(i);
-        timetable.install(&mut car.vehicle.host, car.bus.as_ref().and_then(|b| b.stops.front()));
+        timetable.install(
+            &mut car.vehicle.host,
+            car.bus.as_ref().and_then(|b| b.stops.front()),
+        );
         car.vehicle.set_var("schedule_active", 1.0);
         if let Some(b) = car.bus.as_mut() {
             b.delay = 0.0;

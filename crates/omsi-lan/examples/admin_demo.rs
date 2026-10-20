@@ -22,21 +22,67 @@ fn main() {
     let udp: u16 = args.next().and_then(|a| a.parse().ok()).unwrap_or(27315);
     let web: u16 = args.next().and_then(|a| a.parse().ok()).unwrap_or(27325);
     std::env::set_var("OMSI_NO_BRIDGE", "1");
-    let world = WorldInfo { map: "maps/Grundorf/global.cfg".into(), date: "1989-05-30".into(), time: 9.0 * 3600.0, ..Default::default() };
-    let mut lan = LanSession::host(udp, "admin demo", world.clone(), false).expect("the UDP port is free");
-    let hub = Arc::new(Hub::new(Auth::new(Passwords { admin: "admin secret".into(), moderator: "mod secret".into() }, AuthCfg::default()), Audit::new(None, 0)));
-    let info = omsi_net::ws::ServerInfo { name: "admin demo".into(), map: world.map.clone(), local_admin_password: "admin secret".into(), ..Default::default() };
-    let _gw = omsi_net::ws::WsGateway::start(SocketAddr::from(([127, 0, 0, 1], web)), SocketAddr::from(([127, 0, 0, 1], udp)), info).expect("the web port is free");
+    let world = WorldInfo {
+        map: "maps/Grundorf/global.cfg".into(),
+        date: "1989-05-30".into(),
+        time: 9.0 * 3600.0,
+        ..Default::default()
+    };
+    let mut lan =
+        LanSession::host(udp, "admin demo", world.clone(), false).expect("the UDP port is free");
+    let hub = Arc::new(Hub::new(
+        Auth::new(
+            Passwords {
+                admin: "admin secret".into(),
+                moderator: "mod secret".into(),
+            },
+            AuthCfg::default(),
+        ),
+        Audit::new(None, 0),
+    ));
+    let info = omsi_net::ws::ServerInfo {
+        name: "admin demo".into(),
+        map: world.map.clone(),
+        local_admin_password: "admin secret".into(),
+        ..Default::default()
+    };
+    let _gw = omsi_net::ws::WsGateway::start(
+        SocketAddr::from(([127, 0, 0, 1], web)),
+        SocketAddr::from(([127, 0, 0, 1], udp)),
+        info,
+    )
+    .expect("the web port is free");
     omsi_lan::gateway::open_admin_api(hub.clone(), omsi_admin::WebCfg::default());
     let mut adm = ServerAdmin::default();
     adm.password = "admin secret".into();
     adm.moderator_password = "mod secret".into();
     adm.passengers_on = true;
     // the players of the demo (names alike on purpose)
-    let mut bots: Vec<LanSession> = ["Pichau", "pichau_fan", "Joao", "<b>Bold</b>"].iter().map(|n| LanSession::join(&format!("127.0.0.1:{udp}"), n, world.clone(), Duration::from_millis(10)).expect("a bot")).collect();
+    let mut bots: Vec<LanSession> = ["Pichau", "pichau_fan", "Joao", "<b>Bold</b>"]
+        .iter()
+        .map(|n| {
+            LanSession::join(
+                &format!("127.0.0.1:{udp}"),
+                n,
+                world.clone(),
+                Duration::from_millis(10),
+            )
+            .expect("a bot")
+        })
+        .collect();
     println!("panel: http://127.0.0.1:{web}/admin/  (admin secret / mod secret)");
-    let rules = ServerRules { real_time: false, traffic_max: 120, notice_ok: &|_| true, metar: false };
-    let (mut clock, mut speed, mut weather, mut traffic) = (9.0 * 3600.0, 1.0, String::from("Weather/#CAVOK.owt"), 30usize);
+    let rules = ServerRules {
+        real_time: false,
+        traffic_max: 120,
+        notice_ok: &|_| true,
+        metar: false,
+    };
+    let (mut clock, mut speed, mut weather, mut traffic) = (
+        9.0 * 3600.0,
+        1.0,
+        String::from("Weather/#CAVOK.owt"),
+        30usize,
+    );
     let mut last = Instant::now();
     let mut published = Instant::now() - Duration::from_secs(5);
     loop {
@@ -45,9 +91,22 @@ fn main() {
         clock = (clock + dt * speed) % 86_400.0;
         for (k, b) in bots.iter_mut().enumerate() {
             // (driving, but the third on foot)
-            let mut pose = Pose { bus: "Vehicles/MAN_SD200/MAN_SD77.bus".into(), line: "37".into(), x: 100.0 * k as f64, flags: omsi_net::FLAG_VEHICLE, ..Default::default() };
+            let mut pose = Pose {
+                bus: "Vehicles/MAN_SD200/MAN_SD77.bus".into(),
+                line: "37".into(),
+                x: 100.0 * k as f64,
+                flags: omsi_net::FLAG_VEHICLE,
+                ..Default::default()
+            };
             if k == 2 {
-                pose = Pose { walker: Some(omsi_net::Walker { x: 10.0, y: 5.0, ..Default::default() }), ..Default::default() };
+                pose = Pose {
+                    walker: Some(omsi_net::Walker {
+                        x: 10.0,
+                        y: 5.0,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                };
             }
             b.tick(0.05, &pose);
             let _ = b.take_commands();
@@ -55,7 +114,15 @@ fn main() {
         lan.tick(0.05, &Pose::default());
         adm.prune(&lan);
         for (from, text) in lan.take_commands() {
-            server_command(&mut lan, from, &text, &mut adm, &|_| None, &rules, Some(&hub));
+            server_command(
+                &mut lan,
+                from,
+                &text,
+                &mut adm,
+                &|_| None,
+                &rules,
+                Some(&hub),
+            );
         }
         for job in hub.take(16) {
             omsi_lan::admin::run_job(&mut lan, &mut adm, job, &|_| None, &rules, &hub);
@@ -100,7 +167,11 @@ fn main() {
                 map: "maps/Grundorf/global.cfg".into(),
                 version: "demo".into(),
                 max_players: 16,
-                time: format!("{:02}:{:02}", (clock / 3600.0) as u32, (clock / 60.0) as u32 % 60),
+                time: format!(
+                    "{:02}:{:02}",
+                    (clock / 3600.0) as u32,
+                    (clock / 60.0) as u32 % 60
+                ),
                 clock,
                 clock_speed: speed,
                 weather: weather.clone(),

@@ -31,8 +31,7 @@ pub(crate) const ALPHA_BLEND: wgpu::BlendState = wgpu::BlendState {
     alpha: wgpu::BlendComponent::REPLACE,
 };
 
-const CORONA_ATTRIBUTES: [wgpu::VertexAttribute; 6] =
-    wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32, 2 => Float32x4, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4];
+const CORONA_ATTRIBUTES: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32, 2 => Float32x4, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4];
 
 pub(crate) struct Coronas {
     pub sampler: wgpu::Sampler,
@@ -45,7 +44,11 @@ pub(crate) struct Coronas {
 impl Coronas {
     /// The coronas' and the smoke's bind groups and shader, and the corona sprite (its
     /// bind group holds it).
-    pub(crate) fn new(device: &wgpu::Device, queue: &wgpu::Queue, scene: &SceneBase) -> (Coronas, GpuTexture) {
+    pub(crate) fn new(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        scene: &SceneBase,
+    ) -> (Coronas, GpuTexture) {
         // corona sprite: soft radial falloff
         let cs = 64u32;
         let mut corona_img = omsi_texture::Image {
@@ -81,7 +84,12 @@ impl Coronas {
             ],
         });
         // a soft grey puff until the app hands over the game's own `Texture/rauch.tga`
-        let mut puff = omsi_texture::Image { width: cs, height: cs, rgba: vec![0; (cs * cs * 4) as usize], has_alpha: true };
+        let mut puff = omsi_texture::Image {
+            width: cs,
+            height: cs,
+            rgba: vec![0; (cs * cs * 4) as usize],
+            has_alpha: true,
+        };
         for y in 0..cs {
             for x in 0..cs {
                 let dx = (x as f32 + 0.5) / cs as f32 * 2.0 - 1.0;
@@ -96,16 +104,25 @@ impl Coronas {
             label: Some("smoke"),
             layout: &scene.corona_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&puff_texture.view) },
-                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&corona_sampler) },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&puff_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&corona_sampler),
+                },
             ],
         });
         drop(puff_texture);
         log::info!("renderer: compiling the coronas shaders");
-        let corona_shader = compile_shader(device, wgpu::ShaderModuleDescriptor {
-            label: Some("corona"),
-            source: wgpu::ShaderSource::Wgsl(corona_shader_source().into()),
-        });
+        let corona_shader = compile_shader(
+            device,
+            wgpu::ShaderModuleDescriptor {
+                label: Some("corona"),
+                source: wgpu::ShaderSource::Wgsl(corona_shader_source().into()),
+            },
+        );
         let corona_pl = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("corona"),
             bind_group_layouts: &[Some(&scene.camera_layout), Some(&scene.corona_layout)],
@@ -121,42 +138,52 @@ impl Coronas {
         (coronas, corona_texture)
     }
 
-    pub(crate) fn pipeline(&self, device: &wgpu::Device, f: wgpu::TextureFormat, fs: &str, blend: wgpu::BlendState, msaa: u32) -> wgpu::RenderPipeline {
+    pub(crate) fn pipeline(
+        &self,
+        device: &wgpu::Device,
+        f: wgpu::TextureFormat,
+        fs: &str,
+        blend: wgpu::BlendState,
+        msaa: u32,
+    ) -> wgpu::RenderPipeline {
         let corona_vertex = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<GpuCorona>() as u64,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &CORONA_ATTRIBUTES,
         };
-        compile_pipeline(device, &wgpu::RenderPipelineDescriptor {
-            label: Some("corona"),
-            layout: Some(&self.pl),
-            vertex: wgpu::VertexState {
-                module: &self.shader,
-                entry_point: Some("vs_main"),
-                buffers: &[corona_vertex],
-                compilation_options: Default::default(),
+        compile_pipeline(
+            device,
+            &wgpu::RenderPipelineDescriptor {
+                label: Some("corona"),
+                layout: Some(&self.pl),
+                vertex: wgpu::VertexState {
+                    module: &self.shader,
+                    entry_point: Some("vs_main"),
+                    buffers: &[corona_vertex],
+                    compilation_options: Default::default(),
+                },
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    cull_mode: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    ..Default::default()
+                },
+                depth_stencil: Some(depth_test(wgpu::CompareFunction::GreaterEqual)),
+                multisample: wgpu::MultisampleState {
+                    count: msaa,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &self.shader,
+                    entry_point: Some(fs),
+                    targets: &color_targets(f, Some(blend), wgpu::ColorWrites::COLOR, false, false),
+                    compilation_options: Default::default(),
+                }),
+                multiview_mask: None,
+                cache: crate::pipeline_cache::get(device).as_ref(),
             },
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                cull_mode: None,
-                front_face: wgpu::FrontFace::Ccw,
-                ..Default::default()
-            },
-            depth_stencil: Some(depth_test(wgpu::CompareFunction::GreaterEqual)),
-            multisample: wgpu::MultisampleState {
-                count: msaa,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &self.shader,
-                entry_point: Some(fs),
-                targets: &color_targets(f, Some(blend), wgpu::ColorWrites::COLOR, false, false),
-                compilation_options: Default::default(),
-            }),
-            multiview_mask: None,
-            cache: crate::pipeline_cache::get(device).as_ref(),
-        })
+        )
     }
 }
 
@@ -172,22 +199,64 @@ pub(crate) struct Precip {
 }
 
 const PREMULTIPLIED_SNOW: wgpu::BlendState = wgpu::BlendState {
-    color: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::One, dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha, operation: wgpu::BlendOperation::Add },
+    color: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::One,
+        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+        operation: wgpu::BlendOperation::Add,
+    },
     alpha: wgpu::BlendComponent::REPLACE,
 };
 
 impl Precip {
-    pub(crate) fn snow(device: &wgpu::Device, camera_layout: &wgpu::BindGroupLayout, roof: &wgpu::TextureView) -> Precip {
-        Precip::new(device, camera_layout, roof, "snow", "vs_snow", snow_shader_source(), std::mem::size_of::<SnowUniform>())
+    pub(crate) fn snow(
+        device: &wgpu::Device,
+        camera_layout: &wgpu::BindGroupLayout,
+        roof: &wgpu::TextureView,
+    ) -> Precip {
+        Precip::new(
+            device,
+            camera_layout,
+            roof,
+            "snow",
+            "vs_snow",
+            snow_shader_source(),
+            std::mem::size_of::<SnowUniform>(),
+        )
     }
 
-    pub(crate) fn rain(device: &wgpu::Device, camera_layout: &wgpu::BindGroupLayout, roof: &wgpu::TextureView) -> Precip {
-        Precip::new(device, camera_layout, roof, "rain", "vs_rain", rain_shader_source(), std::mem::size_of::<RainUniform>())
+    pub(crate) fn rain(
+        device: &wgpu::Device,
+        camera_layout: &wgpu::BindGroupLayout,
+        roof: &wgpu::TextureView,
+    ) -> Precip {
+        Precip::new(
+            device,
+            camera_layout,
+            roof,
+            "rain",
+            "vs_rain",
+            rain_shader_source(),
+            std::mem::size_of::<RainUniform>(),
+        )
     }
 
     /// (`roof`: the precipitation's roof map, `passes::precip_map`)
-    fn new(device: &wgpu::Device, camera_layout: &wgpu::BindGroupLayout, roof: &wgpu::TextureView, label: &'static str, vs: &'static str, source: String, size: usize) -> Precip {
-        let shader = compile_shader(device, wgpu::ShaderModuleDescriptor { label: Some(label), source: wgpu::ShaderSource::Wgsl(source.into()) });
+    fn new(
+        device: &wgpu::Device,
+        camera_layout: &wgpu::BindGroupLayout,
+        roof: &wgpu::TextureView,
+        label: &'static str,
+        vs: &'static str,
+        source: String,
+        size: usize,
+    ) -> Precip {
+        let shader = compile_shader(
+            device,
+            wgpu::ShaderModuleDescriptor {
+                label: Some(label),
+                source: wgpu::ShaderSource::Wgsl(source.into()),
+            },
+        );
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some(label),
             entries: &[
@@ -195,7 +264,11 @@ impl Precip {
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Depth, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
                     count: None,
                 },
             ],
@@ -205,8 +278,14 @@ impl Precip {
             label: Some(label),
             layout: &layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(roof) },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(roof),
+                },
             ],
         });
         let pl = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -214,12 +293,31 @@ impl Precip {
             bind_group_layouts: &[Some(camera_layout), Some(&layout)],
             immediate_size: 0,
         });
-        Precip { shader, buf, bind_group, pl, label, vs }
+        Precip {
+            shader,
+            buf,
+            bind_group,
+            pl,
+            label,
+            vs,
+        }
     }
 
-    pub(crate) fn pipeline(&self, device: &wgpu::Device, f: wgpu::TextureFormat, fs: &str, msaa: u32) -> wgpu::RenderPipeline {
+    pub(crate) fn pipeline(
+        &self,
+        device: &wgpu::Device,
+        f: wgpu::TextureFormat,
+        fs: &str,
+        msaa: u32,
+    ) -> wgpu::RenderPipeline {
         log::info!("renderer: compiling the {} shader ({fs})", self.label);
-        let targets = color_targets(f, Some(PREMULTIPLIED_SNOW), wgpu::ColorWrites::COLOR, false, false);
+        let targets = color_targets(
+            f,
+            Some(PREMULTIPLIED_SNOW),
+            wgpu::ColorWrites::COLOR,
+            false,
+            false,
+        );
         no_vertex_pipeline(self.label, &self.pl, &self.shader, fs, &targets)
             .vs(self.vs)
             .depth(depth_test(wgpu::CompareFunction::GreaterEqual))

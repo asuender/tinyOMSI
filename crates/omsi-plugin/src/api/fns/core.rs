@@ -37,14 +37,27 @@ impl Sender {
     /// Send `data` to `127.0.0.1:port`, never waiting: with nobody listening it is lost, as
     /// UDP is. Err says why it was not sent.
     pub fn send(&mut self, port: i64, data: &[u8]) -> Result<(), String> {
-        let port = u16::try_from(port).ok().filter(|p| *p >= 1024).ok_or("the port must be 1024-65535")?;
+        let port = u16::try_from(port)
+            .ok()
+            .filter(|p| *p >= 1024)
+            .ok_or("the port must be 1024-65535")?;
         if MULTIPLAYER_PORTS.contains(&port) {
-            return Err(format!("ports {}-{} are the game's multiplayer", MULTIPLAYER_PORTS.start, MULTIPLAYER_PORTS.end - 1));
+            return Err(format!(
+                "ports {}-{} are the game's multiplayer",
+                MULTIPLAYER_PORTS.start,
+                MULTIPLAYER_PORTS.end - 1
+            ));
         }
         if data.len() > SEND_MAX {
-            return Err(format!("a message is at most 8 KB ({} bytes given)", data.len()));
+            return Err(format!(
+                "a message is at most 8 KB ({} bytes given)",
+                data.len()
+            ));
         }
-        if self.second.is_none_or(|t| t.elapsed() >= Duration::from_secs(1)) {
+        if self
+            .second
+            .is_none_or(|t| t.elapsed() >= Duration::from_secs(1))
+        {
             self.second = Some(Instant::now());
             self.sent = 0;
         }
@@ -57,7 +70,9 @@ impl Sender {
             self.socket = Some(socket);
         }
         let socket = self.socket.as_ref().expect("opened above");
-        socket.send_to(data, (Ipv4Addr::LOCALHOST, port)).map_err(|e| e.to_string())?;
+        socket
+            .send_to(data, (Ipv4Addr::LOCALHOST, port))
+            .map_err(|e| e.to_string())?;
         // (only what went out counts)
         self.sent += 1;
         Ok(())

@@ -24,7 +24,11 @@ pub(crate) fn rail_of(kind: &ListKind, camera_tab: bool) -> Option<&'static str>
         | ListKind::Events => "controls",
         ListKind::World(_) => "world",
         ListKind::Lines | ListKind::Tours(..) => "duty",
-        ListKind::Admin | ListKind::AdminPlayers | ListKind::AdminPlayer(_) | ListKind::AdminConfirm(..) | ListKind::AdminClassic => "admin",
+        ListKind::Admin
+        | ListKind::AdminPlayers
+        | ListKind::AdminPlayer(_)
+        | ListKind::AdminConfirm(..)
+        | ListKind::AdminClassic => "admin",
         _ => "vehicle",
     })
 }
@@ -59,32 +63,73 @@ impl App {
             return;
         }
         let (w, h) = (s.config.width as f32, s.config.height as f32);
-        let dpi = self.window.as_ref().map(|w| w.scale_factor() as f32).unwrap_or(1.0);
-        let scale = dpi * ui::size_factor(h, dpi, self.settings.ui_scale, self.settings.ui_scale_window);
+        let dpi = self
+            .window
+            .as_ref()
+            .map(|w| w.scale_factor() as f32)
+            .unwrap_or(1.0);
+        let scale = dpi
+            * ui::size_factor(
+                h,
+                dpi,
+                self.settings.ui_scale,
+                self.settings.ui_scale_window,
+            );
         let rail = self.game_menu_items();
         let tabs = match self.menus.list_kind.as_ref() {
             Some(k) if self.menus.chooser.is_some() => crate::game_lists::page_titles(self, k),
             _ => None,
         };
-        let chooser_list = self.menus.admin_list.as_ref().unwrap_or(&self.menus.vehicle_list);
-        let (kind, head, preview) = crate::game_lists::menu_extras(self.menus.list_kind.as_ref(), self.menus.admin_list.as_deref(), self.menus.chooser, crate::duty_book::timetable(self), self.clock.time);
+        let chooser_list = self
+            .menus
+            .admin_list
+            .as_ref()
+            .unwrap_or(&self.menus.vehicle_list);
+        let (kind, head, preview) = crate::game_lists::menu_extras(
+            self.menus.list_kind.as_ref(),
+            self.menus.admin_list.as_deref(),
+            self.menus.chooser,
+            crate::duty_book::timetable(self),
+            self.clock.time,
+        );
         let camera_tab = matches!(self.menus.list_kind, Some(ListKind::Options(t)) if Some(t) == tabs.as_ref().and_then(|(titles, _)| titles.iter().position(|x| x == omsi_ui::tr("Camera").as_ref())));
         let list = self.menus.chooser.map(|sel| ListView {
             kind,
             head,
             tabs: tabs.clone(),
-            items: chooser_list.iter().map(|(name, action)| (action.as_str(), name.as_str())).collect(),
+            items: chooser_list
+                .iter()
+                .map(|(name, action)| (action.as_str(), name.as_str()))
+                .collect(),
             sel,
             preview: preview.as_ref(),
-            pane_first: self.menus.pane_scroll.filter(|p| Some(p.0) == self.menus.chooser).map(|p| p.1),
-            dropdown: self.menus.dropdown.as_ref().map(|d| ui::DropdownView { row: d.row, items: d.items.iter().map(|x| x.0.as_str()).collect(), sel: d.sel, top: d.top, current: d.current }),
-            key: format!("{:?}", self.menus.list_kind).chars().filter(|c| c.is_alphanumeric()).collect(),
+            pane_first: self
+                .menus
+                .pane_scroll
+                .filter(|p| Some(p.0) == self.menus.chooser)
+                .map(|p| p.1),
+            dropdown: self.menus.dropdown.as_ref().map(|d| ui::DropdownView {
+                row: d.row,
+                items: d.items.iter().map(|x| x.0.as_str()).collect(),
+                sel: d.sel,
+                top: d.top,
+                current: d.current,
+            }),
+            key: format!("{:?}", self.menus.list_kind)
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect(),
         });
         let view = PauseView {
             paused: self.paused,
             rail: &rail,
             rail_sel: self.menus.game_menu,
-            rail_open: self.menus.list_kind.as_ref().and_then(|k| rail_of(k, camera_tab)).filter(|_| self.menus.chooser.is_some()),
+            rail_open: self
+                .menus
+                .list_kind
+                .as_ref()
+                .and_then(|k| rail_of(k, camera_tab))
+                .filter(|_| self.menus.chooser.is_some()),
             list,
             kbd: self.menus.menu_kbd,
             keys: !crate::platform::touch_controls(),
@@ -97,8 +142,23 @@ impl App {
 
     /// What the pause menu's sidebar shows of the session: the bus and the driver.
     fn pause_summary(&self) -> crate::shell::pause::Summary {
-        let bus = self.player.as_ref().map(|p| format!("{} {}", p.vehicle.ty.def.manufacturer.trim(), p.vehicle.ty.def.type_name.trim()).trim().to_string()).unwrap_or_default();
-        crate::shell::pause::Summary { bus, driver: self.args.lan_name.trim().to_string() }
+        let bus = self
+            .player
+            .as_ref()
+            .map(|p| {
+                format!(
+                    "{} {}",
+                    p.vehicle.ty.def.manufacturer.trim(),
+                    p.vehicle.ty.def.type_name.trim()
+                )
+                .trim()
+                .to_string()
+            })
+            .unwrap_or_default();
+        crate::shell::pause::Summary {
+            bus,
+            driver: self.args.lan_name.trim().to_string(),
+        }
     }
 
     /// What the clicks on the screens asked for, done (at the start of a frame, with the
@@ -117,7 +177,9 @@ impl App {
                     if self.menus.chooser.is_some() {
                         self.menus.chooser = Some(k);
                         // (a click on a tour shows its stops: the trip starts with the button)
-                        if matches!(self.menus.list_kind, Some(ListKind::Tours(..))) && crate::game_lists::tour_at(self, k).is_some() {
+                        if matches!(self.menus.list_kind, Some(ListKind::Tours(..)))
+                            && crate::game_lists::tour_at(self, k).is_some()
+                        {
                             if let Some(ListKind::Tours(line, _)) = self.menus.list_kind.clone() {
                                 self.menus.list_kind = Some(ListKind::Tours(line, None));
                             }

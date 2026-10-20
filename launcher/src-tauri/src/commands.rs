@@ -21,7 +21,19 @@ async fn work<F: FnOnce() -> Answer + Send + 'static>(f: F) -> Answer {
 }
 
 pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
-    tauri::generate_handler![call, call_bytes, pick_folder, pick_file, pick_mod, pick_hofs, open_path, open_url, update_relaunch, selftest_done, fit_zoom]
+    tauri::generate_handler![
+        call,
+        call_bytes,
+        pick_folder,
+        pick_file,
+        pick_mod,
+        pick_hofs,
+        open_path,
+        open_url,
+        update_relaunch,
+        selftest_done,
+        fit_zoom
+    ]
 }
 
 /// This window, for the commands of `omsi-launcher-api`.
@@ -58,8 +70,16 @@ async fn call(app: AppHandle, cmd: String, args: Value) -> Answer {
 
 /// A command that answers bytes (the bus preview's pictures), as they are.
 #[tauri::command]
-async fn call_bytes(app: AppHandle, cmd: String, args: Value) -> Result<tauri::ipc::Response, String> {
-    tauri::async_runtime::spawn_blocking(move || omsi_launcher_api::call_bytes(&cmd, &args, &Window(app)).map(tauri::ipc::Response::new)).await.map_err(err)?
+async fn call_bytes(
+    app: AppHandle,
+    cmd: String,
+    args: Value,
+) -> Result<tauri::ipc::Response, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        omsi_launcher_api::call_bytes(&cmd, &args, &Window(app)).map(tauri::ipc::Response::new)
+    })
+    .await
+    .map_err(err)?
 }
 
 /// A word to the page when the last running game has ended (its profile, runs and saved
@@ -77,7 +97,10 @@ pub fn start_watch(app: AppHandle) {
                 if running.is_empty() {
                     crate::service::no_game_since(asked);
                 }
-                for ended in was.iter().filter_map(|w| all.iter().find(|a| a.id == w.id && !a.running)) {
+                for ended in was
+                    .iter()
+                    .filter_map(|w| all.iter().find(|a| a.id == w.id && !a.running))
+                {
                     if let Some((event, what)) = omsi_launcher_api::game_ended(ended) {
                         core::log_to_file(&format!("game {} ended: {event}", ended.pid));
                         let _ = app.emit(event, what);
@@ -112,7 +135,12 @@ fn pick_mod(archive: bool) -> Option<String> {
 
 #[tauri::command]
 fn pick_hofs(title: String, filter: String) -> Option<Vec<String>> {
-    core::pick_hofs(&title, &filter).map(|files| files.into_iter().map(|p| p.to_string_lossy().to_string()).collect())
+    core::pick_hofs(&title, &filter).map(|files| {
+        files
+            .into_iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect()
+    })
 }
 
 /// Show a folder or file in the system's file manager.
@@ -169,10 +197,24 @@ fn fit_zoom(window: tauri::WebviewWindow, size: f64) -> Answer {
 #[tauri::command]
 fn update_relaunch(app: AppHandle) -> Answer {
     let place = omsi_platform::updater::install_place().map_err(err)?;
-    let game = place.exe.with_file_name(if cfg!(windows) { "openomsi.exe" } else { "openomsi" });
-    let program = if game.is_file() { game } else { place.exe.clone() };
-    omsi_launcher_lib::log_to_file(&format!("update: starting {} after the update", program.display()));
-    std::process::Command::new(&program).current_dir(&place.dir).spawn().map_err(err)?;
+    let game = place.exe.with_file_name(if cfg!(windows) {
+        "openomsi.exe"
+    } else {
+        "openomsi"
+    });
+    let program = if game.is_file() {
+        game
+    } else {
+        place.exe.clone()
+    };
+    omsi_launcher_lib::log_to_file(&format!(
+        "update: starting {} after the update",
+        program.display()
+    ));
+    std::process::Command::new(&program)
+        .current_dir(&place.dir)
+        .spawn()
+        .map_err(err)?;
     app.exit(0);
     Ok(json!(true))
 }
@@ -184,7 +226,13 @@ fn selftest_done(app: AppHandle, report: Value) {
     if !crate::selftest() {
         return;
     }
-    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
-    let ok = report.get("failed").and_then(|f| f.as_array()).is_some_and(|f| f.is_empty());
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&report).unwrap_or_default()
+    );
+    let ok = report
+        .get("failed")
+        .and_then(|f| f.as_array())
+        .is_some_and(|f| f.is_empty());
     app.exit(if ok { 0 } else { 1 });
 }

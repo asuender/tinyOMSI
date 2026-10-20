@@ -23,7 +23,9 @@ impl App {
         if !self.real_time_locked() {
             return;
         }
-        let Some(real) = crate::real_time::clock_now(&self.clock) else { return };
+        let Some(real) = crate::real_time::clock_now(&self.clock) else {
+            return;
+        };
         let gap = crate::real_time::gap(&self.clock, &real);
         if gap.abs() < 0.25 {
             return;
@@ -52,8 +54,19 @@ impl App {
         let Some(w) = self.world.clone() else { return };
         let date = self.clock.date_code();
         let snow = self.session.weather.as_ref().is_some_and(|x| x.snow);
-        let on_road = self.session.weather.as_ref().is_some_and(|x| x.snow_on_road);
-        let season = crate::world_load::season_folder_on(&self.args, &w.global, self.clock.day_of_year, snow, on_road).1;
+        let on_road = self
+            .session
+            .weather
+            .as_ref()
+            .is_some_and(|x| x.snow_on_road);
+        let season = crate::world_load::season_folder_on(
+            &self.args,
+            &w.global,
+            self.clock.day_of_year,
+            snow,
+            on_road,
+        )
+        .1;
         let Some((was_date, was_season)) = self.session.world_day.clone() else {
             self.session.world_day = Some((date, omsi_texture::season_folder()));
             return;
@@ -62,10 +75,20 @@ impl App {
             return;
         }
         self.session.world_day = Some((date, season.clone()));
-        let changed = if was_date != date { w.set_date(date) } else { Vec::new() };
-        let Some(st) = self.gfx.streamer.as_mut() else { return };
+        let changed = if was_date != date {
+            w.set_date(date)
+        } else {
+            Vec::new()
+        };
+        let Some(st) = self.gfx.streamer.as_mut() else {
+            return;
+        };
         if was_season != season {
-            log::info!("season: the textures of {:?} now (were {:?})", season, was_season);
+            log::info!(
+                "season: the textures of {:?} now (were {:?})",
+                season,
+                was_season
+            );
             omsi_texture::set_season_folder(season);
             omsi_cfg::content_changed();
             st.reload(None);
@@ -89,7 +112,11 @@ pub(crate) fn time_speed(settings: &settings::Settings, net: &NetState) -> f64 {
 
 /// The clock follows the real time and cannot be changed (`App::real_time_locked`).
 pub(crate) fn real_time_locked(settings: &settings::Settings, net: &NetState) -> bool {
-    settings.time_sync && !net.lan.as_ref().is_some_and(|l| l.role == omsi_net::Role::Client)
+    settings.time_sync
+        && !net
+            .lan
+            .as_ref()
+            .is_some_and(|l| l.role == omsi_net::Role::Client)
 }
 
 crate::app::stage_ctx!(
@@ -105,7 +132,10 @@ crate::app::stage_ctx!(
 /// Move the clock by `secs` (the traffic's clock with it), as OMSI's time dialog does.
 pub(crate) fn shift_clock(cx: ShiftClockCx, secs: f64) {
     if real_time_locked(cx.common.settings, cx.net) {
-        *cx.ui.service_msg = Some(("The time cannot be changed while the real-time sync is on".into(), 3.0));
+        *cx.ui.service_msg = Some((
+            "The time cannot be changed while the real-time sync is on".into(),
+            3.0,
+        ));
         return;
     }
     let mut t = cx.clock.clock.time + secs;
@@ -127,14 +157,22 @@ pub(crate) fn shift_clock(cx: ShiftClockCx, secs: f64) {
     let h = (t / 3600.0) as u32;
     *cx.ui.service_msg = Some(if secs.abs() >= 86400.0 {
         let (d, m) = cx.clock.clock.day_month();
-        (format!("Date: {:04}-{m:02}-{d:02}", cx.clock.clock.year), 3.0)
+        (
+            format!("Date: {:04}-{m:02}-{d:02}", cx.clock.clock.year),
+            3.0,
+        )
     } else {
-        (format!("Clock: {h:02}:{:02}", ((t / 60.0) as u32) % 60), 3.0)
+        (
+            format!("Clock: {h:02}:{:02}", ((t / 60.0) as u32) % 60),
+            3.0,
+        )
     });
     *cx.clock.clock_jump += secs;
     // (held Page Up/Down: once they are let go)
     if cx.input.clock_hold == 0.0 {
-        timetable_after_clock_jump(crate::app::narrow!(cx => JumpCx { reads: [world], writes: [clock, traffic, gfx] }));
+        timetable_after_clock_jump(
+            crate::app::narrow!(cx => JumpCx { reads: [world], writes: [clock, traffic, gfx] }),
+        );
     }
 }
 
@@ -145,7 +183,13 @@ pub(crate) fn timetable_after_clock_jump(cx: JumpCx) {
     if jump.abs() < 120.0 {
         return;
     }
-    if let (Some(s), Some(w), Some(t), Some(r), Some(scene)) = (cx.traffic.schedule.as_mut(), cx.world.world.as_ref(), cx.traffic.traffic.as_mut(), cx.gfx.renderer.as_ref(), cx.gfx.scene.as_mut()) {
+    if let (Some(s), Some(w), Some(t), Some(r), Some(scene)) = (
+        cx.traffic.schedule.as_mut(),
+        cx.world.world.as_ref(),
+        cx.traffic.traffic.as_mut(),
+        cx.gfx.renderer.as_ref(),
+        cx.gfx.scene.as_mut(),
+    ) {
         let day_time = t.day_time;
         s.restart(t, day_time);
         crate::view_sync::apply_traffic(t, &mut cx.gfx.gfx.sim_view.traffic, w, r, scene);

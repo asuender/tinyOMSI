@@ -22,11 +22,17 @@ pub use audit::{Audit, Entry};
 pub use auth::{Auth, AuthCfg, LoginError, Passwords, SessionInfo};
 pub use http::{ProxyHeader, WebCfg, WebMode};
 pub use hub::{Actor, Hub, Job, OpRecord, Origin, Outcome, ServerState, Snapshot, Status};
-pub use op::{clean, passenger_density, weather_file_ok, Op, Target, TrafficOp, WeatherOp, PASSENGER_DENSITY_MAX};
+pub use op::{
+    clean, passenger_density, weather_file_ok, Op, Target, TrafficOp, WeatherOp,
+    PASSENGER_DENSITY_MAX,
+};
 pub use perm::{Perm, Role};
 pub use players::{resolve, search, Player, PlayerState, TargetError};
 
 /// Seconds since 1970 (0 on a clock before it).
 pub fn unix_now() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }

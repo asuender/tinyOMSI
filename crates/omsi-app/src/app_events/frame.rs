@@ -60,19 +60,34 @@ crate::app::stage_ctx!(
 /// `OMSI_TRACE_LOOK=<csv>`: the frame's line (`frame`) with the cursor, the head's turn and the
 /// camera drawn last.
 pub(super) fn trace_look(cx: TraceLookCx) {
-    let Some(path) = omsi_cfg::flags::OMSI_TRACE_LOOK.var() else { return };
+    let Some(path) = omsi_cfg::flags::OMSI_TRACE_LOOK.var() else {
+        return;
+    };
     use std::io::Write;
     static FILE: std::sync::Mutex<Option<std::fs::File>> = std::sync::Mutex::new(None);
     let mut g = FILE.lock().unwrap_or_else(|e| e.into_inner());
     if g.is_none() {
         *g = std::fs::File::create(path).ok();
         if let Some(f) = g.as_mut() {
-            let _ = writeln!(f, "t,what,x,y,look_yaw,look_pitch,cam_yaw,cam_pitch,mouse_look,grab");
+            let _ = writeln!(
+                f,
+                "t,what,x,y,look_yaw,look_pitch,cam_yaw,cam_pitch,mouse_look,grab"
+            );
         }
     }
     let (input, look) = (&**cx.input, cx.view.cam.look);
     let (x, y) = input.cursor;
     if let (Some(f), Some(c)) = (g.as_mut(), cx.view.camera.as_ref()) {
-        let _ = writeln!(f, "{:.4},frame,{x:.1},{y:.1},{:.3},{:.3},{:.3},{:.3},{},{:?}", cx.common.started.elapsed().as_secs_f64(), look.0, look.1, c.yaw, c.pitch, input.mouse_look as u8, input.mouse_grab.mode);
+        let _ = writeln!(
+            f,
+            "{:.4},frame,{x:.1},{y:.1},{:.3},{:.3},{:.3},{:.3},{},{:?}",
+            cx.common.started.elapsed().as_secs_f64(),
+            look.0,
+            look.1,
+            c.yaw,
+            c.pitch,
+            input.mouse_look as u8,
+            input.mouse_grab.mode
+        );
     }
 }

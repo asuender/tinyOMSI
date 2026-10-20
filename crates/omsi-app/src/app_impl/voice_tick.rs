@@ -16,7 +16,10 @@ impl App {
             self.sound.voice = None;
             return;
         }
-        let v = self.sound.voice.get_or_insert_with(|| crate::voice::Voice::new(crate::voice::DEFAULT_PORT));
+        let v = self
+            .sound
+            .voice
+            .get_or_insert_with(|| crate::voice::Voice::new(crate::voice::DEFAULT_PORT));
         match lan.role {
             omsi_net::Role::Host => {
                 // (once: hosted() reads voice.cfg)
@@ -33,7 +36,11 @@ impl App {
         let lan = self.net.lan.as_ref().unwrap();
         let my_bus = self.player.as_ref().map(|p| p.vehicle.position);
         let others = crate::voice::speakers(lan, &self.net.remotes, my_bus);
-        let inside = if self.cam.in_cab { Some(lan.my_id) } else { self.net.inside_remote };
+        let inside = if self.cam.in_cab {
+            Some(lan.my_id)
+        } else {
+            self.net.inside_remote
+        };
         // driving a bus (not on foot): on the company radio automatically
         let on_radio = self.player.is_some() && !self.cam.ego;
         let radio_keyed = on_radio && self.voice_radio_held();
@@ -56,7 +63,8 @@ impl App {
         if self.input.pad_voice_radio {
             return true;
         }
-        let held = |a: KeyCode, b: KeyCode| self.input.keys.contains(&a) || self.input.keys.contains(&b);
+        let held =
+            |a: KeyCode, b: KeyCode| self.input.keys.contains(&a) || self.input.keys.contains(&b);
         let chord = omsi_content::input::chord(
             held(KeyCode::ShiftLeft, KeyCode::ShiftRight),
             held(KeyCode::ControlLeft, KeyCode::ControlRight),
@@ -66,7 +74,11 @@ impl App {
             b.action.eq_ignore_ascii_case("voice_radio")
                 && b.scan_code != 0
                 && b.matches(chord)
-                && self.input.keys.iter().any(|k| crate::keys::dik_code(*k) == Some(b.scan_code))
+                && self
+                    .input
+                    .keys
+                    .iter()
+                    .any(|k| crate::keys::dik_code(*k) == Some(b.scan_code))
         })
     }
 }

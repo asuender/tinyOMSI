@@ -172,8 +172,14 @@ impl Career {
         let (path, read) = if given.is_absolute() {
             (given.to_path_buf(), given.to_path_buf())
         } else {
-            let own = omsi_cfg::content_dir().map(|c| c.join(rel)).unwrap_or_else(|| omsi_cfg::resolve_path(root, rel));
-            let read = if own.exists() { own.clone() } else { omsi_cfg::resolve_path(root, rel) };
+            let own = omsi_cfg::content_dir()
+                .map(|c| c.join(rel))
+                .unwrap_or_else(|| omsi_cfg::resolve_path(root, rel));
+            let read = if own.exists() {
+                own.clone()
+            } else {
+                omsi_cfg::resolve_path(root, rel)
+            };
             (own, read)
         };
         if let Some(dir) = path.parent() {
@@ -198,8 +204,16 @@ impl Career {
                 None
             }
         };
-        let penalty = driver.as_ref().map(|d| d.rating[0].clamp(0.0, 1.0)).unwrap_or(0.0);
-        Career { driver, path: Some(path), penalty, ..Default::default() }
+        let penalty = driver
+            .as_ref()
+            .map(|d| d.rating[0].clamp(0.0, 1.0))
+            .unwrap_or(0.0);
+        Career {
+            driver,
+            path: Some(path),
+            penalty,
+            ..Default::default()
+        }
     }
 
     /// `metres` driven in the bus of this `[friendlyname]` (a bus without one is not counted).
@@ -207,10 +221,16 @@ impl Career {
         if manufacturer.is_empty() && type_name.is_empty() {
             return;
         }
-        let is = |k: &str| k.len() == manufacturer.len() + 1 + type_name.len() && k.starts_with(manufacturer) && k.ends_with(type_name);
+        let is = |k: &str| {
+            k.len() == manufacturer.len() + 1 + type_name.len()
+                && k.starts_with(manufacturer)
+                && k.ends_with(type_name)
+        };
         match self.bus_metres.iter_mut().find(|(k, _)| is(k)) {
             Some((_, m)) => *m += metres,
-            None => self.bus_metres.push((format!("{manufacturer} {type_name}"), metres)),
+            None => self
+                .bus_metres
+                .push((format!("{manufacturer} {type_name}"), metres)),
         }
     }
 
@@ -257,9 +277,18 @@ impl Career {
             self.harsh_cool = 1.0;
             self.harsh += 1;
             self.penalise(JOLT_WEIGHT);
-            self.jolts.push(Jolt { along, across, speed_kmh: v.abs() * 3.6, riders });
+            self.jolts.push(Jolt {
+                along,
+                across,
+                speed_kmh: v.abs() * 3.6,
+                riders,
+            });
             if omsi_cfg::flags::OMSI_DEBUG_CAREER.is_set() {
-                log::info!("jolt after {:.0} m: along {along:+.1} across {across:+.1} m/s2 at {:.0} km/h", self.metres, v * 3.6);
+                log::info!(
+                    "jolt after {:.0} m: along {along:+.1} across {across:+.1} m/s2 at {:.0} km/h",
+                    self.metres,
+                    v * 3.6
+                );
             }
             if riders > 0 {
                 self.harsh_pax += 1;
@@ -267,7 +296,13 @@ impl Career {
         }
         // see-sawing between throttle and brake
         let c = bus.physics.controls;
-        let pedal = if c.throttle > 0.2 { 1 } else if c.brake > 0.2 { -1 } else { self.pedal };
+        let pedal = if c.throttle > 0.2 {
+            1
+        } else if c.brake > 0.2 {
+            -1
+        } else {
+            self.pedal
+        };
         if pedal != self.pedal && self.pedal != 0 {
             self.seesaw.push_back(self.seconds);
         }
@@ -307,7 +342,13 @@ impl Career {
 
     /// Ratings counting from now.
     fn rating_start(&self) -> RatingStart {
-        RatingStart { penalty: 0.0, stepped_in: self.stepped_in, content: self.content, ticket_requests: self.ticket_requests, ticket_points: self.ticket_points }
+        RatingStart {
+            penalty: 0.0,
+            stepped_in: self.stepped_in,
+            content: self.content,
+            ticket_requests: self.ticket_requests,
+            ticket_points: self.ticket_points,
+        }
     }
 
     /// The jolts since the last call.
@@ -322,8 +363,16 @@ impl Career {
         if self.trip.as_ref().is_some_and(|t| t.run == run) {
             return;
         }
-        let from = self.trip.as_ref().and_then(|t| t.next).unwrap_or_else(|| self.rating_start());
-        self.trip = Some(TripRun { run, from, next: None });
+        let from = self
+            .trip
+            .as_ref()
+            .and_then(|t| t.next)
+            .unwrap_or_else(|| self.rating_start());
+        self.trip = Some(TripRun {
+            run,
+            from,
+            next: None,
+        });
     }
 
     /// A page reopened the trip of run `run` after its end was told: it goes on being rated
@@ -359,7 +408,12 @@ impl Career {
         self.ticket_points = other.ticket_points;
         // (in the other driver's file already: not again in this one's)
         self.written.tickets = other.tickets;
-        self.written.counters = [other.content, other.ticket_requests, other.ticket_points, other.stepped_in];
+        self.written.counters = [
+            other.content,
+            other.ticket_requests,
+            other.ticket_points,
+            other.stepped_in,
+        ];
         self.trip = other.trip.take();
     }
 
@@ -369,20 +423,29 @@ impl Career {
     /// reopened since, `trip_reopened`).
     pub fn trip_ended(&mut self, run: u64) -> Option<[f64; 3]> {
         let now = self.rating_start();
-        let t = self.trip.as_mut().filter(|t| t.run == run && t.next.is_none())?;
+        let t = self
+            .trip
+            .as_mut()
+            .filter(|t| t.run == run && t.next.is_none())?;
         t.next = Some(now);
         let f = t.from;
         Some([
             100.0 * (1.0 - f.penalty.clamp(0.0, 1.0)),
             comfort_percent(now.content - f.content, now.stepped_in - f.stepped_in),
-            ticket_percent(now.ticket_points - f.ticket_points, now.ticket_requests - f.ticket_requests),
+            ticket_percent(
+                now.ticket_points - f.ticket_points,
+                now.ticket_requests - f.ticket_requests,
+            ),
         ])
     }
 
     pub fn trip_people(&self, run: u64) -> Option<(i32, i32)> {
         let t = self.trip.as_ref().filter(|t| t.run == run)?;
         let n = t.next?;
-        Some((n.stepped_in - t.from.stepped_in, n.ticket_requests - t.from.ticket_requests))
+        Some((
+            n.stepped_in - t.from.stepped_in,
+            n.ticket_requests - t.from.ticket_requests,
+        ))
     }
 
     /// A timetable stop the bus arrived at `arrival` seconds after its time and left
@@ -444,12 +507,21 @@ impl Career {
     /// Add this session to the personnel file and write it back: the counters are added,
     /// the driving penalty is this session's (it started from the file's).
     pub fn save(&mut self) -> std::io::Result<()> {
-        let Some(path) = self.path.clone() else { return Ok(()) };
-        let mut d = Driver::load(&path).ok().or_else(|| self.driver.clone()).unwrap_or_else(|| Driver {
-            name: path.file_stem().and_then(|s| s.to_str()).unwrap_or("Driver").to_string(),
-            sex: "M".into(),
-            ..Default::default()
-        });
+        let Some(path) = self.path.clone() else {
+            return Ok(());
+        };
+        let mut d = Driver::load(&path)
+            .ok()
+            .or_else(|| self.driver.clone())
+            .unwrap_or_else(|| Driver {
+                name: path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("Driver")
+                    .to_string(),
+                sex: "M".into(),
+                ..Default::default()
+            });
         let w = self.written;
         for i in 0..3 {
             d.bus_stops[i] += self.stops[i] - w.stops[i];
@@ -471,14 +543,29 @@ impl Career {
         }
         d.tickets[0] += (self.tickets.0 - w.tickets.0) as f64;
         d.tickets[1] += self.tickets.1 - w.tickets.1;
-        let now = [self.content, self.ticket_requests, self.ticket_points, self.stepped_in];
+        let now = [
+            self.content,
+            self.ticket_requests,
+            self.ticket_points,
+            self.stepped_in,
+        ];
         d.rating[0] = self.penalty.clamp(0.0, 1.0);
         for (k, slot) in [1usize, 2, 3, 4].into_iter().enumerate() {
             d.rating[slot] += (now[k] - w.counters[k]) as f64;
         }
         d.save(&path)?;
-        self.written = Written { metres: w.metres + hm * 100.0, stops: self.stops, crashes: self.crashes, tickets: self.tickets, counters: now };
-        log::info!("personnel file {} updated: {}", path.display(), self.summary());
+        self.written = Written {
+            metres: w.metres + hm * 100.0,
+            stops: self.stops,
+            crashes: self.crashes,
+            tickets: self.tickets,
+            counters: now,
+        };
+        log::info!(
+            "personnel file {} updated: {}",
+            path.display(),
+            self.summary()
+        );
         self.driver = Some(d);
         Ok(())
     }
@@ -515,12 +602,33 @@ impl Career {
     /// Write this session into `~/.openomsi/sessions/<time>-<process>.json`, where the
     /// launcher adds it up into the driver's hours, experience and level (the process id
     /// keeps two games that end in the same second apart).
-    pub fn write_session(&self, map: &str, bus: &str, line: Option<&str>, tour: Option<&str>) -> std::io::Result<()> {
-        let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).unwrap_or_default();
+    pub fn write_session(
+        &self,
+        map: &str,
+        bus: &str,
+        line: Option<&str>,
+        tour: Option<&str>,
+    ) -> std::io::Result<()> {
+        let home = std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .map(PathBuf::from)
+            .unwrap_or_default();
         let dir = home.join(".openomsi").join("sessions");
         std::fs::create_dir_all(&dir)?;
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-        let driver = self.driver.as_ref().map(|d| d.name.clone()).or_else(|| self.path.as_ref().and_then(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))).unwrap_or_else(|| "Driver".into());
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let driver = self
+            .driver
+            .as_ref()
+            .map(|d| d.name.clone())
+            .or_else(|| {
+                self.path
+                    .as_ref()
+                    .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+            })
+            .unwrap_or_else(|| "Driver".into());
         let v = serde_json::json!({
             "time": now,
             "driver": driver,
@@ -560,9 +668,13 @@ mod tests {
     /// at a time and the rest carried to the next save (#2475).
     #[test]
     fn the_personnel_file_keeps_each_buss_kilometres() {
-        let path = std::env::temp_dir().join(format!("omsi_career_perbus_{}.odr", std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("omsi_career_perbus_{}.odr", std::process::id()));
         let _ = std::fs::remove_file(&path);
-        let mut c = Career { path: Some(path.clone()), ..Default::default() };
+        let mut c = Career {
+            path: Some(path.clone()),
+            ..Default::default()
+        };
         c.metres = 1250.0;
         c.bus_step("MAN", "SD202 - D86", 1000.0);
         c.bus_step("MAN", "NG 272", 250.0);
@@ -570,13 +682,25 @@ mod tests {
         c.save().unwrap();
         let d = Driver::load(&path).unwrap();
         assert_eq!(d.hektom, 12.0);
-        assert_eq!(d.per_bus, vec![("MAN SD202 - D86".to_string(), 10), ("MAN NG 272".to_string(), 2)]);
+        assert_eq!(
+            d.per_bus,
+            vec![
+                ("MAN SD202 - D86".to_string(), 10),
+                ("MAN NG 272".to_string(), 2)
+            ]
+        );
         c.metres += 60.0;
         c.bus_step("MAN", "NG 272", 60.0);
         c.save().unwrap();
         let d = Driver::load(&path).unwrap();
         let _ = std::fs::remove_file(&path);
-        assert_eq!(d.per_bus, vec![("MAN SD202 - D86".to_string(), 10), ("MAN NG 272".to_string(), 3)]);
+        assert_eq!(
+            d.per_bus,
+            vec![
+                ("MAN SD202 - D86".to_string(), 10),
+                ("MAN NG 272".to_string(), 3)
+            ]
+        );
     }
 
     /// A trip is rated on its own: driving from 100 at its start, comfort and ticket selling
@@ -584,12 +708,23 @@ mod tests {
     /// end is told once, and only for the run being rated.
     #[test]
     fn a_trip_is_rated_from_its_start_and_its_end_told_once() {
-        let mut c = Career { penalty: 0.3, stepped_in: 10, content: 8, ticket_requests: 2, ticket_points: 4, ..Default::default() };
+        let mut c = Career {
+            penalty: 0.3,
+            stepped_in: 10,
+            content: 8,
+            ticket_requests: 2,
+            ticket_points: 4,
+            ..Default::default()
+        };
         assert_eq!(c.trip_ended(1), None, "no trip rated yet");
         c.trip_driven(1);
         c.crashed(1000.0, 2.5);
         (c.stepped_in, c.content, c.ticket_requests, c.ticket_points) = (14, 11, 4, 6);
-        assert!((c.driving_rating() - 35.0).abs() < 1e-9, "{}", c.driving_rating());
+        assert!(
+            (c.driving_rating() - 35.0).abs() < 1e-9,
+            "{}",
+            c.driving_rating()
+        );
         // the same run goes on
         c.trip_driven(1);
         assert_eq!(c.trip_ended(2), None, "another run's end");
@@ -637,7 +772,12 @@ mod tests {
     /// trip goes on being rated, and what the first driver's file has is not counted again.
     #[test]
     fn a_driver_taking_over_a_moving_bus_is_no_jolt() {
-        let mut c = Career { last_v: 10.0, last_pos: Some(DVec3::ZERO), tickets: (10, 21.0), ..Default::default() };
+        let mut c = Career {
+            last_v: 10.0,
+            last_pos: Some(DVec3::ZERO),
+            tickets: (10, 21.0),
+            ..Default::default()
+        };
         c.trip_driven(5);
         c.crashed(1000.0, 2.5);
         let mut next = Career::default();

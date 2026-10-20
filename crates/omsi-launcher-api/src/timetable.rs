@@ -87,15 +87,30 @@ fn within(p: &Path, dir: &Path) -> bool {
 impl Place {
     fn of(map: &str) -> Result<Place, String> {
         let global = core::content_path(map).map_err(err)?;
-        let map_dir = global.parent().map(Path::to_path_buf).ok_or_else(|| format!("{map} is not a map file"))?;
-        let rel = PathBuf::from(map.replace('\\', "/")).parent().map(Path::to_path_buf).unwrap_or_default();
-        if rel.as_os_str().is_empty() || !rel.components().all(|c| matches!(c, Component::Normal(_))) {
+        let map_dir = global
+            .parent()
+            .map(Path::to_path_buf)
+            .ok_or_else(|| format!("{map} is not a map file"))?;
+        let rel = PathBuf::from(map.replace('\\', "/"))
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default();
+        if rel.as_os_str().is_empty()
+            || !rel.components().all(|c| matches!(c, Component::Normal(_)))
+        {
             return Err(format!("{map} is not a map file"));
         }
         let content = core::content_dir().ok_or_else(|| "no content folder".to_string())?;
         let root = core::load_config().root;
-        let omsi = core::root_dir().ok().or_else(|| (!root.trim().is_empty()).then(|| PathBuf::from(root.trim())));
-        Ok(Place { content, omsi, map_dir, rel })
+        let omsi = core::root_dir()
+            .ok()
+            .or_else(|| (!root.trim().is_empty()).then(|| PathBuf::from(root.trim())));
+        Ok(Place {
+            content,
+            omsi,
+            map_dir,
+            rel,
+        })
     }
 
     fn original(&self, p: &Path) -> bool {
@@ -108,7 +123,10 @@ impl Place {
     }
 
     fn folder(&self) -> String {
-        self.map_dir.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default()
+        self.map_dir
+            .file_name()
+            .map(|f| f.to_string_lossy().into_owned())
+            .unwrap_or_default()
     }
 
     fn copy_dir(&self) -> PathBuf {
@@ -118,7 +136,10 @@ impl Place {
 
 pub fn load(map: String) -> Answer {
     let global = core::content_path(&map).map_err(err)?;
-    let map_dir = global.parent().map(Path::to_path_buf).ok_or_else(|| format!("{map} is not a map file"))?;
+    let map_dir = global
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| format!("{map} is not a map file"))?;
     Ok(read(&map_dir))
 }
 
@@ -145,7 +166,10 @@ fn read(map_dir: &Path) -> Value {
         .iter()
         .map(|t| json!({ "name": t.name, "line": t.line, "terminus": t.terminus, "profiles": t.profiles.iter().map(|p| p.name.clone()).collect::<Vec<_>>() }))
         .collect();
-    let folder = map_dir.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
+    let folder = map_dir
+        .file_name()
+        .map(|f| f.to_string_lossy().into_owned())
+        .unwrap_or_default();
     json!({ "folder": folder, "lines": lines, "trips": trips })
 }
 
@@ -177,11 +201,23 @@ fn save_lines(place: &Place, edits: Vec<LineEdit>) -> Value {
 }
 
 fn file_name_ok(name: &str) -> bool {
-    if name.is_empty() || name.ends_with(['.', ' ']) || name.chars().any(|c| c.is_control() || NOT_IN_NAMES.contains(&c)) {
+    if name.is_empty()
+        || name.ends_with(['.', ' '])
+        || name
+            .chars()
+            .any(|c| c.is_control() || NOT_IN_NAMES.contains(&c))
+    {
         return false;
     }
-    let stem = name.split('.').next().unwrap_or_default().trim_end().to_ascii_uppercase();
-    let numbered = |p: &str| stem.len() == 4 && stem.starts_with(p) && matches!(stem.as_bytes()[3], b'1'..=b'9');
+    let stem = name
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .trim_end()
+        .to_ascii_uppercase();
+    let numbered = |p: &str| {
+        stem.len() == 4 && stem.starts_with(p) && matches!(stem.as_bytes()[3], b'1'..=b'9')
+    };
     !matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL") && !numbered("COM") && !numbered("LPT")
 }
 
@@ -197,13 +233,32 @@ fn save_line(place: &Place, original: &Path, known: &[Line], e: LineEdit) -> Res
             if !x.departure.is_finite() || x.departure < 0.0 {
                 return Err(format!("tour {}: a departure is not a time", t.number));
             }
-            trips.push(TourTrip { trip: x.trip, profile: x.profile, departure: x.departure });
+            trips.push(TourTrip {
+                trip: x.trip,
+                profile: x.profile,
+                departure: x.departure,
+            });
         }
         trips.sort_by(|a, b| a.departure.total_cmp(&b.departure));
-        tours.push(Tour { number: t.number, ai_group: t.ai_group, extra: t.extra, trips });
+        tours.push(Tour {
+            number: t.number,
+            ai_group: t.ai_group,
+            extra: t.extra,
+            trips,
+        });
     }
-    let path = known.iter().find(|l| l.name.eq_ignore_ascii_case(&name)).map(|l| l.path.clone()).unwrap_or_else(|| original.join(format!("{name}.ttl")));
-    let line = Line { path, name, user_allowed: e.user_allowed, priority: e.priority, tours };
+    let path = known
+        .iter()
+        .find(|l| l.name.eq_ignore_ascii_case(&name))
+        .map(|l| l.path.clone())
+        .unwrap_or_else(|| original.join(format!("{name}.ttl")));
+    let line = Line {
+        path,
+        name,
+        user_allowed: e.user_allowed,
+        priority: e.priority,
+        tours,
+    };
     let target = save_target(place, &line, original)?;
     if place.original(&target) {
         return Err("it would be written into the OMSI 2 folder".into());
@@ -212,10 +267,17 @@ fn save_line(place: &Place, original: &Path, known: &[Line], e: LineEdit) -> Res
 }
 
 fn save_target(place: &Place, line: &Line, original: &Path) -> Result<PathBuf, String> {
-    let file = line.path.file_name().map(|f| f.to_owned()).unwrap_or_else(|| format!("{}.ttl", line.name).into());
+    let file = line
+        .path
+        .file_name()
+        .map(|f| f.to_owned())
+        .unwrap_or_else(|| format!("{}.ttl", line.name).into());
     if place.ours(&line.path) && omsi_cfg::vfs::archive_of(&line.path).is_none() {
         let orig = PathBuf::from(format!("{}.orig", line.path.display()));
-        let copied = line.path.parent().is_some_and(|d| d.join(COPY_MARK).is_file());
+        let copied = line
+            .path
+            .parent()
+            .is_some_and(|d| d.join(COPY_MARK).is_file());
         if !copied && line.path.is_file() && !orig.exists() {
             std::fs::copy(&line.path, &orig).map_err(err)?;
         }
@@ -232,7 +294,8 @@ fn save_target(place: &Place, line: &Line, original: &Path) -> Result<PathBuf, S
 }
 
 fn copy_whole(original: &Path, dir: &Path) -> Result<(), String> {
-    let names = omsi_cfg::vfs::list_dir(original).ok_or_else(|| format!("{} cannot be read", original.display()))?;
+    let names = omsi_cfg::vfs::list_dir(original)
+        .ok_or_else(|| format!("{} cannot be read", original.display()))?;
     let partial = dir.with_file_name(PARTIAL);
     if partial.exists() {
         std::fs::remove_dir_all(&partial).map_err(err)?;
@@ -294,7 +357,8 @@ mod tests {
     }
 
     fn dirs_at(name: &str, omsi: &str, content: &str) -> Dirs {
-        let top = std::env::temp_dir().join(format!("openomsi-timetable-{name}-{}", std::process::id()));
+        let top =
+            std::env::temp_dir().join(format!("openomsi-timetable-{name}-{}", std::process::id()));
         std::fs::remove_dir_all(&top).ok();
         let (omsi, content) = (top.join(omsi), top.join(content));
         std::fs::create_dir_all(&content).unwrap();
@@ -315,12 +379,34 @@ mod tests {
     }
 
     fn place(d: &Dirs, map_dir: &Path) -> Place {
-        Place { content: d.content.clone(), omsi: Some(d.omsi.clone()), map_dir: map_dir.to_path_buf(), rel: PathBuf::from("maps/Grundorf") }
+        Place {
+            content: d.content.clone(),
+            omsi: Some(d.omsi.clone()),
+            map_dir: map_dir.to_path_buf(),
+            rel: PathBuf::from("maps/Grundorf"),
+        }
     }
 
     fn edit(name: &str, departures: &[f32]) -> LineEdit {
-        let trips = departures.iter().map(|d| TripEdit { trip: "A".into(), profile: 0, departure: *d }).collect();
-        LineEdit { name: name.into(), user_allowed: true, priority: 0, tours: vec![TourEdit { number: "1".into(), ai_group: "Busses".into(), extra: "1023".into(), trips }] }
+        let trips = departures
+            .iter()
+            .map(|d| TripEdit {
+                trip: "A".into(),
+                profile: 0,
+                departure: *d,
+            })
+            .collect();
+        LineEdit {
+            name: name.into(),
+            user_allowed: true,
+            priority: 0,
+            tours: vec![TourEdit {
+                number: "1".into(),
+                ai_group: "Busses".into(),
+                extra: "1023".into(),
+                trips,
+            }],
+        }
     }
 
     fn snapshot(dir: &Path) -> Vec<(PathBuf, Vec<u8>)> {
@@ -351,11 +437,24 @@ mod tests {
         assert!(copy.join("A.ttp").is_file());
         assert!(!copy.with_file_name(PARTIAL).exists());
         let one = Line::load(&copy.join("1.ttl")).unwrap();
-        assert_eq!(one.tours[0].trips.iter().map(|t| t.departure).collect::<Vec<_>>(), vec![380.0, 420.0]);
+        assert_eq!(
+            one.tours[0]
+                .trips
+                .iter()
+                .map(|t| t.departure)
+                .collect::<Vec<_>>(),
+            vec![380.0, 420.0]
+        );
         assert!(one.user_allowed);
-        assert_eq!(Line::load(&copy.join("N5.ttl")).unwrap().tours[0].trips[0].departure, 1450.0);
+        assert_eq!(
+            Line::load(&copy.join("N5.ttl")).unwrap().tours[0].trips[0].departure,
+            1450.0
+        );
         assert!(!copy.join("1.ttl.orig").exists());
-        assert_eq!(reset_in(&p).unwrap(), json!({ "folder": "Grundorf", "removed": true, "restored": 0 }));
+        assert_eq!(
+            reset_in(&p).unwrap(),
+            json!({ "folder": "Grundorf", "removed": true, "restored": 0 })
+        );
         assert!(!copy.exists());
         assert_eq!(snapshot(&d.omsi), before);
     }
@@ -363,13 +462,28 @@ mod tests {
     #[test]
     fn a_map_in_a_pack_folder_is_copied_to_the_same_place_in_the_content_folder() {
         let d = dirs("nested");
-        let tt = d.omsi.join("maps").join("Pack").join("Grundorf").join("TTData");
+        let tt = d
+            .omsi
+            .join("maps")
+            .join("Pack")
+            .join("Grundorf")
+            .join("TTData");
         std::fs::create_dir_all(&tt).unwrap();
         std::fs::write(tt.join("A.ttp"), "[trip]\r\n\r\nHauptbahnhof\r\n1\r\n").unwrap();
         let mut p = place(&d, tt.parent().unwrap());
         p.rel = PathBuf::from("maps/Pack/Grundorf");
-        assert_eq!(save_lines(&p, vec![edit("1", &[300.0])])["error"], json!(null));
-        assert!(d.content.join("maps").join("Pack").join("Grundorf").join("TTData").join("1.ttl").is_file());
+        assert_eq!(
+            save_lines(&p, vec![edit("1", &[300.0])])["error"],
+            json!(null)
+        );
+        assert!(d
+            .content
+            .join("maps")
+            .join("Pack")
+            .join("Grundorf")
+            .join("TTData")
+            .join("1.ttl")
+            .is_file());
     }
 
     #[test]
@@ -379,9 +493,15 @@ mod tests {
         let partial = d.content.join("maps").join("Grundorf").join(PARTIAL);
         std::fs::create_dir_all(&partial).unwrap();
         std::fs::write(partial.join("A.ttp"), "broken").unwrap();
-        assert_eq!(save_lines(&place(&d, &map), vec![edit("1", &[300.0])])["error"], json!(null));
+        assert_eq!(
+            save_lines(&place(&d, &map), vec![edit("1", &[300.0])])["error"],
+            json!(null)
+        );
         let copy = d.content.join("maps").join("Grundorf").join("TTData");
-        assert_eq!(std::fs::read(copy.join("A.ttp")).unwrap(), std::fs::read(map.join("TTData").join("A.ttp")).unwrap());
+        assert_eq!(
+            std::fs::read(copy.join("A.ttp")).unwrap(),
+            std::fs::read(map.join("TTData").join("A.ttp")).unwrap()
+        );
         assert!(!partial.exists());
     }
 
@@ -395,9 +515,15 @@ mod tests {
         save_lines(&p, vec![edit("1", &[300.0])]);
         save_lines(&p, vec![edit("1", &[310.0])]);
         assert_eq!(std::fs::read(tt.join("1.ttl.orig")).unwrap(), first);
-        assert_eq!(Line::load(&tt.join("1.ttl")).unwrap().tours[0].trips[0].departure, 310.0);
+        assert_eq!(
+            Line::load(&tt.join("1.ttl")).unwrap().tours[0].trips[0].departure,
+            310.0
+        );
         assert!(!tt.join(COPY_MARK).exists());
-        assert_eq!(reset_in(&p).unwrap(), json!({ "folder": "Grundorf", "removed": false, "restored": 1 }));
+        assert_eq!(
+            reset_in(&p).unwrap(),
+            json!({ "folder": "Grundorf", "removed": false, "restored": 1 })
+        );
         assert_eq!(std::fs::read(tt.join("1.ttl")).unwrap(), first);
         assert!(!tt.join("1.ttl.orig").exists());
     }
@@ -409,9 +535,18 @@ mod tests {
         std::fs::write(map.join("TTData").join("2.ttl.orig"), "kept").unwrap();
         let p = place(&d, &map);
         let before = snapshot(&d.omsi);
-        assert_eq!(save_lines(&p, vec![edit("1", &[300.0])])["error"], json!(null));
+        assert_eq!(
+            save_lines(&p, vec![edit("1", &[300.0])])["error"],
+            json!(null)
+        );
         assert_eq!(snapshot(&d.omsi), before);
-        assert!(d.content.join("maps").join("Grundorf").join("TTData").join("1.ttl").is_file());
+        assert!(d
+            .content
+            .join("maps")
+            .join("Grundorf")
+            .join("TTData")
+            .join("1.ttl")
+            .is_file());
         reset_in(&p).unwrap();
         reset_in(&p).unwrap();
         assert_eq!(snapshot(&d.omsi), before);
@@ -423,9 +558,18 @@ mod tests {
         let map = map_at(&d.omsi);
         let p = place(&d, &map);
         let before = snapshot(&map);
-        assert_eq!(save_lines(&p, vec![edit("1", &[300.0])])["error"], json!(null));
+        assert_eq!(
+            save_lines(&p, vec![edit("1", &[300.0])])["error"],
+            json!(null)
+        );
         assert_eq!(snapshot(&map), before);
-        assert!(d.content.join("maps").join("Grundorf").join("TTData").join("1.ttl").is_file());
+        assert!(d
+            .content
+            .join("maps")
+            .join("Grundorf")
+            .join("TTData")
+            .join("1.ttl")
+            .is_file());
     }
 
     #[cfg(unix)]
@@ -451,10 +595,36 @@ mod tests {
         let d = dirs("names");
         let map = map_at(&d.omsi);
         let p = place(&d, &map);
-        for bad in ["", "  ", "a/b", "..\\x", "c:d", "e*", "f?", "g\"", "h<", "i>", "j|", "CON", "con", "Nul.txt", "com1", "LPT9.a", "tab\there", "dot.", "bell\u{7}"] {
+        for bad in [
+            "",
+            "  ",
+            "a/b",
+            "..\\x",
+            "c:d",
+            "e*",
+            "f?",
+            "g\"",
+            "h<",
+            "i>",
+            "j|",
+            "CON",
+            "con",
+            "Nul.txt",
+            "com1",
+            "LPT9.a",
+            "tab\there",
+            "dot.",
+            "bell\u{7}",
+        ] {
             let answer = save_lines(&p, vec![edit(bad, &[300.0])]);
             assert_eq!(answer["saved"], json!([]), "{bad:?}");
-            assert!(answer["error"].as_str().unwrap().contains("not a file name"), "{bad:?}");
+            assert!(
+                answer["error"]
+                    .as_str()
+                    .unwrap()
+                    .contains("not a file name"),
+                "{bad:?}"
+            );
         }
         for good in ["COM0", "CONSOLE", "N5", "Linie 7.1"] {
             assert!(file_name_ok(good), "{good:?}");
@@ -477,7 +647,10 @@ mod tests {
         let map = map_at(&d.omsi);
         std::fs::write(map.join("TTData").join("2.ttl.orig"), "kept").unwrap();
         let before = snapshot(&d.omsi);
-        assert_eq!(reset_in(&place(&d, &map)).unwrap(), json!({ "folder": "Grundorf", "removed": false, "restored": 0 }));
+        assert_eq!(
+            reset_in(&place(&d, &map)).unwrap(),
+            json!({ "folder": "Grundorf", "removed": false, "restored": 0 })
+        );
         assert_eq!(snapshot(&d.omsi), before);
     }
 
@@ -488,7 +661,10 @@ mod tests {
         let v = read(&map);
         assert_eq!(v["folder"], json!("Grundorf"));
         assert_eq!(v["lines"][0]["name"], json!("1"));
-        assert_eq!(v["lines"][0]["tours"][0]["trips"][0], json!({ "trip": "A", "profile": 0, "departure": 360.0 }));
+        assert_eq!(
+            v["lines"][0]["tours"][0]["trips"][0],
+            json!({ "trip": "A", "profile": 0, "departure": 360.0 })
+        );
         assert_eq!(v["trips"][0]["terminus"], json!("Hauptbahnhof"));
     }
 }

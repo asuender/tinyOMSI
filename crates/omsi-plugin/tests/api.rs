@@ -12,7 +12,10 @@ fn repo() -> &'static Path {
     Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
 }
 
-const LUA_KEYWORDS: &[&str] = &["and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"];
+const LUA_KEYWORDS: &[&str] = &[
+    "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in",
+    "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
+];
 
 #[test]
 fn every_entry_is_well_formed() {
@@ -22,23 +25,51 @@ fn every_entry_is_well_formed() {
     assert_eq!(names.len(), all.len(), "a name is there twice");
     let groups: Vec<&str> = api::docs::GROUPS.iter().map(|g| g.0).collect();
     for f in all {
-        assert!(groups.contains(&f.group), "{}: group {} is not in the docs' list", f.name, f.group);
-        assert!(f.doc.ends_with('.') || f.doc.ends_with(')') || f.doc.ends_with('`'), "{}: the doc is a sentence", f.name);
+        assert!(
+            groups.contains(&f.group),
+            "{}: group {} is not in the docs' list",
+            f.name,
+            f.group
+        );
+        assert!(
+            f.doc.ends_with('.') || f.doc.ends_with(')') || f.doc.ends_with('`'),
+            "{}: the doc is a sentence",
+            f.name
+        );
         assert!(!f.returns.is_empty() && !f.since.is_empty(), "{}", f.name);
         for part in f.name.split('.') {
-            assert!(!LUA_KEYWORDS.contains(&part), "{}: `{part}` is a Lua keyword", f.name);
+            assert!(
+                !LUA_KEYWORDS.contains(&part),
+                "{}: `{part}` is a Lua keyword",
+                f.name
+            );
         }
         for p in f.params {
-            assert!(["number", "integer", "string", "bool", "table", "function", "any"].contains(&p.ty), "{}: {} {}", f.name, p.name, p.ty);
+            assert!(
+                ["number", "integer", "string", "bool", "table", "function", "any"].contains(&p.ty),
+                "{}: {} {}",
+                f.name,
+                p.name,
+                p.ty
+            );
         }
         // (a function is not also a table of functions: `omsi.x` and `omsi.x.y` cannot both be)
         assert!(api::find(f.name).is_some());
-        assert!(!all.iter().any(|g| g.name.starts_with(&format!("{}.", f.name))), "{} is a function and a table", f.name);
+        assert!(
+            !all.iter()
+                .any(|g| g.name.starts_with(&format!("{}.", f.name))),
+            "{} is a function and a table",
+            f.name
+        );
     }
     let mut events: Vec<&str> = api::events::EVENTS.iter().map(|e| e.name).collect();
     events.sort();
     events.dedup();
-    assert_eq!(events.len(), api::events::EVENTS.len(), "an event is there twice");
+    assert_eq!(
+        events.len(),
+        api::events::EVENTS.len(),
+        "an event is there twice"
+    );
 }
 
 /// docs/plugin-api.json is the registry's manifest, and docs/PLUGINS.md's reference its
@@ -49,14 +80,17 @@ fn api_manifest() {
     let path = repo().join("docs/plugin-api.json");
     let doc_path = repo().join("docs/PLUGINS.md");
     let doc = std::fs::read_to_string(&doc_path).unwrap();
-    let spliced = api::docs::splice(&doc).expect("docs/PLUGINS.md has the api:begin / api:end markers");
+    let spliced =
+        api::docs::splice(&doc).expect("docs/PLUGINS.md has the api:begin / api:end markers");
     if std::env::var_os("OMSI_API_BLESS").is_some() {
         std::fs::write(&path, &manifest).unwrap();
         std::fs::write(&doc_path, &spliced).unwrap();
         return;
     }
     // (a Windows checkout may have turned the files' line ends into CRLF)
-    let have = std::fs::read_to_string(&path).unwrap_or_default().replace("\r\n", "\n");
+    let have = std::fs::read_to_string(&path)
+        .unwrap_or_default()
+        .replace("\r\n", "\n");
     let doc = doc.replace("\r\n", "\n");
     let spliced = spliced.replace("\r\n", "\n");
     assert!(have == manifest, "docs/plugin-api.json is not the registry's: run OMSI_API_BLESS=1 cargo test -p omsi-plugin api_manifest");
@@ -97,7 +131,10 @@ fn events_timers_watches_and_cancel() {
     g.info = vec![("line", omsi_plugin::InfoValue::Text("136".into()))];
     p.frame(&mut g);
     p.frame(&mut g);
-    assert_eq!(g.messages, ["on 12,global 1,cancelled?,watch nil>10.0,after,every3,watch 10.0>20.0,line 136"]);
+    assert_eq!(
+        g.messages,
+        ["on 12,global 1,cancelled?,watch nil>10.0,after,every3,watch 10.0>20.0,line 136"]
+    );
 }
 
 #[test]
@@ -124,19 +161,40 @@ fn messages_between_plugins() {
     let mut g = Game::new();
     p.frame(&mut g);
     p.frame(&mut g);
-    assert_eq!(g.messages, ["b got hello 42 from a", "b got all x from a", "a got thanks from b"]);
+    assert_eq!(
+        g.messages,
+        [
+            "b got hello 42 from a",
+            "b got all x from a",
+            "a got thanks from b"
+        ]
+    );
 }
 
 #[test]
 fn a_runaway_call_is_stopped_at_its_budget_and_the_plugin_switched_off() {
     let mut g = Game::new();
-    let p = run("runaway", "function on_frame() local t = os.clock() while os.clock() - t < 5 do end end", &mut g, 1);
+    let p = run(
+        "runaway",
+        "function on_frame() local t = os.clock() while os.clock() - t < 5 do end end",
+        &mut g,
+        1,
+    );
     assert!(p.lua[0].disabled, "{:?}", g.messages);
-    assert!(g.messages.iter().any(|m| m.contains("longer than 50 ms")), "{:?}", g.messages);
+    assert!(
+        g.messages.iter().any(|m| m.contains("longer than 50 ms")),
+        "{:?}",
+        g.messages
+    );
     // a plugin catching the error is stopped all the same
     let mut g = Game::new();
     let t = std::time::Instant::now();
-    let p = run("runaway2", "function on_frame() pcall(function() while true do end end) while true do end end", &mut g, 3);
+    let p = run(
+        "runaway2",
+        "function on_frame() pcall(function() while true do end end) while true do end end",
+        &mut g,
+        3,
+    );
     assert!(p.lua[0].disabled);
     assert!(t.elapsed().as_secs_f32() < 2.0);
 }
@@ -169,13 +227,18 @@ fn the_sandbox_holds() {
         end
     "##;
     run("sandbox", src, &mut g, 2);
-    assert_eq!(g.messages, ["true true true true true true true true true true true"]);
+    assert_eq!(
+        g.messages,
+        ["true true true true true true true true true true true"]
+    );
 }
 
 #[test]
 fn storage_and_files_stay_in_the_data_folder() {
     let d = dir("storage");
-    std::fs::write(d.join("store.lua"), r#"
+    std::fs::write(
+        d.join("store.lua"),
+        r#"
         omsi.storage.set("runs", (omsi.storage.get("runs") or 0) + 1)
         omsi.storage.set("table", { a = 1, b = { "x", "y" } })
         assert(not pcall(omsi.storage.set, "f", function() end))
@@ -187,7 +250,9 @@ fn storage_and_files_stay_in_the_data_folder() {
         assert(v == nil and why)
         local t = omsi.json.decode(omsi.json.encode({ x = 1, list = { 1, 2, 3 } }))
         assert(t.x == 1 and #t.list == 3)
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
     for runs in 1..=2 {
         let mut p = Plugins::load(std::slice::from_ref(&d), &HostConfig::default());
         let mut g = Game::new();
@@ -217,10 +282,12 @@ fn settings_make_a_panel_and_tell_their_changes() {
     let mut p = run("settings", src, &mut g, 1);
     let owner = p.ui.borrow().panels()[0].owner;
     p.ui.borrow_mut().click(owner, "__settings", Some("rain"));
-    p.ui.borrow_mut().set_control(owner, "__settings", "volume", 0.71);
+    p.ui.borrow_mut()
+        .set_control(owner, "__settings", "volume", 0.71);
     p.frame(&mut g);
     assert_eq!(g.messages, ["rain=false", "volume=70.0"]);
-    p.ui.borrow_mut().click(owner, "__settings", Some("__close"));
+    p.ui.borrow_mut()
+        .click(owner, "__settings", Some("__close"));
     p.frame(&mut g);
     assert!(p.ui.borrow().panels().is_empty());
 }
@@ -239,24 +306,37 @@ fn the_navigators_board_is_told_to_the_plugin() {
         end
     "##;
     let mut p = run("dock", src, &mut g, 1);
-    let mut d = omsi_plugin::ui::Dock { width: 360.0, room: 420.0, height: 96.0, owner: Some(u64::MAX) };
+    let mut d = omsi_plugin::ui::Dock {
+        width: 360.0,
+        room: 420.0,
+        height: 96.0,
+        owner: Some(u64::MAX),
+    };
     p.ui.borrow_mut().set_dock(Some(d));
     p.frame(&mut g);
     // (another plugin's panel in it, then this one's)
     d.owner = Some(p.ui.borrow().panels()[0].owner);
     p.ui.borrow_mut().set_dock(Some(d));
     p.frame(&mut g);
-    assert_eq!(g.messages, ["no board", "360 420 96 false", "360 420 96 true"]);
+    assert_eq!(
+        g.messages,
+        ["no board", "360 420 96 false", "360 420 96 true"]
+    );
 }
 
 #[test]
 fn errors_name_the_function_and_argument() {
     let mut g = Game::new();
-    run("errs", r#"
+    run(
+        "errs",
+        r#"
         function on_frame()
           local ok, e = pcall(omsi.var, {})
           omsi.message(tostring(e):match("omsi%.var: argument 1 %(name%) must be a string") and "yes" or tostring(e))
         end
-    "#, &mut g, 1);
+    "#,
+        &mut g,
+        1,
+    );
     assert_eq!(g.messages, ["yes"]);
 }

@@ -89,7 +89,9 @@ pub(crate) struct AoTargets {
 impl Renderer {
     /// The smaller colour target of the render scale for this size, with its bind group.
     pub(crate) fn scale_target(&mut self, w: u32, h: u32) -> (wgpu::TextureView, wgpu::BindGroup) {
-        self.targets.target_use.insert((w, h), std::time::Instant::now());
+        self.targets
+            .target_use
+            .insert((w, h), std::time::Instant::now());
         if let Some(t) = self.targets.scale_targets.get(&(w, h)) {
             return t.clone();
         }
@@ -105,12 +107,15 @@ impl Renderer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: self.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
         let view = tex.create_view(&Default::default());
         let bg = self.picture_group(&view);
-        self.targets.scale_targets
+        self.targets
+            .scale_targets
             .insert((w, h), (view.clone(), bg.clone()));
         (view, bg)
     }
@@ -120,9 +125,18 @@ impl Renderer {
             label: Some("scene picture"),
             layout: &self.scale.upscale_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: self.scale.upscale_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(view) },
-                wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Sampler(&self.tone.post_sampler) },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: self.scale.upscale_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&self.tone.post_sampler),
+                },
             ],
         })
     }
@@ -132,36 +146,65 @@ impl Renderer {
         if let Some(id) = scene.glass_slot {
             return id;
         }
-        scene.textures.push(GpuTexture::showing(self.black_texture.texture.clone(), self.black_texture.view.clone(), (1, 1)));
+        scene.textures.push(GpuTexture::showing(
+            self.black_texture.texture.clone(),
+            self.black_texture.view.clone(),
+            (1, 1),
+        ));
         let id = scene.textures.len() - 1;
         scene.glass_slot = Some(id);
         id
     }
 
     /// Refraction reads a copy made before drawing films, avoiding rain/wiper feedback.
-    pub(crate) fn prepare_glass_behind(&mut self, scene: &mut Scene, width: u32, height: u32, format: wgpu::TextureFormat) {
+    pub(crate) fn prepare_glass_behind(
+        &mut self,
+        scene: &mut Scene,
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat,
+    ) {
         let Some(id) = scene.glass_slot else { return };
-        if self.targets.glass_picture.as_ref().is_none_or(|v| v.texture().width() != width || v.texture().height() != height || v.texture().format() != format) {
+        if self.targets.glass_picture.as_ref().is_none_or(|v| {
+            v.texture().width() != width
+                || v.texture().height() != height
+                || v.texture().format() != format
+        }) {
             let tex = self.device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("picture behind glass"),
-                size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
-                mip_level_count: 1, sample_count: 1,
-                dimension: wgpu::TextureDimension::D2, format,
-                usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING,
+                size: wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::COPY_DST
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
                 view_formats: &[],
             });
             self.targets.glass_picture = Some(tex.create_view(&Default::default()));
         }
         let view = self.targets.glass_picture.as_ref().unwrap();
         if scene.textures[id].view != *view {
-            scene.textures[id] = GpuTexture::showing(view.texture().clone(), view.clone(), (width, height));
+            scene.textures[id] =
+                GpuTexture::showing(view.texture().clone(), view.clone(), (width, height));
             self.rebind_textures(scene, &[id]);
         }
     }
 
     /// The ambient-occlusion textures for a target of this size (rebuilt on resize).
     pub(crate) fn ensure_ao(&mut self, w: u32, h: u32) -> bool {
-        if self.targets.ao.as_ref().map(|a| a.size == (w, h)).unwrap_or(false) {
+        if self
+            .targets
+            .ao
+            .as_ref()
+            .map(|a| a.size == (w, h))
+            .unwrap_or(false)
+        {
             return false;
         }
         let size = wgpu::Extent3d {
@@ -177,7 +220,9 @@ impl Renderer {
             dimension: wgpu::TextureDimension::D2,
             format: DEPTH_FORMAT,
             // (copied from: by the puddles, and read back for the photo mode's depth of field)
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
         // the AO itself at half size: four times fewer pixels, and the blur hides the rest
@@ -230,17 +275,24 @@ impl Renderer {
         // the SSAO pass reads no AO texture, but the layout wants one: bind the blur target
         let ssao_bg = bg("ssao", &blur_view);
         let blur_bg = bg("ssao blur", &ao_view);
-        let fog_view = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("fog lamps"),
-            // (one row more: the sun's visibility, see fog_lamps.wgsl)
-            size: wgpu::Extent3d { height: half.height + 1, ..half },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba16Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        }).create_view(&Default::default());
+        let fog_view = self
+            .device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("fog lamps"),
+                // (one row more: the sun's visibility, see fog_lamps.wgsl)
+                size: wgpu::Extent3d {
+                    height: half.height + 1,
+                    ..half
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba16Float,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            })
+            .create_view(&Default::default());
         let fog_bg = self.lights.fog_lamps_pipeline.is_some().then(|| {
             // (the half-size pass reads no result: the layout wants one, the AO's is bound)
             [&ao_view, &fog_view].map(|read| {
@@ -248,9 +300,18 @@ impl Renderer {
                     label: Some("fog lamps"),
                     layout: &self.lights.fog_lamps_layout,
                     entries: &[
-                        wgpu::BindGroupEntry { binding: 0, resource: self.lights.fog_lamps_buf.as_entire_binding() },
-                        wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&depth_view) },
-                        wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(read) },
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: self.lights.fog_lamps_buf.as_entire_binding(),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::TextureView(&depth_view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::TextureView(read),
+                        },
                     ],
                 })
             })
@@ -282,9 +343,19 @@ impl Renderer {
         const KEEP: usize = 10;
         let now = std::time::Instant::now();
         self.targets.evicted_at = now;
-        let mut uses: Vec<((u32, u32), std::time::Instant)> = self.targets.target_use.iter().map(|(k, t)| (*k, *t)).collect();
+        let mut uses: Vec<((u32, u32), std::time::Instant)> = self
+            .targets
+            .target_use
+            .iter()
+            .map(|(k, t)| (*k, *t))
+            .collect();
         uses.sort_by_key(|(_, t)| std::cmp::Reverse(*t));
-        let keep: std::collections::HashSet<(u32, u32)> = uses.iter().filter(|(_, t)| now.duration_since(*t) < stale).take(KEEP).map(|(k, _)| *k).collect();
+        let keep: std::collections::HashSet<(u32, u32)> = uses
+            .iter()
+            .filter(|(_, t)| now.duration_since(*t) < stale)
+            .take(KEEP)
+            .map(|(k, _)| *k)
+            .collect();
         self.targets.target_use.retain(|k, _| keep.contains(k));
         self.targets.scale_targets.retain(|k, _| keep.contains(k));
         self.targets.msaa_targets.retain(|k, _| keep.contains(k));
@@ -295,8 +366,15 @@ impl Renderer {
     /// for a target of this size. The colour is made the first time it is asked for: the
     /// Enhanced picture draws into a multisampled target of its own and only the depth is
     /// used, and a colour of the window's size was made for nothing (130 MB at 4K with 4x).
-    pub(crate) fn msaa_targets(&mut self, w: u32, h: u32, color: bool) -> (Option<wgpu::TextureView>, wgpu::TextureView) {
-        self.targets.target_use.insert((w, h), std::time::Instant::now());
+    pub(crate) fn msaa_targets(
+        &mut self,
+        w: u32,
+        h: u32,
+        color: bool,
+    ) -> (Option<wgpu::TextureView>, wgpu::TextureView) {
+        self.targets
+            .target_use
+            .insert((w, h), std::time::Instant::now());
         if !self.targets.msaa_targets.contains_key(&(w, h)) {
             self.evict_targets();
         } else if self.targets.evicted_at.elapsed() > std::time::Duration::from_secs(1) {
@@ -307,16 +385,20 @@ impl Renderer {
             height: h,
             depth_or_array_layers: 1,
         };
-        let make_color = || self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("msaa colour"),
-            size,
-            mip_level_count: 1,
-            sample_count: self.options.msaa,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        }).create_view(&Default::default());
+        let make_color = || {
+            self.device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("msaa colour"),
+                    size,
+                    mip_level_count: 1,
+                    sample_count: self.options.msaa,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: self.format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                })
+                .create_view(&Default::default())
+        };
         if let Some(t) = self.targets.msaa_targets.get_mut(&(w, h)) {
             if color && t.0.is_none() {
                 t.0 = Some(make_color());
@@ -333,7 +415,10 @@ impl Renderer {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         });
-        let t = (color.then(make_color), depth.create_view(&Default::default()));
+        let t = (
+            color.then(make_color),
+            depth.create_view(&Default::default()),
+        );
         self.targets.msaa_targets.insert((w, h), t.clone());
         t
     }
@@ -341,7 +426,9 @@ impl Renderer {
     /// The HDR colour targets of the enhanced path for this size, with the glow's levels,
     /// the tone-mapped picture FXAA reads and the post passes' bind groups.
     pub(crate) fn hdr_targets(&mut self, w: u32, h: u32) -> bool {
-        self.targets.target_use.insert((w, h), std::time::Instant::now());
+        self.targets
+            .target_use
+            .insert((w, h), std::time::Instant::now());
         if self.targets.hdr_targets.contains_key(&(w, h)) {
             return false;
         }
@@ -351,7 +438,9 @@ impl Renderer {
             let usage = if samples > 1 {
                 wgpu::TextureUsages::RENDER_ATTACHMENT
             } else {
-                wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC
+                wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC
             };
             self.device
                 .create_texture(&wgpu::TextureDescriptor {
@@ -373,10 +462,17 @@ impl Renderer {
         let msaa_view =
             (self.options.msaa > 1).then(|| target("hdr msaa", w, h, fmt, self.options.msaa));
         let view = target("hdr", w, h, fmt, 1);
-        let mask_msaa = (self.options.msaa > 1).then(|| target("screen mask msaa", w, h, MASK_FORMAT, self.options.msaa));
+        let mask_msaa = (self.options.msaa > 1)
+            .then(|| target("screen mask msaa", w, h, MASK_FORMAT, self.options.msaa));
         let mask = target("screen mask", w, h, MASK_FORMAT, 1);
         let gbuf = rt_gbuf().then(|| {
-            [GBUF_FORMAT, AUX_FORMAT].map(|f| ((self.options.msaa > 1).then(|| target("rt surfaces msaa", w, h, f, self.options.msaa)), target("rt surfaces", w, h, f, 1)))
+            [GBUF_FORMAT, AUX_FORMAT].map(|f| {
+                (
+                    (self.options.msaa > 1)
+                        .then(|| target("rt surfaces msaa", w, h, f, self.options.msaa)),
+                    target("rt surfaces", w, h, f, 1),
+                )
+            })
         });
         // the glow: halving until the smallest level is a few dozen pixels across
         let levels = GLOW_LEVELS
@@ -389,7 +485,10 @@ impl Renderer {
             .map(|k| target("glow up", w >> k, h >> k, fmt, 1))
             .collect();
         let ldr = target("tone mapped", w, h, wgpu::TextureFormat::Rgba8Unorm, 1);
-        let bg_with = |src: &wgpu::TextureView, base: &wgpu::TextureView, adapt: &wgpu::TextureView, screen_mask: &wgpu::TextureView| {
+        let bg_with = |src: &wgpu::TextureView,
+                       base: &wgpu::TextureView,
+                       adapt: &wgpu::TextureView,
+                       screen_mask: &wgpu::TextureView| {
             self.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("post"),
                 layout: &self.tone.post_layout,
@@ -421,12 +520,20 @@ impl Renderer {
                 ],
             })
         };
-        let bg = |src: &wgpu::TextureView, base: &wgpu::TextureView, adapt: &wgpu::TextureView| bg_with(src, base, adapt, &self.black_texture.view);
+        let bg = |src: &wgpu::TextureView, base: &wgpu::TextureView, adapt: &wgpu::TextureView| {
+            bg_with(src, base, adapt, &self.black_texture.view)
+        };
         let none = &self.white_texture.view;
         // (the first level of the glow reads the screen mask as its `t_base`: no light from
         // the screens)
         let down_bg: Vec<wgpu::BindGroup> = (0..levels)
-            .map(|i| bg(if i == 0 { &view } else { &down[i - 1] }, if i == 0 { &mask } else { none }, none))
+            .map(|i| {
+                bg(
+                    if i == 0 { &view } else { &down[i - 1] },
+                    if i == 0 { &mask } else { none },
+                    none,
+                )
+            })
             .collect();
         let up_bg: Vec<wgpu::BindGroup> = (0..levels)
             .map(|i| {

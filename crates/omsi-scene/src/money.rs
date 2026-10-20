@@ -11,21 +11,38 @@ use std::path::{Path, PathBuf};
 pub use omsi_sim::people::Money;
 
 /// The mesh and materials of a coin or note, made the first time it is put down.
-fn mesh(m: &mut Money, world: &World, renderer: &Renderer, scene: &mut Scene, coin: usize) -> Option<(MeshId, Vec<MaterialId>)> {
+fn mesh(
+    m: &mut Money,
+    world: &World,
+    renderer: &Renderer,
+    scene: &mut Scene,
+    coin: usize,
+) -> Option<(MeshId, Vec<MaterialId>)> {
     if let Some(c) = m.meshes.get(&coin) {
         return Some(c.clone());
     }
     let c = m.currency.as_ref()?;
     let n = c.coins.len();
-    let file = if coin < n { c.coins.get(coin)?.0.clone() } else { c.bills.get(coin - n)?.0.clone() };
-    let o3d = omsi_o3d::load_mesh(&omsi_cfg::resolve_path(&m.dir, &file)).map_err(|e| log::warn!("{e}")).ok()?;
-    let dirs = [m.dir.clone(), omsi_cfg::resolve_path(&world.root, "Texture")];
+    let file = if coin < n {
+        c.coins.get(coin)?.0.clone()
+    } else {
+        c.bills.get(coin - n)?.0.clone()
+    };
+    let o3d = omsi_o3d::load_mesh(&omsi_cfg::resolve_path(&m.dir, &file))
+        .map_err(|e| log::warn!("{e}"))
+        .ok()?;
+    let dirs = [
+        m.dir.clone(),
+        omsi_cfg::resolve_path(&world.root, "Texture"),
+    ];
     let dirs_ref: Vec<&Path> = dirs.iter().map(|p| p.as_path()).collect();
     let mats: Vec<MaterialId> = o3d
         .materials
         .iter()
         .map(|mat| {
-            let tex = omsi_texture::find_texture(&mat.texture, &dirs_ref).and_then(|p| world.textures.get_gpu_fast(&p)).map(|(img, _)| renderer.add_texture_data(scene, &img));
+            let tex = omsi_texture::find_texture(&mat.texture, &dirs_ref)
+                .and_then(|p| world.textures.get_gpu_fast(&p))
+                .map(|(img, _)| renderer.add_texture_data(scene, &img));
             renderer.add_material(scene, tex, AlphaMode::Opaque, [1.0; 4], false)
         })
         .collect();
@@ -42,12 +59,25 @@ fn mesh(m: &mut Money, world: &World, renderer: &Renderer, scene: &mut Scene, co
 /// mesh (`parent`, its `[mesh_ident]`) the money lies on: it moves with that mesh - the
 /// change tray in a cash desk swinging with the driver's door (#1468).
 #[allow(clippy::too_many_arguments)]
-pub fn place(m: &mut Money, world: &World, renderer: &Renderer, scene: &mut Scene, coins: &[usize], point: Vec3, var: [f32; 2], change: bool, parent: Option<&str>) {
+pub fn place(
+    m: &mut Money,
+    world: &World,
+    renderer: &Renderer,
+    scene: &mut Scene,
+    coins: &[usize],
+    point: Vec3,
+    var: [f32; 2],
+    change: bool,
+    parent: Option<&str>,
+) {
     for coin in coins {
-        let Some((id, mats)) = mesh(m, world, renderer, scene, *coin) else { continue };
+        let Some((id, mats)) = mesh(m, world, renderer, scene, *coin) else {
+            continue;
+        };
         let local = Money::coin_place(point, var, [m.rand_f(), m.rand_f(), m.rand_f()]);
         let inst = renderer.add_instance(scene, id, DVec3::ZERO, Mat4::IDENTITY, mats);
-        m.placed.push((inst, local, *coin, change, parent.map(str::to_string)));
+        m.placed
+            .push((inst, local, *coin, change, parent.map(str::to_string)));
     }
 }
 
@@ -58,7 +88,10 @@ pub fn sync(m: &mut Money, renderer: &Renderer, scene: &mut Scene, bus: &Vehicle
     }
     let rot = bus.body_rotation();
     for (inst, local, _, _, parent) in &m.placed {
-        let on = parent.as_deref().map(|n| mesh_of(bus, n)).unwrap_or(Mat4::IDENTITY);
+        let on = parent
+            .as_deref()
+            .map(|n| mesh_of(bus, n))
+            .unwrap_or(Mat4::IDENTITY);
         renderer.set_transform(scene, *inst, bus.position, rot * on * *local);
     }
 }
@@ -69,7 +102,11 @@ fn mesh_of(bus: &VehicleInstance, name: &str) -> Mat4 {
     bus.ty
         .meshes
         .iter()
-        .rposition(|m| defs.get(m.def_index).and_then(|d| d.mesh_ident.as_deref()).is_some_and(|n| n.trim().eq_ignore_ascii_case(name.trim())))
+        .rposition(|m| {
+            defs.get(m.def_index)
+                .and_then(|d| d.mesh_ident.as_deref())
+                .is_some_and(|n| n.trim().eq_ignore_ascii_case(name.trim()))
+        })
         .and_then(|i| bus.mesh_transforms.get(i).copied())
         .unwrap_or(Mat4::IDENTITY)
 }
@@ -87,7 +124,10 @@ pub fn change_hit(m: &Money, origin: DVec3, dir: Vec3, bus: &VehicleInstance) ->
         .enumerate()
         .filter(|(_, p)| p.3)
         .filter_map(|(k, (_, local, _, _, parent))| {
-            let on = parent.as_deref().map(|n| mesh_of(bus, n)).unwrap_or(Mat4::IDENTITY);
+            let on = parent
+                .as_deref()
+                .map(|n| mesh_of(bus, n))
+                .unwrap_or(Mat4::IDENTITY);
             let c = (rot * on * *local).transform_point3(Vec3::ZERO);
             let t = (c - o).dot(dir);
             (t > 0.0 && t < 3.0 && (o + dir * t).distance(c) < 0.02).then_some((k, t))
@@ -113,7 +153,13 @@ impl TicketBlocks {
         self.blocks.iter().map(|b| b.0)
     }
 
-    pub fn new(world: &World, renderer: &Renderer, scene: &mut Scene, bus: &VehicleInstance, pack: &Path) -> TicketBlocks {
+    pub fn new(
+        world: &World,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        bus: &VehicleInstance,
+        pack: &Path,
+    ) -> TicketBlocks {
         let dir = pack.parent().map(Path::to_path_buf).unwrap_or_default();
         let mut blocks = Vec::new();
         for (n, a) in bus.ty.def.attachments.iter().enumerate() {
@@ -121,27 +167,40 @@ impl TicketBlocks {
             if !omsi_cfg::vfs::is_file(&file) {
                 continue;
             }
-            let Ok(m) = omsi_o3d::load_mesh(&file).map_err(|e| log::warn!("{e}")) else { continue };
+            let Ok(m) = omsi_o3d::load_mesh(&file).map_err(|e| log::warn!("{e}")) else {
+                continue;
+            };
             let dirs = [dir.clone(), omsi_cfg::resolve_path(&world.root, "Texture")];
             let dirs_ref: Vec<&Path> = dirs.iter().map(|p| p.as_path()).collect();
             let mats: Vec<MaterialId> = m
                 .materials
                 .iter()
                 .map(|mat| {
-                    let tex = omsi_texture::find_texture(&mat.texture, &dirs_ref).and_then(|p| world.textures.get_gpu_fast(&p)).map(|(img, _)| renderer.add_texture_data(scene, &img));
+                    let tex = omsi_texture::find_texture(&mat.texture, &dirs_ref)
+                        .and_then(|p| world.textures.get_gpu_fast(&p))
+                        .map(|(img, _)| renderer.add_texture_data(scene, &img));
                     renderer.add_material(scene, tex, AlphaMode::Test, [1.0; 4], false)
                 })
                 .collect();
             let data = mesh_from_o3d(&m);
             let id = renderer.add_mesh(scene, &data);
             let inst = renderer.add_instance(scene, id, DVec3::ZERO, Mat4::IDENTITY, mats);
-            let local = omsi_world::map_index::attachment_matrix(&omsi_scenery::sco::Attachment { ops: a.ops.clone() });
+            let local = omsi_world::map_index::attachment_matrix(&omsi_scenery::sco::Attachment {
+                ops: a.ops.clone(),
+            });
             blocks.push((inst, local, n, data));
         }
         if !blocks.is_empty() {
-            log::info!("ticket blocks: {} of {} on the bus", blocks.len(), dir.display());
+            log::info!(
+                "ticket blocks: {} of {} on the bus",
+                blocks.len(),
+                dir.display()
+            );
         }
-        TicketBlocks { made_for: (bus.ty.def.path.clone(), pack.to_path_buf()), blocks }
+        TicketBlocks {
+            made_for: (bus.ty.def.path.clone(), pack.to_path_buf()),
+            blocks,
+        }
     }
 
     pub fn sync(&self, renderer: &Renderer, scene: &mut Scene, bus: &VehicleInstance) {
@@ -180,7 +239,9 @@ impl TicketBlocks {
         let rot = bus.body_rotation();
         self.blocks
             .iter()
-            .filter_map(|(_, local, n, data)| omsi_geometry::ray_mesh(o, dir, data, &(rot * *local)).map(|t| (t, *n)))
+            .filter_map(|(_, local, n, data)| {
+                omsi_geometry::ray_mesh(o, dir, data, &(rot * *local)).map(|t| (t, *n))
+            })
             .min_by(|a, b| a.0.total_cmp(&b.0))
             .map(|x| x.1)
     }

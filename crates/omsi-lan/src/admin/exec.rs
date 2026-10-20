@@ -6,8 +6,14 @@
 //! answered with what became of it (`report`: the record, the audit log, and an `admin-result`
 //! to the player's game that asked).
 
-use super::{act_on_session, beside, Action, Admin, Done as SessionDone, ServerAdmin, ServerRules, WeatherAction, Whom, LOCAL_ADMIN};
-use omsi_admin::{Actor, Hub, Job, Op, Origin, Outcome, Perm, Player, PlayerState, Role, Snapshot, Target, TrafficOp, WeatherOp};
+use super::{
+    act_on_session, beside, Action, Admin, Done as SessionDone, ServerAdmin, ServerRules,
+    WeatherAction, Whom, LOCAL_ADMIN,
+};
+use omsi_admin::{
+    Actor, Hub, Job, Op, Origin, Outcome, Perm, Player, PlayerState, Role, Snapshot, Target,
+    TrafficOp, WeatherOp,
+};
 use omsi_net::LanSession;
 use std::sync::{Arc, OnceLock};
 
@@ -44,7 +50,12 @@ pub enum Exec {
 /// What an action needs.
 pub fn perm_of(a: &Action) -> Perm {
     match a {
-        Action::Time(_) | Action::Speed(_) | Action::Clock(_) | Action::Weather(_) | Action::Traffic(_) | Action::PassengerDensity(_) => Perm::World,
+        Action::Time(_)
+        | Action::Speed(_)
+        | Action::Clock(_)
+        | Action::Weather(_)
+        | Action::Traffic(_)
+        | Action::PassengerDensity(_) => Perm::World,
         // (moving other players' buses - admins' too - is the admin's)
         Action::Bring(_) | Action::BringAll => Perm::World,
         _ => Perm::Moderate,
@@ -54,10 +65,21 @@ pub fn perm_of(a: &Action) -> Perm {
 /// The action of an operation of the web panel (the same the game's menu sends).
 pub fn action_of(op: &Op) -> Action {
     match op {
-        Op::Kick { target, reason } => Action::Kick { id: target.id, ban: false, why: reason.clone() },
-        Op::Ban { target, reason } => Action::Kick { id: target.id, ban: true, why: reason.clone() },
+        Op::Kick { target, reason } => Action::Kick {
+            id: target.id,
+            ban: false,
+            why: reason.clone(),
+        },
+        Op::Ban { target, reason } => Action::Kick {
+            id: target.id,
+            ban: true,
+            why: reason.clone(),
+        },
         Op::Say(t) => Action::Say(t.clone()),
-        Op::Tell { target, text } => Action::Tell { id: target.id, text: text.clone() },
+        Op::Tell { target, text } => Action::Tell {
+            id: target.id,
+            text: text.clone(),
+        },
         Op::Clock(s) => Action::Clock(*s),
         Op::Shift(s) => Action::Time(*s),
         Op::Speed(f) => Action::Speed(*f),
@@ -72,8 +94,17 @@ pub fn action_of(op: &Op) -> Action {
 /// The player an action is for.
 fn subject(a: &Action) -> Option<u32> {
     match a {
-        Action::Kick { id, .. } | Action::Bring(id) | Action::Goto(id) | Action::Tell { id, .. } | Action::Duty { id, .. } | Action::DutyOff(id) | Action::Unstick(id) => Some(*id),
-        Action::Service { whom: Whom::Player(id), .. } => Some(*id),
+        Action::Kick { id, .. }
+        | Action::Bring(id)
+        | Action::Goto(id)
+        | Action::Tell { id, .. }
+        | Action::Duty { id, .. }
+        | Action::DutyOff(id)
+        | Action::Unstick(id) => Some(*id),
+        Action::Service {
+            whom: Whom::Player(id),
+            ..
+        } => Some(*id),
         Action::Notify { who, .. } => who.parse().ok(),
         _ => None,
     }
@@ -98,8 +129,16 @@ pub fn players(lan: &LanSession, adm: &ServerAdmin) -> Vec<Player> {
                 conn: p.conn,
                 name: omsi_admin::clean(&q.name, 64),
                 state,
-                vehicle: if driving { q.bus.clone() } else { String::new() },
-                line: if driving { q.line.clone() } else { String::new() },
+                vehicle: if driving {
+                    q.bus.clone()
+                } else {
+                    String::new()
+                },
+                line: if driving {
+                    q.line.clone()
+                } else {
+                    String::new()
+                },
                 tour: q.tour.clone(),
                 aboard: q.walker.and_then(|w| w.aboard).map(|a| a.owner),
                 online_secs: p.joined.elapsed().as_secs(),
@@ -112,18 +151,35 @@ pub fn players(lan: &LanSession, adm: &ServerAdmin) -> Vec<Player> {
 }
 
 /// The server's state and players for the panels (the loop, about once a second).
-pub fn publish(hub: &Hub, lan: &LanSession, adm: &ServerAdmin, mut server: omsi_admin::ServerState) {
+pub fn publish(
+    hub: &Hub,
+    lan: &LanSession,
+    adm: &ServerAdmin,
+    mut server: omsi_admin::ServerState,
+) {
     let players = players(lan, adm);
     server.players = players.len();
-    hub.publish(Snapshot { server, players, at: Some(std::time::Instant::now()) });
+    hub.publish(Snapshot {
+        server,
+        players,
+        at: Some(std::time::Instant::now()),
+    });
 }
 
 /// How the records name a player's game.
 pub(super) fn actor_of(lan: &LanSession, from: u32, role: Role) -> Actor {
     if from == LOCAL_ADMIN {
-        return Actor { label: "local tool (POST /admin)".into(), role, origin: Origin::Local };
+        return Actor {
+            label: "local tool (POST /admin)".into(),
+            role,
+            origin: Origin::Local,
+        };
     }
-    Actor { label: super::reply::player_label(lan, from), role, origin: Origin::Game(from) }
+    Actor {
+        label: super::reply::player_label(lan, from),
+        role,
+        origin: Origin::Game(from),
+    }
 }
 
 /// Tell what became of operation `record`: its record and the audit log, and the player's
@@ -131,10 +187,22 @@ pub(super) fn actor_of(lan: &LanSession, from: u32, role: Role) -> Actor {
 pub fn report(lan: &mut LanSession, hub: Option<&Hub>, actor: &Actor, record: u64, out: &Outcome) {
     match hub {
         Some(h) => h.finish(record, actor, out),
-        None => log::info!("admin: {} -> {} {}", actor.label, out.status.name(), out.message),
+        None => log::info!(
+            "admin: {} -> {} {}",
+            actor.label,
+            out.status.name(),
+            out.message
+        ),
     }
     if let Origin::Game(pid) = actor.origin {
-        lan.command(pid, &format!("admin-result {record} {} {}", out.status.name(), out.message));
+        lan.command(
+            pid,
+            &format!(
+                "admin-result {record} {} {}",
+                out.status.name(),
+                out.message
+            ),
+        );
     }
 }
 
@@ -146,11 +214,15 @@ pub fn split_guard(line: &str) -> (String, Option<Target>) {
     let mut words: Vec<&str> = line.split(' ').collect();
     // (where each action that names a player names it)
     let at = match words.first().copied().unwrap_or("") {
-        "kick" | "ban" | "bring" | "goto" | "tell" | "duty" | "duty-off" | "unstick" | "notify" => 1,
+        "kick" | "ban" | "bring" | "goto" | "tell" | "duty" | "duty-off" | "unstick" | "notify" => {
+            1
+        }
         "service" => 2,
         _ => return (line.to_string(), None),
     };
-    let Some(guard) = words.get(at).and_then(|w| Target::parse_tag(w)) else { return (line.to_string(), None) };
+    let Some(guard) = words.get(at).and_then(|w| Target::parse_tag(w)) else {
+        return (line.to_string(), None);
+    };
     let id = guard.id.to_string();
     words[at] = &id;
     (words.join(" "), Some(guard))
@@ -158,37 +230,111 @@ pub fn split_guard(line: &str) -> (String, Option<Target>) {
 
 /// An `admin <action>` from a player's game (or the machine's own tool), whose role is `role`.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn from_game(lan: &mut LanSession, from: u32, role: Role, arg: &str, adm: &mut ServerAdmin, positions: &dyn Fn(u32) -> Option<(glam::DVec3, f64)>, rules: &ServerRules, hub: Option<&Hub>) {
+pub(super) fn from_game(
+    lan: &mut LanSession,
+    from: u32,
+    role: Role,
+    arg: &str,
+    adm: &mut ServerAdmin,
+    positions: &dyn Fn(u32) -> Option<(glam::DVec3, f64)>,
+    rules: &ServerRules,
+    hub: Option<&Hub>,
+) {
     let actor = actor_of(lan, from, role);
     let (line, guard) = split_guard(arg.trim());
     let verb = line.split(' ').next().unwrap_or("").to_string();
     let action = Action::parse(&line);
     // (who the player is now, for the records: they may be gone once it is done)
-    let target_name = action.as_ref().and_then(subject).and_then(|id| players(lan, adm).into_iter().find(|p| p.id == id)).map(|p| p.label()).unwrap_or_default();
-    let record = hub.map(|h| h.begin(&actor, &verb, &omsi_admin::clean(&line, 160), guard, &target_name)).unwrap_or(0);
+    let target_name = action
+        .as_ref()
+        .and_then(subject)
+        .and_then(|id| players(lan, adm).into_iter().find(|p| p.id == id))
+        .map(|p| p.label())
+        .unwrap_or_default();
+    let record = hub
+        .map(|h| {
+            h.begin(
+                &actor,
+                &verb,
+                &omsi_admin::clean(&line, 160),
+                guard,
+                &target_name,
+            )
+        })
+        .unwrap_or(0);
     let Some(action) = action else {
-        report(lan, hub, &actor, record, &Outcome::rejected(format!("'{}' is not an administration command the server takes", omsi_admin::clean(&verb, 24))));
+        report(
+            lan,
+            hub,
+            &actor,
+            record,
+            &Outcome::rejected(format!(
+                "'{}' is not an administration command the server takes",
+                omsi_admin::clean(&verb, 24)
+            )),
+        );
         return;
     };
-    run(lan, adm, actor, record, action, guard, positions, rules, hub);
+    run(
+        lan, adm, actor, record, action, guard, positions, rules, hub,
+    );
 }
 
 /// A request of the web panel, taken from the hub's queue by the loop.
-pub fn run_job(lan: &mut LanSession, adm: &mut ServerAdmin, job: Job, positions: &dyn Fn(u32) -> Option<(glam::DVec3, f64)>, rules: &ServerRules, hub: &Hub) {
+pub fn run_job(
+    lan: &mut LanSession,
+    adm: &mut ServerAdmin,
+    job: Job,
+    positions: &dyn Fn(u32) -> Option<(glam::DVec3, f64)>,
+    rules: &ServerRules,
+    hub: &Hub,
+) {
     if job.stale(std::time::Instant::now()) {
-        report(lan, Some(hub), &job.actor, job.id, &Outcome::rejected("it waited too long for the server (it was busy or stuck): ask again"));
+        report(
+            lan,
+            Some(hub),
+            &job.actor,
+            job.id,
+            &Outcome::rejected(
+                "it waited too long for the server (it was busy or stuck): ask again",
+            ),
+        );
         return;
     }
     let action = action_of(&job.op);
-    run(lan, adm, job.actor, job.id, action, job.op.target(), positions, rules, Some(hub));
+    run(
+        lan,
+        adm,
+        job.actor,
+        job.id,
+        action,
+        job.op.target(),
+        positions,
+        rules,
+        Some(hub),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run(lan: &mut LanSession, adm: &mut ServerAdmin, actor: Actor, record: u64, action: Action, guard: Option<Target>, positions: &dyn Fn(u32) -> Option<(glam::DVec3, f64)>, rules: &ServerRules, hub: Option<&Hub>) {
+fn run(
+    lan: &mut LanSession,
+    adm: &mut ServerAdmin,
+    actor: Actor,
+    record: u64,
+    action: Action,
+    guard: Option<Target>,
+    positions: &dyn Fn(u32) -> Option<(glam::DVec3, f64)>,
+    rules: &ServerRules,
+    hub: Option<&Hub>,
+) {
     let out = match exec(lan, adm, &actor, &action, guard, positions, rules) {
         Exec::Done(out) => out,
         Exec::World => {
-            adm.world.push(WorldJob { actor, record, action });
+            adm.world.push(WorldJob {
+                actor,
+                record,
+                action,
+            });
             return;
         }
     };
@@ -197,7 +343,15 @@ fn run(lan: &mut LanSession, adm: &mut ServerAdmin, actor: Actor, record: u64, a
 
 /// Check and do an action: its session part at once (`Exec::Done` with what became of it),
 /// or the world's left to the host loop (`Exec::World`, checked).
-pub fn exec(lan: &mut LanSession, adm: &ServerAdmin, actor: &Actor, action: &Action, guard: Option<Target>, positions: &dyn Fn(u32) -> Option<(glam::DVec3, f64)>, rules: &ServerRules) -> Exec {
+pub fn exec(
+    lan: &mut LanSession,
+    adm: &ServerAdmin,
+    actor: &Actor,
+    action: &Action,
+    guard: Option<Target>,
+    positions: &dyn Fn(u32) -> Option<(glam::DVec3, f64)>,
+    rules: &ServerRules,
+) -> Exec {
     use Exec::Done;
     let perm = perm_of(action);
     if !actor.role.allows(perm) {
@@ -210,7 +364,9 @@ pub fn exec(lan: &mut LanSession, adm: &ServerAdmin, actor: &Actor, action: &Act
             return Done(Outcome::rejected(e.message()));
         }
         if subject(action) != Some(t.id) {
-            return Done(Outcome::rejected("the player picked is not the one the command names"));
+            return Done(Outcome::rejected(
+                "the player picked is not the one the command names",
+            ));
         }
     }
     let who = match subject(action) {
@@ -226,7 +382,12 @@ pub fn exec(lan: &mut LanSession, adm: &ServerAdmin, actor: &Actor, action: &Act
         _ => None,
     };
     let at = from.and_then(positions);
-    let admin = Admin { id: from, at, sent_away: "sent away by an admin", notice_ok: rules.notice_ok };
+    let admin = Admin {
+        id: from,
+        at,
+        sent_away: "sent away by an admin",
+        notice_ok: rules.notice_ok,
+    };
     let session = |lan: &mut LanSession| act_on_session(lan, action, &admin);
     match action {
         Action::Kick { id, ban, .. } => {
@@ -284,25 +445,58 @@ mod tests {
 
     #[test]
     fn the_player_picked_is_taken_out_of_the_line() {
-        assert_eq!(split_guard("kick 3#17 spam and 4#2"), ("kick 3 spam and 4#2".into(), Some(Target { id: 3, conn: 17 })));
+        assert_eq!(
+            split_guard("kick 3#17 spam and 4#2"),
+            (
+                "kick 3 spam and 4#2".into(),
+                Some(Target { id: 3, conn: 17 })
+            )
+        );
         assert_eq!(split_guard("kick 3 spam"), ("kick 3 spam".into(), None));
-        assert_eq!(split_guard("say #1 rule: be nice"), ("say #1 rule: be nice".into(), None));
+        assert_eq!(
+            split_guard("say #1 rule: be nice"),
+            ("say #1 rule: be nice".into(), None)
+        );
         // only where the action names its player: in a chat line or a reason it is text
-        assert_eq!(split_guard("say meet at stop 12#3"), ("say meet at stop 12#3".into(), None));
+        assert_eq!(
+            split_guard("say meet at stop 12#3"),
+            ("say meet at stop 12#3".into(), None)
+        );
         assert_eq!(split_guard("say 12#3 hi"), ("say 12#3 hi".into(), None));
-        assert_eq!(split_guard("kick 3 spam like 12#3"), ("kick 3 spam like 12#3".into(), None));
-        assert_eq!(split_guard("service repair 4#8"), ("service repair 4".into(), Some(Target { id: 4, conn: 8 })));
-        assert_eq!(split_guard("tell 5#2 see 6#1"), ("tell 5 see 6#1".into(), Some(Target { id: 5, conn: 2 })));
+        assert_eq!(
+            split_guard("kick 3 spam like 12#3"),
+            ("kick 3 spam like 12#3".into(), None)
+        );
+        assert_eq!(
+            split_guard("service repair 4#8"),
+            ("service repair 4".into(), Some(Target { id: 4, conn: 8 }))
+        );
+        assert_eq!(
+            split_guard("tell 5#2 see 6#1"),
+            ("tell 5 see 6#1".into(), Some(Target { id: 5, conn: 2 }))
+        );
         // (a notice for one player names them, as its tag does; one for all names nobody)
         let (line, guard) = split_guard("notify 3#17 9 5 info Hi");
         assert_eq!(guard, Some(Target { id: 3, conn: 17 }));
         assert_eq!(Action::parse(&line).as_ref().and_then(subject), Some(3));
-        assert_eq!(Action::parse("notify all 9 5 info Hi").as_ref().and_then(subject), None);
+        assert_eq!(
+            Action::parse("notify all 9 5 info Hi")
+                .as_ref()
+                .and_then(subject),
+            None
+        );
     }
 
     #[test]
     fn world_and_moderation() {
-        assert_eq!(perm_of(&Action::Kick { id: 1, ban: false, why: None }), Perm::Moderate);
+        assert_eq!(
+            perm_of(&Action::Kick {
+                id: 1,
+                ban: false,
+                why: None
+            }),
+            Perm::Moderate
+        );
         assert_eq!(perm_of(&Action::Say("x".into())), Perm::Moderate);
         assert_eq!(perm_of(&Action::Clock(0.0)), Perm::World);
         assert_eq!(perm_of(&Action::Weather(WeatherAction::Next)), Perm::World);
@@ -313,10 +507,31 @@ mod tests {
         assert_eq!(perm_of(&Action::Unstick(2)), Perm::Moderate);
         // the web's operations are the menu's actions
         let t = Target { id: 3, conn: 9 };
-        assert_eq!(action_of(&Op::Kick { target: t, reason: Some("x".into()) }), Action::parse("kick 3 x").unwrap());
-        assert_eq!(action_of(&Op::Ban { target: t, reason: None }), Action::parse("ban 3").unwrap());
-        assert_eq!(action_of(&Op::Clock(30600.0)), Action::parse("clock 30600").unwrap());
-        assert_eq!(action_of(&Op::Traffic(TrafficOp::Clear)), Action::parse("traffic clear").unwrap());
-        assert_eq!(action_of(&Op::PassengerDensity(1.5)), Action::parse("passengers 1.5").unwrap());
+        assert_eq!(
+            action_of(&Op::Kick {
+                target: t,
+                reason: Some("x".into())
+            }),
+            Action::parse("kick 3 x").unwrap()
+        );
+        assert_eq!(
+            action_of(&Op::Ban {
+                target: t,
+                reason: None
+            }),
+            Action::parse("ban 3").unwrap()
+        );
+        assert_eq!(
+            action_of(&Op::Clock(30600.0)),
+            Action::parse("clock 30600").unwrap()
+        );
+        assert_eq!(
+            action_of(&Op::Traffic(TrafficOp::Clear)),
+            Action::parse("traffic clear").unwrap()
+        );
+        assert_eq!(
+            action_of(&Op::PassengerDensity(1.5)),
+            Action::parse("passengers 1.5").unwrap()
+        );
     }
 }

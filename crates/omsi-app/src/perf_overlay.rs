@@ -1,4 +1,4 @@
-pub(crate) use omsi_ui::performance::{HISTORY, Part, PerfOverlay, Sample, graph_scale};
+pub(crate) use omsi_ui::performance::{graph_scale, Part, PerfOverlay, Sample, HISTORY};
 use omsi_ui::performance::{Machine, RECENT};
 
 pub(crate) fn new() -> PerfOverlay {

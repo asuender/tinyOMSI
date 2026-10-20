@@ -33,7 +33,13 @@ pub struct Built {
 
 impl Built {
     fn new(anchor: DVec2, verts: [Vec<Vertex>; 4]) -> Built {
-        Built { anchor, counts: verts.each_ref().map(Vec::len), runs: verts.each_ref().map(|v| super::cull::runs(v)), verts, made: None }
+        Built {
+            anchor,
+            counts: verts.each_ref().map(Vec::len),
+            runs: verts.each_ref().map(|v| super::cull::runs(v)),
+            verts,
+            made: None,
+        }
     }
 
     /// The vertices as built (empty once `made_on` put them on the GPU): the ground, then the
@@ -43,26 +49,54 @@ impl Built {
     }
 
     pub fn made_on(mut self, device: &wgpu::Device) -> Built {
-        self.made = Some(self.verts.each_ref().map(|v| omsi_ui::Gpu::vertices(device, v)));
+        self.made = Some(
+            self.verts
+                .each_ref()
+                .map(|v| omsi_ui::Gpu::vertices(device, v)),
+        );
         self.verts = Default::default();
         self
     }
 
-    pub fn put(self, gpu: &mut omsi_ui::Gpu, device: &wgpu::Device, queue: &wgpu::Queue, ids: [usize; 4]) {
+    pub fn put(
+        self,
+        gpu: &mut omsi_ui::Gpu,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        ids: [usize; 4],
+    ) {
         match self.made {
             Some(made) => ids.into_iter().zip(made).for_each(|(id, v)| gpu.put(id, v)),
-            None => ids.into_iter().zip(&self.verts).for_each(|(id, v)| gpu.upload(device, queue, id, v)),
+            None => ids
+                .into_iter()
+                .zip(&self.verts)
+                .for_each(|(id, v)| gpu.upload(device, queue, id, v)),
         }
     }
 }
 
 /// Everything within `reach` of `anchor`. `paved`: the map's paving is the roads (else every
 /// carriageway is a band, as from far); `houses`: build them too.
-pub(super) fn build(parts: &GroundParts, anchor: DVec2, reach: f64, pal: &Palette, look: GroundLook, paved: bool, houses: Option<usize>) -> Built {
+pub(super) fn build(
+    parts: &GroundParts,
+    anchor: DVec2,
+    reach: f64,
+    pal: &Palette,
+    look: GroundLook,
+    paved: bool,
+    houses: Option<usize>,
+) -> Built {
     let mut p = Painter::new();
     let mut layers = None;
     if let Some(sf) = parts.surface.as_deref() {
-        layers = Some(super::surface::build_surface(&mut p, sf, anchor, Some((anchor, reach)), pal, parts.contours.is_some()));
+        layers = Some(super::surface::build_surface(
+            &mut p,
+            sf,
+            anchor,
+            Some((anchor, reach)),
+            pal,
+            parts.contours.is_some(),
+        ));
     }
     if let Some(md) = parts.md.as_deref() {
         md.build_land(&mut p, anchor, anchor, reach, pal, look);
@@ -78,11 +112,27 @@ pub(super) fn build(parts: &GroundParts, anchor: DVec2, reach: f64, pal: &Palett
     let near: Vec<(&MapRoad, Vec<Vec3>)> = parts
         .roads
         .iter()
-        .filter(|(l, covered)| !(paved && *covered) && l.points.iter().any(|q| (q.truncate() - anchor).length() < reach))
-        .map(|(l, _)| (l, simplify(&l.points.iter().map(|q| rel(*q)).collect::<Vec<_>>(), tol)))
+        .filter(|(l, covered)| {
+            !(paved && *covered)
+                && l.points
+                    .iter()
+                    .any(|q| (q.truncate() - anchor).length() < reach)
+        })
+        .map(|(l, _)| {
+            (
+                l,
+                simplify(&l.points.iter().map(|q| rel(*q)).collect::<Vec<_>>(), tol),
+            )
+        })
         .collect();
     for (l, pts) in &near {
-        p.ribbon(pts, l.width + 1.0, if l.main { 3.4 } else { 2.8 }, pal.road_edge, true);
+        p.ribbon(
+            pts,
+            l.width + 1.0,
+            if l.main { 3.4 } else { 2.8 },
+            pal.road_edge,
+            true,
+        );
     }
     if let (true, Some(md)) = (paved, parts.md.as_deref()) {
         md.build_paved(&mut p, anchor, anchor, reach, pal, look);
@@ -98,7 +148,9 @@ pub(super) fn build(parts: &GroundParts, anchor: DVec2, reach: f64, pal: &Palett
     }
     let (mut sh, mut so, mut fl) = (Painter::new(), Painter::new(), Painter::new());
     if let (Some(models), Some(md)) = (houses, parts.md.as_deref()) {
-        md.build_houses(&mut sh, &mut so, &mut fl, anchor, anchor, reach, models, pal);
+        md.build_houses(
+            &mut sh, &mut so, &mut fl, anchor, anchor, reach, models, pal,
+        );
     }
     Built::new(anchor, [p.verts, sh.verts, so.verts, fl.verts])
 }
@@ -111,7 +163,11 @@ pub struct MapGround {
 }
 
 impl MapGround {
-    pub fn new(net: Arc<Network>, layers: Option<Arc<omsi_map::layers::Layers>>, package: Option<omsi_map::package::Package>) -> MapGround {
+    pub fn new(
+        net: Arc<Network>,
+        layers: Option<Arc<omsi_map::layers::Layers>>,
+        package: Option<omsi_map::package::Package>,
+    ) -> MapGround {
         let md = layers.map(|l| Arc::new(MapData::new(l)));
         let roads: Vec<(MapRoad, bool)> = road_geometry(&net)
             .into_iter()
@@ -120,14 +176,34 @@ impl MapGround {
                 (l, c)
             })
             .collect();
-        MapGround { parts: GroundParts { roads: Arc::new(roads), net: Some(net), md, surface: package.map(Arc::new), contours: None } }
+        MapGround {
+            parts: GroundParts {
+                roads: Arc::new(roads),
+                net: Some(net),
+                md,
+                surface: package.map(Arc::new),
+                contours: None,
+            },
+        }
     }
 
     /// Everything within `reach` of `anchor` as the city map shows it at `mpp` metres a pixel
     /// (its details, paving and houses come and go at the same scales: see `city_ground`).
     pub fn build(&self, anchor: DVec2, reach: f64, mpp: f64, light: bool) -> Built {
-        let look = GroundLook { surfaces: mpp < 0.7, trees: mpp < 0.7, dashes: mpp < 3.5 };
-        build(&self.parts, anchor, reach, style::palette(light), look, mpp < 2.2, (mpp < 6.0).then_some(omsi_mapdraw::MODEL_TRIANGLES))
+        let look = GroundLook {
+            surfaces: mpp < 0.7,
+            trees: mpp < 0.7,
+            dashes: mpp < 3.5,
+        };
+        build(
+            &self.parts,
+            anchor,
+            reach,
+            style::palette(light),
+            look,
+            mpp < 2.2,
+            (mpp < 6.0).then_some(omsi_mapdraw::MODEL_TRIANGLES),
+        )
     }
 }
 
@@ -169,17 +245,24 @@ impl Navigator {
         let fresh = self.road_cache.as_ref().is_some_and(|(k, _)| *k == key);
         if !fresh && self.road_job.as_ref().is_none_or(|(k, _)| *k != key) {
             // (the map's own network goes to the worker; a traffic network is small: at once)
-            match self.global.clone().filter(|g| g.lanes.len() == net.lanes.len()) {
+            match self
+                .global
+                .clone()
+                .filter(|g| g.lanes.len() == net.lanes.len())
+            {
                 Some(g) => {
                     let md = self.map_data.clone();
                     let (tx, rx) = std::sync::mpsc::channel();
                     std::thread::Builder::new()
                         .name("navigator roads".into())
                         .spawn(move || {
-                            let list: Vec<(MapRoad, bool)> = road_geometry(&g).into_iter().map(|l| {
-                                let c = md.as_ref().is_some_and(|m| m.covers(&l.points));
-                                (l, c)
-                            }).collect();
+                            let list: Vec<(MapRoad, bool)> = road_geometry(&g)
+                                .into_iter()
+                                .map(|l| {
+                                    let c = md.as_ref().is_some_and(|m| m.covers(&l.points));
+                                    (l, c)
+                                })
+                                .collect();
                             let _ = tx.send(Arc::new(list));
                         })
                         .ok();
@@ -187,16 +270,22 @@ impl Navigator {
                 }
                 None => {
                     let md = self.map_data.clone();
-                    let list: Vec<(MapRoad, bool)> = road_geometry(net).into_iter().map(|l| {
-                        let c = md.as_ref().is_some_and(|m| m.covers(&l.points));
-                        (l, c)
-                    }).collect();
+                    let list: Vec<(MapRoad, bool)> = road_geometry(net)
+                        .into_iter()
+                        .map(|l| {
+                            let c = md.as_ref().is_some_and(|m| m.covers(&l.points));
+                            (l, c)
+                        })
+                        .collect();
                     self.road_cache = Some((key, Arc::new(list)));
                     self.roads_version += 1;
                 }
             }
         }
-        self.road_cache.as_ref().map(|c| c.1.clone()).unwrap_or_default()
+        self.road_cache
+            .as_ref()
+            .map(|c| c.1.clone())
+            .unwrap_or_default()
     }
 
     /// A part of the maps is still being built on a worker (an offscreen picture waits for it).
@@ -216,7 +305,11 @@ impl Navigator {
     }
 
     /// What a build reads now (`net`: the network the roads are drawn from).
-    pub(super) fn ground_parts(&mut self, net: Option<&Network>, contours: Option<f32>) -> GroundParts {
+    pub(super) fn ground_parts(
+        &mut self,
+        net: Option<&Network>,
+        contours: Option<f32>,
+    ) -> GroundParts {
         let roads = net.map(|n| self.road_list(n)).unwrap_or_default();
         GroundParts {
             roads,
@@ -231,15 +324,28 @@ impl Navigator {
 /// The tracks the map lays with objects rather than splines (points and crossings - switches,
 /// a tram's junction): the rail lanes of `net` that come from objects, as the railway or the
 /// tram is drawn (a track beside a street is the tram's).
-fn build_switches(p: &mut Painter, net: &Network, anchor: DVec2, centre: DVec2, radius: f64, pal: &Palette) {
+fn build_switches(
+    p: &mut Painter,
+    net: &Network,
+    anchor: DVec2,
+    centre: DVec2,
+    radius: f64,
+    pal: &Palette,
+) {
     let rel = |q: DVec3| Vec3::new((q.x - anchor.x) as f32, (q.y - anchor.y) as f32, 0.0);
-    for l in net.lanes.iter().filter(|l| l.kind == LaneKind::Rail && l.source != 1 && l.points.len() >= 2) {
+    for l in net
+        .lanes
+        .iter()
+        .filter(|l| l.kind == LaneKind::Rail && l.source != 1 && l.points.len() >= 2)
+    {
         if (l.start().truncate() - centre).length() > radius {
             continue;
         }
         let pts: Vec<Vec3> = l.points.iter().map(|q| rel(*q)).collect();
         let mid = l.at(l.length() * 0.5).0;
-        let street = net.nearest_lane_near(mid, LaneKind::Street).is_some_and(|s| s.2 < 4.0);
+        let street = net
+            .nearest_lane_near(mid, LaneKind::Street)
+            .is_some_and(|s| s.2 < 4.0);
         if street {
             p.ribbon(&pts, 0.9, 1.3, pal.tram, false);
         } else {

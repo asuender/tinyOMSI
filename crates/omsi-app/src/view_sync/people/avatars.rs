@@ -18,8 +18,11 @@ pub(super) const FACE_DISTANCE: f64 = 14.0;
 /// Whether this game session draws the avatars (read once per session, as the animation
 /// choice: `OMSI_CHARACTER_MODELS` or the setting).
 pub(super) fn enabled() -> bool {
-    let mode = omsi_cfg::flags::OMSI_CHARACTER_MODELS.live_var().unwrap_or_else(|_| crate::settings::Settings::load().character_models);
-    let on = mode.eq_ignore_ascii_case("improved") || mode.eq_ignore_ascii_case("high") || mode == "1";
+    let mode = omsi_cfg::flags::OMSI_CHARACTER_MODELS
+        .live_var()
+        .unwrap_or_else(|_| crate::settings::Settings::load().character_models);
+    let on =
+        mode.eq_ignore_ascii_case("improved") || mode.eq_ignore_ascii_case("high") || mode == "1";
     if on {
         // (loaded in the background; until then the people are the content's own)
         start_loading();
@@ -67,7 +70,11 @@ fn start_loading() {
                 use rayon::prelude::*;
                 list.par_iter()
                     .filter_map(|a| {
-                        let info = AvatarInfo { id: a.id.clone(), female: a.female, child: a.child };
+                        let info = AvatarInfo {
+                            id: a.id.clone(),
+                            female: a.female,
+                            child: a.child,
+                        };
                         match HumanType::load_avatar(&a.file, &info) {
                             Ok(t) => Some((info, Arc::new(t))),
                             Err(e) => {
@@ -92,7 +99,11 @@ fn start_loading() {
                 kinds[2].len(),
                 kinds[3].len()
             );
-            *STATE.lock() = if n == 0 { State::Missing } else { State::Ready(Arc::new(Pool { kinds })) };
+            *STATE.lock() = if n == 0 {
+                State::Missing
+            } else {
+                State::Ready(Arc::new(Pool { kinds }))
+            };
         })
         .ok();
 }
@@ -123,8 +134,17 @@ fn is_female(t: &HumanType) -> bool {
     if v.starts_with('M') {
         return false;
     }
-    let name = t.def.path.file_stem().map(|s| s.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
-    ["woman", "women", "frau", "female", "girl", "lady", "madchen", "mädchen", "dame"].iter().any(|w| name.contains(w))
+    let name = t
+        .def
+        .path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    [
+        "woman", "women", "frau", "female", "girl", "lady", "madchen", "mädchen", "dame",
+    ]
+    .iter()
+    .any(|w| name.contains(w))
 }
 
 fn is_child(t: &HumanType) -> bool {
@@ -136,10 +156,14 @@ impl Pool {
     /// kind, the same for the same person.
     pub(super) fn pick(&self, id: u32, ty: &HumanType) -> Option<Arc<HumanType>> {
         let (female, child) = (is_female(ty), is_child(ty));
-        let list = [kind_index(female, child), kind_index(female, false), kind_index(!female, child)]
-            .into_iter()
-            .map(|k| &self.kinds[k])
-            .find(|l| !l.is_empty())?;
+        let list = [
+            kind_index(female, child),
+            kind_index(female, false),
+            kind_index(!female, child),
+        ]
+        .into_iter()
+        .map(|k| &self.kinds[k])
+        .find(|l| !l.is_empty())?;
         // (a hash of the id: neighbours in the id order are not neighbours in the list)
         let h = (id as u64 ^ 0x5bd1_e995).wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 32;
         Some(list[(h as usize) % list.len()].clone())
@@ -148,7 +172,8 @@ impl Pool {
 
 /// What people are saying: by person id, when the line began and its loudness every
 /// 20 ms (0 … 1).
-static TALK: OnceLock<Mutex<hashbrown::HashMap<u32, (std::time::Instant, Arc<Vec<f32>>)>>> = OnceLock::new();
+static TALK: OnceLock<Mutex<hashbrown::HashMap<u32, (std::time::Instant, Arc<Vec<f32>>)>>> =
+    OnceLock::new();
 
 /// Person `speaker` starts saying `clip`: their lips follow its loudness.
 pub(crate) fn speak(speaker: u32, clip: &omsi_audio::mixer::Clip) {
@@ -166,7 +191,9 @@ pub(crate) fn speak(speaker: u32, clip: &omsi_audio::mixer::Clip) {
     for v in &mut env {
         *v = (*v / peak).sqrt();
     }
-    TALK.get_or_init(Default::default).lock().insert(speaker, (std::time::Instant::now(), Arc::new(env)));
+    TALK.get_or_init(Default::default)
+        .lock()
+        .insert(speaker, (std::time::Instant::now(), Arc::new(env)));
 }
 
 /// How loud person `id` speaks now, if they do.
@@ -188,7 +215,10 @@ pub(super) fn talking(id: u32) -> Option<f32> {
 static HOUR: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(12 << 16);
 
 pub(crate) fn set_hour(h: f32) {
-    HOUR.store((h.clamp(0.0, 24.0) * 65536.0) as u32, std::sync::atomic::Ordering::Relaxed);
+    HOUR.store(
+        (h.clamp(0.0, 24.0) * 65536.0) as u32,
+        std::sync::atomic::Ordering::Relaxed,
+    );
 }
 
 pub(super) fn hour() -> f32 {
@@ -205,13 +235,22 @@ pub(crate) struct FaceView {
 
 impl FaceView {
     pub(super) fn new(seed: u32) -> FaceView {
-        FaceView { face: omsi_sim::human::face::Face::new(seed as u64), rest: (Vec::new(), Vec::new()), live: false }
+        FaceView {
+            face: omsi_sim::human::face::Face::new(seed as u64),
+            rest: (Vec::new(), Vec::new()),
+            live: false,
+        }
     }
 }
 
 /// The file a body material's texture is read from: the clothing variant's own folder
 /// first, else the type's folders (as `PeopleView::make_meshes` looks it up).
-pub(super) fn material_texture(ty: &HumanType, dirs: &[std::path::PathBuf], texture: &str, variant: usize) -> Option<std::path::PathBuf> {
+pub(super) fn material_texture(
+    ty: &HumanType,
+    dirs: &[std::path::PathBuf],
+    texture: &str,
+    variant: usize,
+) -> Option<std::path::PathBuf> {
     let (name, first) = ty.variant_texture(texture, variant);
     let mut look: Vec<&std::path::Path> = first.into_iter().collect();
     look.extend(dirs.iter().map(|p| p.as_path()));
@@ -220,7 +259,10 @@ pub(super) fn material_texture(ty: &HumanType, dirs: &[std::path::PathBuf], text
 
 /// A texture of an avatar read ahead on a worker: the picture for the GPU and the PBR maps
 /// beside it.
-pub(super) type Prepared = (Option<Arc<omsi_texture::TextureData>>, Option<omsi_texture::pbr::PbrImages>);
+pub(super) type Prepared = (
+    Option<Arc<omsi_texture::TextureData>>,
+    Option<omsi_texture::pbr::PbrImages>,
+);
 
 /// The avatars whose textures are read on the workers before anybody is drawn with them.
 /// Read on the frame, an avatar that came into view for the first time cost 25-70 ms
@@ -258,12 +300,20 @@ impl Warm {
                 let mut seen = hashbrown::HashSet::new();
                 let mut list = Vec::new();
                 for m in a.meshes.iter().flat_map(|hm| hm.materials.iter()) {
-                    let Some(path) = material_texture(&a, &dirs, &m.texture, 0) else { continue };
+                    let Some(path) = material_texture(&a, &dirs, &m.texture, 0) else {
+                        continue;
+                    };
                     if !seen.insert(path.clone()) {
                         continue;
                     }
-                    let data = omsi_texture::gpu::load_gpu(&path).ok().map(|(t, _)| Arc::new(t));
-                    let pbr = if a.face.is_some() { omsi_texture::pbr::load_set(&omsi_texture::pbr::find(&path)) } else { None };
+                    let data = omsi_texture::gpu::load_gpu(&path)
+                        .ok()
+                        .map(|(t, _)| Arc::new(t));
+                    let pbr = if a.face.is_some() {
+                        omsi_texture::pbr::load_set(&omsi_texture::pbr::find(&path))
+                    } else {
+                        None
+                    };
                     list.push((path, (data, pbr)));
                 }
                 done.lock().push((key, list));

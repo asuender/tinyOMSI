@@ -32,10 +32,12 @@ use omsi_sim::ai_traffic::model::*;
 use omsi_sim::ai_traffic::viewer::*;
 use omsi_sim::view_events::TrafficEvent;
 
-pub use omsi_sim::ai_traffic::AI_SCHEMES;
-pub(crate) use omsi_sim::ai_traffic::model::{vehicle_bodies, AiCar, BusSetup, ParkPlan, PlayerBox};
-pub(crate) use setup::warm_up;
+pub(crate) use omsi_sim::ai_traffic::model::{
+    vehicle_bodies, AiCar, BusSetup, ParkPlan, PlayerBox,
+};
 pub(crate) use omsi_sim::ai_traffic::viewer::Viewer;
+pub use omsi_sim::ai_traffic::AI_SCHEMES;
+pub(crate) use setup::warm_up;
 
 /// The traffic simulation with what the game makes of it: the cars' sounds (played by the
 /// view sync, `crate::view_sync::traffic_audio`). Everything of
@@ -69,7 +71,8 @@ pub struct Traffic {
     /// What each vehicle definition (by its file) is heard with, its paths resolved once:
     /// a car waiting for its clips looked them all up on the disk again every frame, and a
     /// car without a usable sound configuration did so as long as it was near.
-    pub(crate) sound_plans: HashMap<std::path::PathBuf, Option<Arc<crate::view_sync::traffic_audio::SoundPlan>>>,
+    pub(crate) sound_plans:
+        HashMap<std::path::PathBuf, Option<Arc<crate::view_sync::traffic_audio::SoundPlan>>>,
     /// The traffic light lamps updated in turns far off (see `view_sync::traffic`): the
     /// frames counted, and the seconds each far lamp's script is owed, by script.
     pub(crate) lamp_turn: u32,

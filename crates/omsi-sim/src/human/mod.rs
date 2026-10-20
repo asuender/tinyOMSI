@@ -41,10 +41,10 @@ mod skin;
 #[cfg(test)]
 mod tests;
 
-pub use rig::{HumanMesh, HumanType, Influence, Joints, Rig};
-pub use skin::{curl_hands, grip_centres, hand_slot, skin, skin_from, slots_from_omsi};
 #[cfg(test)]
 use rig::split_feet;
+pub use rig::{HumanMesh, HumanType, Influence, Joints, Rig};
+pub use skin::{curl_hands, grip_centres, hand_slot, skin, skin_from, slots_from_omsi};
 
 /// Engine bone ids of `[setbone]`.
 pub const BONE_OS_L: i32 = -2;

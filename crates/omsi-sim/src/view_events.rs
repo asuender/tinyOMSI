@@ -16,15 +16,20 @@ mod drivers;
 mod looks;
 mod sounds;
 pub use drivers::DriverFrame;
-pub use sounds::{CarSound, SoundFrame};
 pub use looks::{CarLooks, LookLimits, LookTracker, ScriptUpload};
+pub use sounds::{CarSound, SoundFrame};
 
 /// Something the traffic did that the renderer has to follow, in the order it happened.
 /// Car ids are the traffic's (`AiCar::id`), stable for as long as the car is on the road.
 pub enum TrafficEvent {
     /// Car `id` was put on the road: the render of its body (`ty` in paint `scheme`), then
     /// those of its coupled parts in their order (type and paint each).
-    Spawned { id: u64, ty: Arc<VehicleType>, scheme: Option<usize>, trailers: Vec<(Arc<VehicleType>, Option<usize>)> },
+    Spawned {
+        id: u64,
+        ty: Arc<VehicleType>,
+        scheme: Option<usize>,
+        trailers: Vec<(Arc<VehicleType>, Option<usize>)>,
+    },
     /// Car `id` was taken off the road: its renders go back to the world now.
     Released { id: u64 },
     /// Car `id` went in the traffic's step (or parked): its renders go back to the world at
@@ -62,7 +67,10 @@ impl Span {
     fn push<T: Clone>(buf: &mut Vec<T>, items: &[T]) -> Span {
         let start = buf.len() as u32;
         buf.extend_from_slice(items);
-        Span { start, len: items.len() as u32 }
+        Span {
+            start,
+            len: items.len() as u32,
+        }
     }
 }
 
@@ -151,22 +159,47 @@ impl FrameSnapshot {
     pub fn add_car(&mut self, id: u64, vehicle: &crate::VehicleInstance) {
         let start = self.parts.len() as u32;
         if vehicle.ai_visuals {
-            let meshes = (0..vehicle.mesh_props.len()).map(|i| (vehicle.mesh_local_transform(i), &vehicle.mesh_props[i]));
-            self.add_part(vehicle.position, &vehicle.ty, vehicle.body_rotation(), meshes);
+            let meshes = (0..vehicle.mesh_props.len())
+                .map(|i| (vehicle.mesh_local_transform(i), &vehicle.mesh_props[i]));
+            self.add_part(
+                vehicle.position,
+                &vehicle.ty,
+                vehicle.body_rotation(),
+                meshes,
+            );
             for t in &vehicle.trailers {
-                let meshes = (0..t.mesh_props.len()).map(|i| (t.mesh_local_transform(i), &t.mesh_props[i]));
+                let meshes =
+                    (0..t.mesh_props.len()).map(|i| (t.mesh_local_transform(i), &t.mesh_props[i]));
                 self.add_part(t.position, &t.ty, t.body_rotation(), meshes);
             }
         }
-        let parts = Span { start, len: self.parts.len() as u32 - start };
-        self.cars.push(CarFrame { id, shown: vehicle.ai_visuals, parts, looks: None });
+        let parts = Span {
+            start,
+            len: self.parts.len() as u32 - start,
+        };
+        self.cars.push(CarFrame {
+            id,
+            shown: vehicle.ai_visuals,
+            parts,
+            looks: None,
+        });
     }
 
-    fn add_part<'a>(&mut self, position: glam::DVec3, ty: &Arc<VehicleType>, rotation: glam::Mat4, meshes: impl Iterator<Item = (glam::Mat4, &'a crate::vehicle::MeshProps)>) {
+    fn add_part<'a>(
+        &mut self,
+        position: glam::DVec3,
+        ty: &Arc<VehicleType>,
+        rotation: glam::Mat4,
+        meshes: impl Iterator<Item = (glam::Mat4, &'a crate::vehicle::MeshProps)>,
+    ) {
         let start = self.meshes.len() as u32;
         for (i, (local, p)) in meshes.enumerate() {
             // (a mesh drawn only from some views: an AI car is seen from outside)
-            let vp = ty.meshes.get(i).map(|m| ty.model.meshes[m.def_index].viewpoint).unwrap_or(0);
+            let vp = ty
+                .meshes
+                .get(i)
+                .map(|m| ty.model.meshes[m.def_index].viewpoint)
+                .unwrap_or(0);
             let frame = MeshFrame {
                 local,
                 visible: p.visible && (vp == 0 || vp & 4 != 0),
@@ -178,8 +211,16 @@ impl FrameSnapshot {
             };
             self.meshes.push(frame);
         }
-        let meshes = Span { start, len: self.meshes.len() as u32 - start };
-        self.parts.push(PartFrame { ty: ty.clone(), position, rotation, meshes });
+        let meshes = Span {
+            start,
+            len: self.meshes.len() as u32 - start,
+        };
+        self.parts.push(PartFrame {
+            ty: ty.clone(),
+            position,
+            rotation,
+            meshes,
+        });
     }
 
     /// The parts of `car`: its body first, then its coupled parts in their order.
@@ -295,7 +336,10 @@ impl crate::people::PeopleSim {
             state: p.state.name(),
             debug: debug.then(|| {
                 let pax = match &p.state {
-                    crate::people::State::Pax(x) => format!("pax_state {} speed {:.2} seat_h {:.2} room {:.2} st {}", x.pax_state, x.speed, x.seat_h, x.room, x.st),
+                    crate::people::State::Pax(x) => format!(
+                        "pax_state {} speed {:.2} seat_h {:.2} room {:.2} st {}",
+                        x.pax_state, x.speed, x.seat_h, x.room, x.st
+                    ),
                     _ => String::new(),
                 };
                 [format!("{} {}", p.label(), p.state_name()), pax]
@@ -332,7 +376,12 @@ mod tests {
         assert!(buf[b.range()].is_empty());
         assert_eq!(&buf[c.range()], &[3.0]);
         let mut snap = FrameSnapshot::default();
-        snap.cars.push(CarFrame { id: 7, shown: false, parts: Span::default(), looks: None });
+        snap.cars.push(CarFrame {
+            id: 7,
+            shown: false,
+            parts: Span::default(),
+            looks: None,
+        });
         snap.sim_time = 3.0;
         snap.clear();
         assert!(snap.cars.is_empty());

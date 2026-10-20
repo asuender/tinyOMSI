@@ -34,20 +34,36 @@ fn fresh_webview_profile(app: &tauri::App) -> Option<std::path::PathBuf> {
         return None;
     }
     let temp = std::env::temp_dir().join("openOMSI-webview");
-    let Ok(dir) = app.path().app_local_data_dir() else { return Some(temp) };
+    let Ok(dir) = app.path().app_local_data_dir() else {
+        return Some(temp);
+    };
     if std::fs::create_dir_all(&dir).is_err() {
-        omsi_launcher_lib::log_to_file(&format!("webview: {} cannot be made, the profile goes to {}", dir.display(), temp.display()));
+        omsi_launcher_lib::log_to_file(&format!(
+            "webview: {} cannot be made, the profile goes to {}",
+            dir.display(),
+            temp.display()
+        ));
         return Some(temp);
     }
     let profile = dir.join("EBWebView");
     if profile.exists() {
-        let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
         let aside = dir.join(format!("EBWebView.old-{secs}"));
         if let Err(e) = std::fs::rename(&profile, &aside) {
-            omsi_launcher_lib::log_to_file(&format!("webview: the profile {} cannot be set aside ({e}), using {}", profile.display(), temp.display()));
+            omsi_launcher_lib::log_to_file(&format!(
+                "webview: the profile {} cannot be set aside ({e}), using {}",
+                profile.display(),
+                temp.display()
+            ));
             return Some(temp);
         }
-        omsi_launcher_lib::log_to_file(&format!("webview: the profile was set aside as {}", aside.display()));
+        omsi_launcher_lib::log_to_file(&format!(
+            "webview: the profile was set aside as {}",
+            aside.display()
+        ));
     }
     Some(dir)
 }
@@ -60,7 +76,12 @@ fn remember_screen(window: &tauri::Window) {
         .current_monitor()
         .ok()
         .flatten()
-        .map(|m| (m.position().x + m.size().width as i32 / 2, m.position().y + m.size().height as i32 / 2))
+        .map(|m| {
+            (
+                m.position().x + m.size().width as i32 / 2,
+                m.position().y + m.size().height as i32 / 2,
+            )
+        })
         .or_else(|| {
             let (p, s) = (window.outer_position().ok()?, window.outer_size().ok()?);
             Some((p.x + s.width as i32 / 2, p.y + s.height as i32 / 2))
@@ -76,15 +97,23 @@ fn main() {
     // message and place go into launcher.log, which the support package carries.
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let at = info.location().map(|l| format!(" at {}:{}", l.file(), l.line())).unwrap_or_default();
+        let at = info
+            .location()
+            .map(|l| format!(" at {}:{}", l.file(), l.line()))
+            .unwrap_or_default();
         let what = info
             .payload()
             .downcast_ref::<&str>()
             .map(|s| s.to_string())
             .or_else(|| info.payload().downcast_ref::<String>().cloned())
             .unwrap_or_default();
-        let thread = std::thread::current().name().unwrap_or("unnamed").to_string();
-        omsi_launcher_lib::log_to_file(&format!("the launcher panicked on thread '{thread}'{at}: {what}"));
+        let thread = std::thread::current()
+            .name()
+            .unwrap_or("unnamed")
+            .to_string();
+        omsi_launcher_lib::log_to_file(&format!(
+            "the launcher panicked on thread '{thread}'{at}: {what}"
+        ));
         default_hook(info);
     }));
     omsi_cfg::migrate_legacy_data_dir();
@@ -103,7 +132,10 @@ fn main() {
         }
         return;
     }
-    omsi_launcher_lib::log_to_file(&format!("launcher (Tauri) {} starting", omsi_platform::VERSION));
+    omsi_launcher_lib::log_to_file(&format!(
+        "launcher (Tauri) {} starting",
+        omsi_platform::VERSION
+    ));
     omsi_launcher_lib::cleanup();
 
     let result = tauri::Builder::default()
@@ -114,7 +146,8 @@ fn main() {
             if selftest() {
                 app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             }
-            let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()));
+            let mut builder =
+                WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()));
             if let Some(dir) = fresh_webview_profile(app) {
                 builder = builder.data_directory(dir);
             }
@@ -148,7 +181,13 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if matches!(event, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) | tauri::WindowEvent::ScaleFactorChanged { .. } | tauri::WindowEvent::Focused(true)) {
+            if matches!(
+                event,
+                tauri::WindowEvent::Moved(_)
+                    | tauri::WindowEvent::Resized(_)
+                    | tauri::WindowEvent::ScaleFactorChanged { .. }
+                    | tauri::WindowEvent::Focused(true)
+            ) {
                 remember_screen(window);
             }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -166,7 +205,9 @@ fn main() {
         .build(tauri::generate_context!())
         .map(|app| {
             app.run(|_, e| match e {
-                tauri::RunEvent::ExitRequested { api, .. } if omsi_launcher_api::installing() => api.prevent_exit(),
+                tauri::RunEvent::ExitRequested { api, .. } if omsi_launcher_api::installing() => {
+                    api.prevent_exit()
+                }
                 tauri::RunEvent::Exit => service::stop(),
                 _ => {}
             })

@@ -1,8 +1,8 @@
 //! Compiled plugins (`.oop`): built with the `oop-format` crate as `oopc` builds them, then
 //! loaded from a plugins folder and driven as the game drives them.
 
-use oop_format::{Header, Kind, OopBuilder};
 use omsi_plugin::{HostConfig, PluginIo, Plugins};
+use oop_format::{Header, Kind, OopBuilder};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -58,7 +58,9 @@ fn header(id: &str, kind: Kind, entry: &str, perms: &[&str]) -> Header {
 fn a_lua_oop_runs_from_memory_within_its_permissions() {
     let d = dir("lua");
     let oop = OopBuilder::new(header("org.test.greeter", Kind::Lua, "main.lua", &["ui"]))
-        .file("main.lua", r#"
+        .file(
+            "main.lua",
+            r#"
             local u = require("util")
             local done = false
             omsi.on("frame", function()
@@ -68,7 +70,8 @@ fn a_lua_oop_runs_from_memory_within_its_permissions() {
                 local ok = pcall(omsi.set_var, "doors", 1)
                 omsi.message("set_var allowed: " .. tostring(ok))
             end)
-        "#)
+        "#,
+        )
         .file("util.lua", "return { x = 42 }")
         .file("icon.png", vec![0x89, b'P', b'N', b'G'])
         .write()
@@ -129,7 +132,15 @@ const GUEST: &str = r#"
 fn a_wasm_oop_calls_the_api_and_hears_events() {
     let d = dir("wasm");
     // (wasmi reads the text format too; `oopc` puts a binary module here)
-    let oop = OopBuilder::new(header("org.test.pinger", Kind::Wasm, "plugin.wasm", &["ui"])).file("plugin.wasm", GUEST).write().unwrap();
+    let oop = OopBuilder::new(header(
+        "org.test.pinger",
+        Kind::Wasm,
+        "plugin.wasm",
+        &["ui"],
+    ))
+    .file("plugin.wasm", GUEST)
+    .write()
+    .unwrap();
     std::fs::write(d.join("pinger.oop"), oop).unwrap();
     let mut plugins = Plugins::load(std::slice::from_ref(&d), &HostConfig::default());
     assert_eq!(plugins.wasm.len(), 1, "loaded");
@@ -138,7 +149,12 @@ fn a_wasm_oop_calls_the_api_and_hears_events() {
     plugins.frame(&mut game);
     assert!(!plugins.wasm[0].disabled);
     // frame -> emit("ping") -> its own ping handler -> message("pong"), once a frame
-    assert_eq!(game.messages.iter().filter(|m| *m == "pong").count(), 2, "{:?}", game.messages);
+    assert_eq!(
+        game.messages.iter().filter(|m| *m == "pong").count(),
+        2,
+        "{:?}",
+        game.messages
+    );
     assert!(game.vars.is_empty(), "set_var needs vehicle_write");
     plugins.finalize();
 }
@@ -147,7 +163,10 @@ fn a_wasm_oop_calls_the_api_and_hears_events() {
 #[test]
 fn a_changed_oop_is_refused() {
     let d = dir("tampered");
-    let mut oop = OopBuilder::new(header("org.test.bad", Kind::Lua, "main.lua", &["ui"])).file("main.lua", "omsi.message('x')").write().unwrap();
+    let mut oop = OopBuilder::new(header("org.test.bad", Kind::Lua, "main.lua", &["ui"]))
+        .file("main.lua", "omsi.message('x')")
+        .write()
+        .unwrap();
     let n = oop.len();
     oop[n - 3] ^= 0x40;
     std::fs::write(d.join("bad.oop"), oop).unwrap();
@@ -160,7 +179,10 @@ fn a_changed_oop_is_refused() {
 fn a_lua_file_of_the_same_name_wins() {
     let d = dir("both");
     std::fs::write(d.join("same.lua"), "omsi.log('plain')").unwrap();
-    let oop = OopBuilder::new(header("org.test.same", Kind::Lua, "main.lua", &[])).file("main.lua", "omsi.log('oop')").write().unwrap();
+    let oop = OopBuilder::new(header("org.test.same", Kind::Lua, "main.lua", &[]))
+        .file("main.lua", "omsi.log('oop')")
+        .write()
+        .unwrap();
     std::fs::write(d.join("same.oop"), oop).unwrap();
     let plugins = Plugins::load(std::slice::from_ref(&d), &HostConfig::default());
     assert_eq!(plugins.lua.len(), 1);

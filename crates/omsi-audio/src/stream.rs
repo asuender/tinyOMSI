@@ -102,7 +102,15 @@ impl Default for StreamBuf {
         let (tx, rx) = spsc::channel(FRAMES);
         StreamBuf {
             feed: Mutex::new(tx),
-            tap: Mutex::new(Some(StreamInner { frames: rx, rate: 44100, playing: false, prebuffer: 1.5, closed: false, taken: 0, flushed: 0 })),
+            tap: Mutex::new(Some(StreamInner {
+                frames: rx,
+                rate: 44100,
+                playing: false,
+                prebuffer: 1.5,
+                closed: false,
+                taken: 0,
+                flushed: 0,
+            })),
             rate: AtomicU32::new(44100),
             pushed: AtomicU64::new(0),
             taken: AtomicU64::new(0),
@@ -127,7 +135,8 @@ impl StreamBuf {
         let mut tx = self.feed.lock();
         if self.rate.load(Ordering::Relaxed) != rate {
             self.rate.store(rate, Ordering::Release);
-            self.flush_to.store(self.pushed.load(Ordering::Relaxed), Ordering::Release);
+            self.flush_to
+                .store(self.pushed.load(Ordering::Relaxed), Ordering::Release);
         }
         for f in frames {
             let mut f = f;
@@ -147,8 +156,12 @@ impl StreamBuf {
         if self.is_closed() {
             return 0.0;
         }
-        let from = self.taken.load(Ordering::Acquire).max(self.flush_to.load(Ordering::Acquire));
-        self.pushed.load(Ordering::Acquire).saturating_sub(from) as f32 / self.rate.load(Ordering::Relaxed).max(1) as f32
+        let from = self
+            .taken
+            .load(Ordering::Acquire)
+            .max(self.flush_to.load(Ordering::Acquire));
+        self.pushed.load(Ordering::Acquire).saturating_sub(from) as f32
+            / self.rate.load(Ordering::Relaxed).max(1) as f32
     }
 
     /// Whether the mixer is playing it (not waiting for the buffer to fill).
@@ -207,7 +220,10 @@ mod tests {
         assert!(b.take_tap().is_none());
         tap.sync(&b);
         tap.prebuffer = 0.0;
-        assert_eq!((tap.rate, tap.pair().map(|p| p.0[0])), (48_000, Some(100.0)));
+        assert_eq!(
+            (tap.rate, tap.pair().map(|p| p.0[0])),
+            (48_000, Some(100.0))
+        );
         tap.advance();
         tap.publish(&b);
         assert!((b.buffered() - 9.0 / 48_000.0).abs() < 1e-6 && b.is_playing());

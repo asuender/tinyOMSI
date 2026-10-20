@@ -105,7 +105,9 @@ pub(crate) fn find_vehicle_freetex(name: &str, dirs: &[&Path]) -> Option<PathBuf
     }
     let normalized = name.trim().replace('\\', "/");
     let parts: Vec<&str> = normalized.split('/').filter(|p| !p.is_empty()).collect();
-    let texture = parts.iter().position(|p| p.eq_ignore_ascii_case("Texture"))?;
+    let texture = parts
+        .iter()
+        .position(|p| p.eq_ignore_ascii_case("Texture"))?;
     let rel = parts.get(texture + 1..)?.join("/");
     if rel.is_empty() {
         return None;
@@ -124,7 +126,11 @@ fn freetex_key_is(key: Option<&str>, name: &str, mask: Option<u32>) -> bool {
     let Some((head, rest)) = key.split_at_checked(name.len()) else {
         return false;
     };
-    if !head.iter().zip(name).all(|(k, n)| *k == n.to_ascii_lowercase()) {
+    if !head
+        .iter()
+        .zip(name)
+        .all(|(k, n)| *k == n.to_ascii_lowercase())
+    {
         return false;
     }
     match mask {
@@ -160,7 +166,11 @@ impl LookVars for omsi_sim::VehicleInstance {
     }
 
     fn str_var(&self, name: &str) -> &str {
-        self.ty.program.str_var(name).and_then(|i| self.state.str_vars.get(i as usize)).map_or("", |s| s.trim())
+        self.ty
+            .program
+            .str_var(name)
+            .and_then(|i| self.state.str_vars.get(i as usize))
+            .map_or("", |s| s.trim())
     }
 }
 
@@ -175,19 +185,34 @@ pub(crate) struct CarVars<'a> {
 
 impl LookVars for CarVars<'_> {
     fn var(&self, name: &str) -> Option<f32> {
-        omsi_script::compile::with_lower(name, |k| self.index.get(k).copied()).and_then(|i| self.vars.get(i as usize).copied())
+        omsi_script::compile::with_lower(name, |k| self.index.get(k).copied())
+            .and_then(|i| self.vars.get(i as usize).copied())
     }
 
     fn str_var(&self, name: &str) -> &str {
-        self.ty.program.str_var(name).and_then(|i| self.strs.get(i as usize)).map_or("", |s| s.trim())
+        self.ty
+            .program
+            .str_var(name)
+            .and_then(|i| self.strs.get(i as usize))
+            .map_or("", |s| s.trim())
     }
 }
 
 /// Whether `[interiorlight]` `li` of `ty` is on: OMSI enables the lamp when its variable is
 /// 0.5 or more, there is no dimming.
-pub(crate) fn interior_lamp_on(ty: &omsi_sim::VehicleType, li: usize, var: impl Fn(&str) -> Option<f32>) -> bool {
+pub(crate) fn interior_lamp_on(
+    ty: &omsi_sim::VehicleType,
+    li: usize,
+    var: impl Fn(&str) -> Option<f32>,
+) -> bool {
     let il = &ty.model.interior_lights[li];
-    il.variable.trim().parse::<f32>().ok().or_else(|| var(&il.variable)).unwrap_or(0.0) >= 0.5
+    il.variable
+        .trim()
+        .parse::<f32>()
+        .ok()
+        .or_else(|| var(&il.variable))
+        .unwrap_or(0.0)
+        >= 0.5
 }
 
 pub(crate) fn sync_materials(
@@ -202,7 +227,12 @@ pub(crate) fn sync_materials(
         let mask = v.lights.as_ref().map(|l| {
             let mut mask = 0u32;
             for (k, (_, var)) in l.maps.iter().enumerate() {
-                let x = var.trim().parse::<f32>().ok().or_else(|| vehicle.var(var)).unwrap_or(0.0);
+                let x = var
+                    .trim()
+                    .parse::<f32>()
+                    .ok()
+                    .or_else(|| vehicle.var(var))
+                    .unwrap_or(0.0);
                 // (on at 0.5, as each map's texture stage is, 0x7fe51f: a variable a script
                 // dims through 0.1 lit the map at full)
                 if x >= 0.5 {
@@ -273,7 +303,11 @@ pub(crate) fn sync_materials(
                             None => v.spec.clone(),
                         };
                         if let (Some(m), Some(l)) = (mask, lights.as_mut()) {
-                            let tex = if m == 0 { None } else { l.composite(renderer, scene, m) };
+                            let tex = if m == 0 {
+                                None
+                            } else {
+                                l.composite(renderer, scene, m)
+                            };
                             spec.set_lightmap(tex);
                         }
                         let p = spec.build(renderer, scene, v.base_tex);
@@ -298,7 +332,11 @@ pub(crate) fn sync_materials(
                 } else {
                     // none on: no light map at all (the set's own materials have the last
                     // map, lit whatever its variable said)
-                    let tex = if mask == 0 { None } else { l.composite(renderer, scene, mask) };
+                    let tex = if mask == 0 {
+                        None
+                    } else {
+                        l.composite(renderer, scene, mask)
+                    };
                     let mut spec = v.spec.clone();
                     spec.set_lightmap(tex);
                     let p = spec.build(renderer, scene, v.base_tex);
@@ -311,8 +349,18 @@ pub(crate) fn sync_materials(
         }
         if let Some(inst) = render.instances.get(v.mesh) {
             let m = v.material(|n| vehicle.var(n));
-            if omsi_cfg::flags::OMSI_DEBUG_VARIANTS.var().is_some_and(|f| !f.is_empty() && v.var.to_ascii_lowercase().contains(&f.to_ascii_lowercase())) {
-                log::info!("variant mesh {} slot {} var {} = {:?}: material {m} (base {}, item {})", v.mesh, v.slot, v.var, vehicle.var(&v.var), v.base, v.item);
+            if omsi_cfg::flags::OMSI_DEBUG_VARIANTS.var().is_some_and(|f| {
+                !f.is_empty() && v.var.to_ascii_lowercase().contains(&f.to_ascii_lowercase())
+            }) {
+                log::info!(
+                    "variant mesh {} slot {} var {} = {:?}: material {m} (base {}, item {})",
+                    v.mesh,
+                    v.slot,
+                    v.var,
+                    vehicle.var(&v.var),
+                    v.base,
+                    v.item
+                );
             }
             renderer.set_material(scene, *inst, v.slot, m);
         }
@@ -369,7 +417,14 @@ pub(crate) fn sync_interior_lamps(
         }
         let total: u32 = distinct.iter().map(|d| d.len() as u32).sum();
         if omsi_cfg::flags::OMSI_DEBUG_INTERIOR.is_set() {
-            log::info!("interior lamps of {}: {} lamps, {} instances, {} meshes lit by sets {:?}", ty.def.path.display(), n, render.instances.len(), sets.len(), distinct);
+            log::info!(
+                "interior lamps of {}: {} lamps, {} instances, {} meshes lit by sets {:?}",
+                ty.def.path.display(),
+                n,
+                render.instances.len(),
+                sets.len(),
+                distinct
+            );
         }
         if total == 0 {
             return blocks;
@@ -404,7 +459,11 @@ pub(crate) fn sync_interior_lamps(
                     // light at `range` metres, stronger closer in, a quarter at twice
                     radius: 100.0,
                     core: il.range.max(0.01),
-                    color: [il.color[0] / 255.0, il.color[1] / 255.0, il.color[2] / 255.0],
+                    color: [
+                        il.color[0] / 255.0,
+                        il.color[1] / 255.0,
+                        il.color[2] / 255.0,
+                    ],
                     intensity: if on { 1.0 } else { 0.0 },
                     ..Default::default()
                 },
@@ -456,7 +515,9 @@ pub fn sync_vehicle_textures(
                 if *budget == 0 {
                     continue;
                 }
-                let Some(rgba) = st.take_upload() else { continue };
+                let Some(rgba) = st.take_upload() else {
+                    continue;
+                };
                 *budget = budget.saturating_sub(rgba.len());
                 let img = Image {
                     width: st.width,
@@ -493,7 +554,10 @@ mod freetex_key_tests {
     fn matches_the_key_made_of_the_same_name() {
         for name in ["", "Anz_Linie.BMP", "x#0", "Ä_Ziel", "a/b\\c"] {
             for mask in [None, Some(0), Some(3), Some(10), Some(u32::MAX)] {
-                assert!(freetex_key_is(Some(&key(name, mask)), name, mask), "{name:?} {mask:?}");
+                assert!(
+                    freetex_key_is(Some(&key(name, mask)), name, mask),
+                    "{name:?} {mask:?}"
+                );
             }
         }
     }
@@ -507,7 +571,11 @@ mod freetex_key_tests {
                 for b in names {
                     for mb in masks {
                         let same = key(a, ma) == key(b, mb);
-                        assert_eq!(freetex_key_is(Some(&key(a, ma)), b, mb), same, "{a:?} {ma:?} / {b:?} {mb:?}");
+                        assert_eq!(
+                            freetex_key_is(Some(&key(a, ma)), b, mb),
+                            same,
+                            "{a:?} {ma:?} / {b:?} {mb:?}"
+                        );
                     }
                 }
             }
@@ -528,10 +596,7 @@ mod freetex_path_tests {
         std::fs::create_dir_all(wanted.parent().unwrap()).unwrap();
         std::fs::write(&wanted, b"x").unwrap();
         let dirs = [vehicle_texture.as_path()];
-        let found = find_vehicle_freetex(
-            r"..\Texture\mb_pmon\alerta_FalhaCambio.bmp",
-            &dirs,
-        );
+        let found = find_vehicle_freetex(r"..\Texture\mb_pmon\alerta_FalhaCambio.bmp", &dirs);
         assert_eq!(found.as_deref(), Some(wanted.as_path()));
         let _ = std::fs::remove_dir_all(root);
     }

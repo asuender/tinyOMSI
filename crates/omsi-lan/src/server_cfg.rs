@@ -203,10 +203,15 @@ impl ServerCfg {
     /// `traffic_max`: the most AI vehicles the game allows (`traffic` is capped there).
     pub fn load(path: &Path, traffic_max: usize) -> Result<ServerCfg> {
         if !path.is_file() {
-            std::fs::write(path, DEFAULT_CFG).with_context(|| format!("writing {}", path.display()))?;
-            log::info!("server: {} did not exist; written with the defaults", path.display());
+            std::fs::write(path, DEFAULT_CFG)
+                .with_context(|| format!("writing {}", path.display()))?;
+            log::info!(
+                "server: {} did not exist; written with the defaults",
+                path.display()
+            );
         }
-        let text = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let text =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         let mut kv: std::collections::HashMap<String, String> = Default::default();
         for line in text.lines() {
             let l = line.trim();
@@ -217,11 +222,23 @@ impl ServerCfg {
                 kv.insert(k.trim().to_ascii_lowercase(), v.trim().to_string());
             }
         }
-        let get = |k: &str, d: &str| kv.get(k).cloned().filter(|v| !v.is_empty()).unwrap_or_else(|| d.to_string());
-        let flag = |k: &str, d: bool| kv.get(k).map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")).unwrap_or(d);
+        let get = |k: &str, d: &str| {
+            kv.get(k)
+                .cloned()
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| d.to_string())
+        };
+        let flag = |k: &str, d: bool| {
+            kv.get(k)
+                .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+                .unwrap_or(d)
+        };
         let num = |k: &str, d: i64| kv.get(k).and_then(|v| v.parse::<i64>().ok()).unwrap_or(d);
         let dir = path.parent().unwrap_or(Path::new("."));
-        let icon = std::fs::read(dir.join("server-icon.png")).ok().filter(|b| b.starts_with(b"\x89PNG") && b.len() < 256 * 1024).unwrap_or_default();
+        let icon = std::fs::read(dir.join("server-icon.png"))
+            .ok()
+            .filter(|b| b.starts_with(b"\x89PNG") && b.len() < 256 * 1024)
+            .unwrap_or_default();
         Ok(remote_needs_long_passwords(ServerCfg {
             name: get("name", "openOMSI server"),
             motd: get("motd", ""),
@@ -266,7 +283,9 @@ impl ServerCfg {
 /// `REMOTE_MIN_PASSWORD` characters, or the panel stays on this machine (and the log says so).
 fn remote_needs_long_passwords(mut cfg: ServerCfg) -> ServerCfg {
     let short = |p: &str| !p.is_empty() && p.chars().count() < crate::admin::REMOTE_MIN_PASSWORD;
-    if cfg.admin_web == omsi_admin::WebMode::Remote && (short(&cfg.admin_password) || short(&cfg.moderator_password)) {
+    if cfg.admin_web == omsi_admin::WebMode::Remote
+        && (short(&cfg.admin_password) || short(&cfg.moderator_password))
+    {
         log::warn!("server.cfg: admin_web = remote needs passwords of {} characters at least: the web administration stays on this machine (local)", crate::admin::REMOTE_MIN_PASSWORD);
         cfg.admin_web = omsi_admin::WebMode::Local;
     }
@@ -281,7 +300,10 @@ pub fn installed_maps() -> Vec<String> {
     let mut maps: Vec<String> = omsi_cfg::read_dir_merged("maps")
         .into_iter()
         .filter(|d| omsi_cfg::vfs::exists(&d.join("global.cfg")))
-        .filter_map(|d| d.file_name().map(|n| format!("maps/{}/global.cfg", n.to_string_lossy())))
+        .filter_map(|d| {
+            d.file_name()
+                .map(|n| format!("maps/{}/global.cfg", n.to_string_lossy()))
+        })
         .collect();
     maps.sort_by_key(|m| m.to_lowercase());
     maps
@@ -290,7 +312,9 @@ pub fn installed_maps() -> Vec<String> {
 /// `admin_web`: none (a `server.cfg` from before the web panel) or a wrong word is off - an
 /// update opens no door the operator did not ask for; a new server's file says `local`.
 fn web_mode(v: Option<&str>) -> omsi_admin::WebMode {
-    let Some(v) = v else { return omsi_admin::WebMode::Off };
+    let Some(v) = v else {
+        return omsi_admin::WebMode::Off;
+    };
     omsi_admin::WebMode::parse(v).unwrap_or_else(|| {
         log::warn!("server.cfg: admin_web = {v} is not local, remote or off: off");
         omsi_admin::WebMode::Off
@@ -311,7 +335,15 @@ fn trusted_proxies(v: &str) -> Vec<std::net::IpAddr> {
         .split(';')
         .map(str::trim)
         .filter(|a| !a.is_empty())
-        .filter_map(|a| a.parse().map_err(|_| log::warn!("server.cfg: admin_trusted_proxies: '{a}' is not an address: left out")).ok())
+        .filter_map(|a| {
+            a.parse()
+                .map_err(|_| {
+                    log::warn!(
+                        "server.cfg: admin_trusted_proxies: '{a}' is not an address: left out"
+                    )
+                })
+                .ok()
+        })
         .collect();
     if list.is_empty() {
         omsi_admin::WebCfg::default().trusted_proxies
@@ -327,7 +359,10 @@ fn admin_password(password: String) -> String {
 /// A password of `server.cfg` (`key`), or none when it is too short (and the log says so).
 fn checked_password(password: String, key: &str) -> String {
     if !password.is_empty() && password.chars().count() < crate::admin::MIN_PASSWORD {
-        log::warn!("server.cfg: {key} has fewer than {} characters: it lets nobody in until it is longer", crate::admin::MIN_PASSWORD);
+        log::warn!(
+            "server.cfg: {key} has fewer than {} characters: it lets nobody in until it is longer",
+            crate::admin::MIN_PASSWORD
+        );
         return String::new();
     }
     password
@@ -341,19 +376,38 @@ pub static SERVER_VEHICLES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLo
 pub fn allows(list: &[String], file: &str) -> bool {
     let norm = |s: &str| s.trim().replace('\\', "/").to_ascii_lowercase();
     let f = norm(file);
-    list.is_empty() || list.iter().map(|v| norm(v)).any(|v| f == v || f.ends_with(&format!("/{v}")))
+    list.is_empty()
+        || list
+            .iter()
+            .map(|v| norm(v))
+            .any(|v| f == v || f.ends_with(&format!("/{v}")))
 }
 
 /// A server's `vehicles` list holds: a player who drives another bus (put down in the game's
 /// own vehicle menu, which a game before this one did not limit to the list, #1183) is sent
 /// away and told which buses the server has. It may join again with one of them.
 pub fn enforce_vehicles(lan: &mut omsi_net::LanSession) {
-    let Some(list) = SERVER_VEHICLES.get().filter(|l| !l.is_empty()) else { return };
-    let out: Vec<(u32, String)> = lan.peers().filter(|p| p.has_info && !p.pose.bus.is_empty() && !allows(list, &p.pose.bus)).map(|p| (p.pose.id, p.pose.bus.clone())).collect();
+    let Some(list) = SERVER_VEHICLES.get().filter(|l| !l.is_empty()) else {
+        return;
+    };
+    let out: Vec<(u32, String)> = lan
+        .peers()
+        .filter(|p| p.has_info && !p.pose.bus.is_empty() && !allows(list, &p.pose.bus))
+        .map(|p| (p.pose.id, p.pose.bus.clone()))
+        .collect();
     for (id, bus) in out {
-        log::warn!("server: player {id} drives {bus}, which the vehicles list does not allow: sent away");
-        let names: Vec<&str> = list.iter().map(|v| v.rsplit('/').next().unwrap_or(v)).collect();
-        lan.kick(id, &format!("this server allows only these buses: {}", names.join(", ")), false);
+        log::warn!(
+            "server: player {id} drives {bus}, which the vehicles list does not allow: sent away"
+        );
+        let names: Vec<&str> = list
+            .iter()
+            .map(|v| v.rsplit('/').next().unwrap_or(v))
+            .collect();
+        lan.kick(
+            id,
+            &format!("this server allows only these buses: {}", names.join(", ")),
+            false,
+        );
     }
 }
 
@@ -361,10 +415,17 @@ pub fn enforce_vehicles(lan: &mut omsi_net::LanSession) {
 /// bus it sits in (`Walker::aboard`; the walker's own point lags behind that bus); otherwise
 /// with the bus it drives. The walker comes first: a player who got out keeps its vehicle, so
 /// such a state carries `FLAG_VEHICLE` (the parked bus) and the walker. `None`: no place known.
-pub fn player_info<'a>(q: &omsi_net::Pose, pose_of: impl Fn(u32) -> Option<&'a omsi_net::Pose>) -> Option<omsi_net::ws::PlayerInfo> {
+pub fn player_info<'a>(
+    q: &omsi_net::Pose,
+    pose_of: impl Fn(u32) -> Option<&'a omsi_net::Pose>,
+) -> Option<omsi_net::ws::PlayerInfo> {
     let driving = q.walker.is_none() && q.has_vehicle();
     let (x, y, heading, speed_kmh, aboard) = match q.walker {
-        Some(w) => match w.aboard.and_then(|a| pose_of(a.owner)).filter(|b| b.has_vehicle()) {
+        Some(w) => match w
+            .aboard
+            .and_then(|a| pose_of(a.owner))
+            .filter(|b| b.has_vehicle())
+        {
             Some(b) => (b.x, b.y, b.heading, b.speed_kmh, Some(b.id)),
             // (a walker's speed is in m/s)
             None => (w.x, w.y, w.heading, w.speed * 3.6, None),
@@ -376,9 +437,21 @@ pub fn player_info<'a>(q: &omsi_net::Pose, pose_of: impl Fn(u32) -> Option<&'a o
         id: q.id,
         name: q.name.clone(),
         // (what a player on foot last drove is not what it drives)
-        bus: if driving { q.bus.clone() } else { String::new() },
-        line: if driving { q.line.clone() } else { String::new() },
-        destination: if driving { q.destination.clone() } else { String::new() },
+        bus: if driving {
+            q.bus.clone()
+        } else {
+            String::new()
+        },
+        line: if driving {
+            q.line.clone()
+        } else {
+            String::new()
+        },
+        destination: if driving {
+            q.destination.clone()
+        } else {
+            String::new()
+        },
         tour: q.tour.clone(),
         x,
         y,
@@ -420,7 +493,11 @@ mod passenger_density_tests {
         assert_eq!(off.passenger_density, Some(0.0));
         // a wrong value: as if it were not there (and said in the log)
         for bad in ["-1", "10", "lots", "NaN"] {
-            assert_eq!(load(&format!("passenger_density = {bad}\n")).passenger_density, None, "{bad}");
+            assert_eq!(
+                load(&format!("passenger_density = {bad}\n")).passenger_density,
+                None,
+                "{bad}"
+            );
         }
         // the old trap: a number for the switch is not a density, and not on
         assert!(!load("passengers = 50\n").passengers);
@@ -434,7 +511,10 @@ mod passenger_density_tests {
         assert!(d.passengers);
         // and keeps the web administration on this machine
         assert_eq!(d.admin_web, omsi_admin::WebMode::Local);
-        assert_eq!(d.admin_trusted_proxies, omsi_admin::WebCfg::default().trusted_proxies);
+        assert_eq!(
+            d.admin_trusted_proxies,
+            omsi_admin::WebCfg::default().trusted_proxies
+        );
         assert_eq!(d.admin_proxy_header, omsi_admin::ProxyHeader::ForwardedFor);
     }
 
@@ -444,23 +524,59 @@ mod passenger_density_tests {
         // (a file from before the web panel: no panel after the update, until it says so)
         let old = load("admin_password = a long password\n");
         assert_eq!(old.admin_web, omsi_admin::WebMode::Off);
-        assert_eq!(load("admin_web = lcoal\n").admin_web, omsi_admin::WebMode::Off);
-        assert_eq!(load("admin_web = local\n").admin_web, omsi_admin::WebMode::Local);
+        assert_eq!(
+            load("admin_web = lcoal\n").admin_web,
+            omsi_admin::WebMode::Off
+        );
+        assert_eq!(
+            load("admin_web = local\n").admin_web,
+            omsi_admin::WebMode::Local
+        );
         let r = load("admin_web = remote\nadmin_web_origins = https://admin.example.org/; javascript:x; http://lan.example\nadmin_trusted_proxies = 10.0.0.1; nonsense; ::1\n");
         assert_eq!(r.admin_web, omsi_admin::WebMode::Remote);
-        assert_eq!(r.admin_web_origins, vec!["https://admin.example.org".to_string(), "http://lan.example".to_string()]);
-        assert_eq!(r.admin_trusted_proxies, vec!["10.0.0.1".parse::<std::net::IpAddr>().unwrap(), "::1".parse().unwrap()]);
-        assert_eq!(load("admin_web = public\n").admin_web, omsi_admin::WebMode::Off);
-        assert_eq!(load("admin_web = off\n").admin_web, omsi_admin::WebMode::Off);
-        assert_eq!(load("admin_proxy_header = X-Real-IP\n").admin_proxy_header, omsi_admin::ProxyHeader::RealIp);
-        assert_eq!(load("admin_proxy_header = cf-connecting-ip\n").admin_proxy_header, omsi_admin::ProxyHeader::CfConnectingIp);
-        assert_eq!(load("admin_proxy_header = forwarded\n").admin_proxy_header, omsi_admin::ProxyHeader::ForwardedFor);
+        assert_eq!(
+            r.admin_web_origins,
+            vec![
+                "https://admin.example.org".to_string(),
+                "http://lan.example".to_string()
+            ]
+        );
+        assert_eq!(
+            r.admin_trusted_proxies,
+            vec![
+                "10.0.0.1".parse::<std::net::IpAddr>().unwrap(),
+                "::1".parse().unwrap()
+            ]
+        );
+        assert_eq!(
+            load("admin_web = public\n").admin_web,
+            omsi_admin::WebMode::Off
+        );
+        assert_eq!(
+            load("admin_web = off\n").admin_web,
+            omsi_admin::WebMode::Off
+        );
+        assert_eq!(
+            load("admin_proxy_header = X-Real-IP\n").admin_proxy_header,
+            omsi_admin::ProxyHeader::RealIp
+        );
+        assert_eq!(
+            load("admin_proxy_header = cf-connecting-ip\n").admin_proxy_header,
+            omsi_admin::ProxyHeader::CfConnectingIp
+        );
+        assert_eq!(
+            load("admin_proxy_header = forwarded\n").admin_proxy_header,
+            omsi_admin::ProxyHeader::ForwardedFor
+        );
         assert!(!load("").gateway_cf_connecting_ip);
         assert!(load("gateway_proxy_header = CF-Connecting-IP\n").gateway_cf_connecting_ip);
         assert!(!load("gateway_proxy_header = x-forwarded-for\n").gateway_cf_connecting_ip);
         // remote with a password too short for the internet: the panel stays on this machine
         let short = load("admin_web = remote\nadmin_password = twelve chars\n");
-        assert_eq!((short.admin_password.as_str(), short.admin_web), ("twelve chars", omsi_admin::WebMode::Local));
+        assert_eq!(
+            (short.admin_password.as_str(), short.admin_web),
+            ("twelve chars", omsi_admin::WebMode::Local)
+        );
         let long = load("admin_web = remote\nadmin_password = sixteen chars ok\nmoderator_password = and this one too\n");
         assert_eq!(long.admin_web, omsi_admin::WebMode::Remote);
         let short_mod = load("admin_web = remote\nadmin_password = sixteen chars ok\nmoderator_password = twelve chars\n");
@@ -483,7 +599,10 @@ mod vehicles_tests {
 
     #[test]
     fn the_list_allows_its_buses_only() {
-        let list = vec!["Vehicles/MAN_SD200/MAN_SD77.bus".to_string(), "Vehicles/MAN_SD202/MAN_D92.bus".to_string()];
+        let list = vec![
+            "Vehicles/MAN_SD200/MAN_SD77.bus".to_string(),
+            "Vehicles/MAN_SD202/MAN_D92.bus".to_string(),
+        ];
         assert!(allows(&list, "Vehicles/MAN_SD200/MAN_SD77.bus"));
         // another case, backslashes, a folder before it
         assert!(allows(&list, "vehicles\\man_sd200\\MAN_SD77.bus"));
@@ -503,7 +622,11 @@ mod cfg_tests {
     use super::{ServerCfg, DEFAULT_CFG};
 
     fn load(text: &str) -> ServerCfg {
-        let dir = std::env::temp_dir().join(format!("omsi-server-cfg-{}-{}", std::process::id(), text.len()));
+        let dir = std::env::temp_dir().join(format!(
+            "omsi-server-cfg-{}-{}",
+            std::process::id(),
+            text.len()
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("server.cfg");
         std::fs::write(&path, text).unwrap();
@@ -528,7 +651,18 @@ mod players_tests {
     use omsi_net::{Aboard, Pose, Walker, FLAG_VEHICLE};
 
     fn bus(id: u32, x: f64, y: f64) -> Pose {
-        Pose { id, name: format!("p{id}"), bus: "Vehicles/MAN_SD200/MAN_SD77.bus".into(), line: "37".into(), x, y, heading: 90.0, speed_kmh: 40.0, flags: FLAG_VEHICLE, ..Default::default() }
+        Pose {
+            id,
+            name: format!("p{id}"),
+            bus: "Vehicles/MAN_SD200/MAN_SD77.bus".into(),
+            line: "37".into(),
+            x,
+            y,
+            heading: 90.0,
+            speed_kmh: 40.0,
+            flags: FLAG_VEHICLE,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -536,34 +670,97 @@ mod players_tests {
         let none = |_| None;
         // driving: the bus
         let d = player_info(&bus(2, 100.0, 200.0), none).unwrap();
-        assert_eq!((d.x, d.y, d.speed_kmh, d.on_foot, d.aboard, d.line.as_str()), (100.0, 200.0, 40.0, false, None, "37"));
+        assert_eq!(
+            (d.x, d.y, d.speed_kmh, d.on_foot, d.aboard, d.line.as_str()),
+            (100.0, 200.0, 40.0, false, None, "37")
+        );
         // on foot: the walker, not the zeroed vehicle fields
-        let mut w = Pose { id: 3, name: "p3".into(), bus: "Vehicles/MAN_SD200/MAN_SD77.bus".into(), ..Default::default() };
-        w.walker = Some(Walker { x: 10.0, y: 20.0, heading: 45.0, speed: 1.5, ..Default::default() });
+        let mut w = Pose {
+            id: 3,
+            name: "p3".into(),
+            bus: "Vehicles/MAN_SD200/MAN_SD77.bus".into(),
+            ..Default::default()
+        };
+        w.walker = Some(Walker {
+            x: 10.0,
+            y: 20.0,
+            heading: 45.0,
+            speed: 1.5,
+            ..Default::default()
+        });
         let f = player_info(&w, none).unwrap();
-        assert_eq!((f.x, f.y, f.heading, f.on_foot, f.bus.as_str()), (10.0, 20.0, 45.0, true, ""));
+        assert_eq!(
+            (f.x, f.y, f.heading, f.on_foot, f.bus.as_str()),
+            (10.0, 20.0, 45.0, true, "")
+        );
         assert!((f.speed_kmh - 5.4).abs() < 1e-4);
         // aboard player 2's bus: placed with it
         let driver = bus(2, 100.0, 200.0);
-        w.walker = Some(Walker { x: 90.0, y: 190.0, aboard: Some(Aboard { owner: 2, ..Default::default() }), ..Default::default() });
+        w.walker = Some(Walker {
+            x: 90.0,
+            y: 190.0,
+            aboard: Some(Aboard {
+                owner: 2,
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
         let a = player_info(&w, |id| (id == 2).then_some(&driver)).unwrap();
-        assert_eq!((a.x, a.y, a.speed_kmh, a.on_foot, a.aboard), (100.0, 200.0, 40.0, true, Some(2)));
+        assert_eq!(
+            (a.x, a.y, a.speed_kmh, a.on_foot, a.aboard),
+            (100.0, 200.0, 40.0, true, Some(2))
+        );
         // aboard a bus that is gone: its own point
         let g = player_info(&w, none).unwrap();
         assert_eq!((g.x, g.y, g.aboard), (90.0, 190.0, None));
         // got out of its own bus: the state keeps FLAG_VEHICLE and the parked bus's place, and
         // has the walker - the walker wins
         let mut out = bus(5, 100.0, 200.0);
-        out.walker = Some(Walker { x: 104.0, y: 197.0, heading: 180.0, speed: 1.0, ..Default::default() });
+        out.walker = Some(Walker {
+            x: 104.0,
+            y: 197.0,
+            heading: 180.0,
+            speed: 1.0,
+            ..Default::default()
+        });
         assert!(out.has_vehicle());
         let o = player_info(&out, none).unwrap();
-        assert_eq!((o.x, o.y, o.heading, o.on_foot, o.aboard, o.bus.as_str(), o.line.as_str()), (104.0, 197.0, 180.0, true, None, "", ""));
+        assert_eq!(
+            (
+                o.x,
+                o.y,
+                o.heading,
+                o.on_foot,
+                o.aboard,
+                o.bus.as_str(),
+                o.line.as_str()
+            ),
+            (104.0, 197.0, 180.0, true, None, "", "")
+        );
         assert!((o.speed_kmh - 3.6).abs() < 1e-4);
         // and sitting in another player's bus after getting out of its own: with that bus
-        out.walker = Some(Walker { x: 1.0, y: 1.0, aboard: Some(Aboard { owner: 2, ..Default::default() }), ..Default::default() });
+        out.walker = Some(Walker {
+            x: 1.0,
+            y: 1.0,
+            aboard: Some(Aboard {
+                owner: 2,
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
         let oa = player_info(&out, |id| (id == 2).then_some(&driver)).unwrap();
-        assert_eq!((oa.x, oa.y, oa.on_foot, oa.aboard), (100.0, 200.0, true, Some(2)));
+        assert_eq!(
+            (oa.x, oa.y, oa.on_foot, oa.aboard),
+            (100.0, 200.0, true, Some(2))
+        );
         // neither a bus nor a walker: not listed
-        assert!(player_info(&Pose { id: 4, ..Default::default() }, none).is_none());
+        assert!(player_info(
+            &Pose {
+                id: 4,
+                ..Default::default()
+            },
+            none
+        )
+        .is_none());
     }
 }

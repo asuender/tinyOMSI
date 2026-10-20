@@ -47,7 +47,11 @@ impl Camera {
     /// View-projection relative to a render origin (the camera itself when `origin` is its
     /// position), so that GPU maths stays in small numbers.
     pub fn view_proj(&self, aspect: f32, origin: DVec3) -> Mat4 {
-        let view = Mat4::look_to_rh((self.position - origin).as_vec3(), self.forward(), self.up());
+        let view = Mat4::look_to_rh(
+            (self.position - origin).as_vec3(),
+            self.forward(),
+            self.up(),
+        );
         // Reversed Z (near and far swapped): the depth buffer then spends its float
         // precision where the scene is far away instead of where it is close, which is what
         // stops distant roads, kerbs and painted ground from flickering against each other

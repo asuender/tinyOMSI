@@ -13,10 +13,13 @@ mod service;
 pub(crate) mod showroom;
 pub(crate) use service::run as run_service;
 
-#[cfg_attr(not(any(target_os = "macos", target_os = "ios")), allow(unused_imports))]
-pub(crate) use omsi_launcher_model::mapview;
 #[cfg_attr(not(target_os = "ios"), allow(unused_imports))]
 pub(crate) use omsi_launcher_model::crash_of;
+#[cfg_attr(
+    not(any(target_os = "macos", target_os = "ios")),
+    allow(unused_imports)
+)]
+pub(crate) use omsi_launcher_model::mapview;
 #[allow(unused_imports)]
 pub(crate) use omsi_launcher_model::state;
 
@@ -36,8 +39,21 @@ pub(crate) fn install() {
 /// Plain graphics still omit the enhanced resources on every backend.
 pub(crate) fn showroom_options(settings: &crate::settings::Settings) -> omsi_render::RenderOptions {
     let enhanced = showroom_enhanced(settings);
-    let render_scale = if settings.render_scale > 0.0 { settings.render_scale } else { 1.0 };
-    omsi_render::RenderOptions { msaa: settings.msaa.clamp(1, 4), ssao: false, shadow_size: settings.shadow_size.min(1024), render_scale, preview_only: !enhanced, no_enhanced: !enhanced, ray_tracing: false, ..settings.render_options() }
+    let render_scale = if settings.render_scale > 0.0 {
+        settings.render_scale
+    } else {
+        1.0
+    };
+    omsi_render::RenderOptions {
+        msaa: settings.msaa.clamp(1, 4),
+        ssao: false,
+        shadow_size: settings.shadow_size.min(1024),
+        render_scale,
+        preview_only: !enhanced,
+        no_enhanced: !enhanced,
+        ray_tracing: false,
+        ..settings.render_options()
+    }
 }
 
 pub(crate) fn showroom_enhanced(settings: &crate::settings::Settings) -> bool {
@@ -61,13 +77,42 @@ impl Host for AppHost {
         crate::ios::previous_run_crash()
     }
     fn city_map(&self, root: &Path, tiles: &[(i32, i32, PathBuf)], chrono: &[PathBuf]) -> CityMap {
-        let crate::scene::NavigationMap { lanes, road_surfaces, places, signs: _, names: _ } = crate::scene::navigation_map_of(root, tiles, chrono);
+        let crate::scene::NavigationMap {
+            lanes,
+            road_surfaces,
+            places,
+            signs: _,
+            names: _,
+        } = crate::scene::navigation_map_of(root, tiles, chrono);
         let (roads, net) = crate::navigator::city_roads(lanes, &road_surfaces);
-        CityMap { roads: roads.into_iter().map(|r| MapRoad { points: r.points, width: r.width, main: r.main }).collect(), net, places: places.into_iter().collect() }
+        CityMap {
+            roads: roads
+                .into_iter()
+                .map(|r| MapRoad {
+                    points: r.points,
+                    width: r.width,
+                    main: r.main,
+                })
+                .collect(),
+            net,
+            places: places.into_iter().collect(),
+        }
     }
-    fn map_layers(&self, root: &Path, map_dir: &Path, tiles: &[(i32, i32, PathBuf)], chrono: &[PathBuf]) -> Option<omsi_map::layers::Layers> {
+    fn map_layers(
+        &self,
+        root: &Path,
+        map_dir: &Path,
+        tiles: &[(i32, i32, PathBuf)],
+        chrono: &[PathBuf],
+    ) -> Option<omsi_map::layers::Layers> {
         let global = omsi_map::GlobalCfg::load(&map_dir.join("global.cfg")).ok()?;
-        Some(crate::scene::mapgen::cached(root, map_dir, &global.ground_textures, tiles, chrono))
+        Some(crate::scene::mapgen::cached(
+            root,
+            map_dir,
+            &global.ground_textures,
+            tiles,
+            chrono,
+        ))
     }
     fn city_map_colors(&self) -> [[f32; 4]; 4] {
         use crate::navigator::{ROAD, ROAD_CASING, ROAD_MAIN, ROUTE};
@@ -101,24 +146,38 @@ mod tests {
     #[test]
     fn the_preview_follows_the_quality_preset() {
         let options = |preset: &str| {
-            let (_, p) = omsi_launcher_lib::graphics_presets_for("vanilla_plus").into_iter().find(|(name, _)| *name == preset).unwrap();
+            let (_, p) = omsi_launcher_lib::graphics_presets_for("vanilla_plus")
+                .into_iter()
+                .find(|(name, _)| *name == preset)
+                .unwrap();
             let mut s = omsi_launcher_lib::settings_from_text(None);
             for (k, v) in p.as_object().unwrap() {
                 s[k] = v.clone();
             }
-            super::showroom_options(&crate::settings::Settings::from_text(&omsi_launcher_lib::settings_to_text(&s, None)))
+            super::showroom_options(&crate::settings::Settings::from_text(
+                &omsi_launcher_lib::settings_to_text(&s, None),
+            ))
         };
         let low = options("Low");
         assert_eq!((low.msaa, low.render_scale, low.anisotropy), (1, 0.75, 2));
         let medium = options("Medium");
         assert_eq!((medium.msaa, medium.render_scale), (2, 1.0));
         let ultra = options("Ultra");
-        assert_eq!((ultra.msaa, ultra.render_scale, ultra.shadow_size, ultra.ssao), (4, 1.0, 1024, false));
+        assert_eq!(
+            (
+                ultra.msaa,
+                ultra.render_scale,
+                ultra.shadow_size,
+                ultra.ssao
+            ),
+            (4, 1.0, 1024, false)
+        );
     }
 
     #[test]
     fn only_drawing_settings_make_the_preview_anew() {
-        let quality = |text: &str| super::showroom::Quality::of(&crate::settings::Settings::from_text(text));
+        let quality =
+            |text: &str| super::showroom::Quality::of(&crate::settings::Settings::from_text(text));
         let base = quality("graphics=vanilla_plus\nmsaa=2\nvolume=0.5\ndetail_textures=1\n");
         let louder = quality("graphics=vanilla_plus\nmsaa=2\nvolume=NaN\ndetail_textures=1\n");
         assert!(base.options == louder.options && base.light == louder.light);
@@ -147,10 +206,40 @@ mod tests {
     #[test]
     fn a_phone_launcher_starts_from_the_games_phone_defaults() {
         let launcher = omsi_launcher_lib::settings_from_text_on(None, true);
-        let game = crate::settings::Settings::from_text(&omsi_launcher_lib::settings_to_text(&launcher, None));
+        let game = crate::settings::Settings::from_text(&omsi_launcher_lib::settings_to_text(
+            &launcher, None,
+        ));
         let d = crate::settings::Settings::phone();
-        assert_eq!((game.msaa, game.anisotropy, game.ssao, game.shadow_size, game.mirror_size, game.max_fps), (d.msaa, d.anisotropy, d.ssao, d.shadow_size, d.mirror_size, d.max_fps));
-        assert_eq!((game.max_obj_dist, game.pax_density, &game.navigator_corner), (d.max_obj_dist, d.pax_density, &d.navigator_corner));
-        assert_eq!((game.shadows, game.detail_textures, game.reflections, &game.graphics), (d.shadows, d.detail_textures, d.reflections, &d.graphics));
+        assert_eq!(
+            (
+                game.msaa,
+                game.anisotropy,
+                game.ssao,
+                game.shadow_size,
+                game.mirror_size,
+                game.max_fps
+            ),
+            (
+                d.msaa,
+                d.anisotropy,
+                d.ssao,
+                d.shadow_size,
+                d.mirror_size,
+                d.max_fps
+            )
+        );
+        assert_eq!(
+            (game.max_obj_dist, game.pax_density, &game.navigator_corner),
+            (d.max_obj_dist, d.pax_density, &d.navigator_corner)
+        );
+        assert_eq!(
+            (
+                game.shadows,
+                game.detail_textures,
+                game.reflections,
+                &game.graphics
+            ),
+            (d.shadows, d.detail_textures, d.reflections, &d.graphics)
+        );
     }
 }

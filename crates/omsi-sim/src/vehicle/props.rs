@@ -52,7 +52,11 @@ pub fn compute_mesh_props(ty: &VehicleType, var: &dyn Fn(&str) -> Option<f32>) -
                 // when the variable is set
                 if let Some((_, _, v)) = m.change.as_ref().filter(|_| !m.item) {
                     // (its items follow it: item n shows at n, 1 <= n <= their number)
-                    let items = def.materials[mi + 1..].iter().take_while(|d| d.item).count().max(1) as f32;
+                    let items = def.materials[mi + 1..]
+                        .iter()
+                        .take_while(|d| d.item)
+                        .count()
+                        .max(1) as f32;
                     if let Some(slot) = override_slot(&vm.materials, m) {
                         // (the item as Omsi.exe picks it: the variable rounded is 1; an
                         // undeclared one is 0 - see scene.rs `change_picks_item`)
@@ -62,7 +66,11 @@ pub fn compute_mesh_props(ty: &VehicleType, var: &dyn Fn(&str) -> Option<f32>) -
                             .ok()
                             .or_else(|| var(v))
                             .unwrap_or(0.0);
-                        let n = if x.is_finite() { x.round_ties_even() } else { 0.0 };
+                        let n = if x.is_finite() {
+                            x.round_ties_even()
+                        } else {
+                            0.0
+                        };
                         props.slot_night[slot] = if n >= 1.0 && n <= items { 1.0 } else { 0.0 };
                     }
                 }
@@ -82,7 +90,8 @@ pub fn compute_mesh_props(ty: &VehicleType, var: &dyn Fn(&str) -> Option<f32>) -
                             .or_else(|| var(v))
                             // (a variable the bus does not have: always on, see below)
                             .unwrap_or(1.0);
-                        props.slot_light[slot] = props.slot_light[slot].max(if x >= 0.5 { 1.0 } else { 0.0 });
+                        props.slot_light[slot] =
+                            props.slot_light[slot].max(if x >= 0.5 { 1.0 } else { 0.0 });
                     }
                 }
             }
@@ -115,7 +124,9 @@ pub fn compute_mesh_props(ty: &VehicleType, var: &dyn Fn(&str) -> Option<f32>) -
             props.interior = interior * 0.5;
             for m in &def.materials {
                 if let Some(v) = &m.alphascale {
-                    if let (Some(x), Some(slot)) = (Some(var(v).unwrap_or(0.0)), override_slot(&vm.materials, m)) {
+                    if let (Some(x), Some(slot)) =
+                        (Some(var(v).unwrap_or(0.0)), override_slot(&vm.materials, m))
+                    {
                         let boost = if v.trim().to_ascii_lowercase().starts_with("rain_window") {
                             1.8
                         } else {
@@ -205,7 +216,11 @@ pub(super) struct PropsPlan {
 }
 
 impl PropsPlan {
-    pub(super) fn refresh(&mut self, ty: &VehicleType, var_index: &HashMap<String, omsi_script::VarId>) {
+    pub(super) fn refresh(
+        &mut self,
+        ty: &VehicleType,
+        var_index: &HashMap<String, omsi_script::VarId>,
+    ) {
         if self.built && self.vars_seen == var_index.len() {
             return;
         }
@@ -234,12 +249,11 @@ impl PropsPlan {
                         plan.light.push((slot, source(v)));
                     }
                     if let Some(name) = m.alphascale.as_deref() {
-                        let boost =
-                            if name.trim().to_ascii_lowercase().starts_with("rain_window") {
-                                1.8
-                            } else {
-                                1.0
-                            };
+                        let boost = if name.trim().to_ascii_lowercase().starts_with("rain_window") {
+                            1.8
+                        } else {
+                            1.0
+                        };
                         plan.alpha.push((slot, var(name), boost));
                     }
                     if let Some(i) = m.texcoord_trans_x.as_deref().and_then(var) {
@@ -268,7 +282,9 @@ impl PropsPlan {
         self.dirt.clear();
         for (i, vm) in ty.meshes.iter().enumerate() {
             for m in &ty.model.meshes[vm.def_index].materials {
-                let Some(name) = m.alphascale.as_deref().map(str::trim) else { continue };
+                let Some(name) = m.alphascale.as_deref().map(str::trim) else {
+                    continue;
+                };
                 let wiped = if name.eq_ignore_ascii_case("dirt_norm") {
                     false
                 } else if name.eq_ignore_ascii_case("dirt_wiped") {
@@ -317,7 +333,11 @@ impl PropsPlan {
             props.visible = true;
             for &(slot, src) in &plan.night {
                 let x = src.value(vars, 0.0);
-                props.slot_night[slot] = if x.is_finite() && x.round_ties_even() == 1.0 { 1.0 } else { 0.0 };
+                props.slot_night[slot] = if x.is_finite() && x.round_ties_even() == 1.0 {
+                    1.0
+                } else {
+                    0.0
+                };
             }
             for &(slot, _) in &plan.light {
                 props.slot_light[slot] = 0.0;
@@ -326,10 +346,18 @@ impl PropsPlan {
             // texture stage of one whose variable reads under 0.5, 0x7fe51f - never half lit;
             // one whose variable the bus does not have - index -1 - is always on, 0x7fe4e7)
             for &(slot, src) in &plan.light {
-                props.slot_light[slot] = props.slot_light[slot].max(if src.value(vars, 1.0) >= 0.5 { 1.0 } else { 0.0 });
+                props.slot_light[slot] =
+                    props.slot_light[slot].max(if src.value(vars, 1.0) >= 0.5 {
+                        1.0
+                    } else {
+                        0.0
+                    });
             }
             if !plan.visible.is_empty() {
-                props.visible = plan.visible.iter().any(|g| g.iter().all(|(i, c)| c.holds(i.and_then(|i| vars.get(i).copied()).unwrap_or(0.0))));
+                props.visible = plan.visible.iter().any(|g| {
+                    g.iter()
+                        .all(|(i, c)| c.holds(i.and_then(|i| vars.get(i).copied()).unwrap_or(0.0)))
+                });
             }
             let mut interior = 0.0f32;
             for &(src, range) in &plan.interior {

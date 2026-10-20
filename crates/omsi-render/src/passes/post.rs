@@ -5,7 +5,14 @@ use super::*;
 
 impl Renderer {
     // --- the post passes: glow, metering and adaptation, tone curve, FXAA
-    pub(crate) fn encode_post(&mut self, encoder: &mut wgpu::CommandEncoder, scene: &Scene, f: &FrameCtx, puddles_on: bool, timers: &mut PassTimers) {
+    pub(crate) fn encode_post(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        scene: &Scene,
+        f: &FrameCtx,
+        puddles_on: bool,
+        timers: &mut PassTimers,
+    ) {
         let (width, height, lighting, dt) = (f.width, f.height, f.lighting, f.dt);
         let (with_overlays, lead_view, rt_frame) = (f.with_overlays, f.lead_view, f.rt_frame);
         let scene_view = f.scene_view();
@@ -22,8 +29,15 @@ impl Renderer {
         // adaptation to it is the light model's already: lifted by the meter on top, a
         // lamp-lit street came out most of a stop brighter than any eye sees it)
         let mut m = meter_tuning();
-        let after_sunset = self.sky.sky_state.as_ref().map_or(0.0, |st| ((0.052 - st.input.sun_dir.normalize_or_zero().z) / 0.157).clamp(0.0, 1.0));
-        m[3] *= 1.0 - atmosphere::smoothstep(3.0, 7.0, self.tone.exposure.unwrap_or(0.0) / std::f32::consts::LN_2);
+        let after_sunset = self.sky.sky_state.as_ref().map_or(0.0, |st| {
+            ((0.052 - st.input.sun_dir.normalize_or_zero().z) / 0.157).clamp(0.0, 1.0)
+        });
+        m[3] *= 1.0
+            - atmosphere::smoothstep(
+                3.0,
+                7.0,
+                self.tone.exposure.unwrap_or(0.0) / std::f32::consts::LN_2,
+            );
         let pu = PostUniform {
             // the metering may take a little off a bright picture and add a little to a
             // dark one: a night stays a night, snow stays white
@@ -40,27 +54,38 @@ impl Renderer {
                 },
             ],
             // darker: the eye takes a few seconds; brighter: under one
-            b: [secs(2.5), secs(0.6), m[1], m[4] + lighting.night_brightness * after_sunset],
+            b: [
+                secs(2.5),
+                secs(0.6),
+                m[1],
+                m[4] + lighting.night_brightness * after_sunset,
+            ],
             // (w: an LED panel's dots count for this much in the glow's source. The mix
             // the glow lands with is a few per cent - a lamp a hundred times brighter
             // than white spreads, a white wall does not - so the dots are multiplied up
             // there instead of being drawn burning: their halo shows, they don't bleach.
             // `Led glow`, 0 = not at all.)
-            c: [m[0], m[5], self.tone.exposure.map(f32::exp).unwrap_or(1.0), lighting.led_glow * 10.0],
+            c: [
+                m[0],
+                m[5],
+                self.tone.exposure.map(f32::exp).unwrap_or(1.0),
+                lighting.led_glow * 10.0,
+            ],
             // Enhanced+: its grade, the vignette and the sharpening; both: the tone
             // curve's contrast (post.wgsl `natural_tone`)
             d: {
                 let contrast = tone_contrast(self.tone.exposure.unwrap_or(0.0));
-                if rt_frame && !f.env.no_rt_grade { [1.0, 0.08, 0.0, contrast] } else { [0.0, 0.0, 0.0, contrast] }
+                if rt_frame && !f.env.no_rt_grade {
+                    [1.0, 0.08, 0.0, contrast]
+                } else {
+                    [0.0, 0.0, 0.0, contrast]
+                }
             },
         };
         self.queue
             .write_buffer(&self.tone.post_buf, 0, bytemuck::bytes_of(&pu));
         // (a mirror's small picture goes without FXAA)
-        let fxaa = with_overlays
-            && self.options.fxaa
-            && self.options.msaa <= 1
-            && !f.env.no_fxaa;
+        let fxaa = with_overlays && self.options.fxaa && self.options.msaa <= 1 && !f.env.no_fxaa;
         if let Some(h) = self.targets.hdr_targets.get(&(width, height)) {
             let puddles = h.puddles.as_ref().filter(|_| puddles_on);
             let levels = h.down.len();
@@ -74,7 +99,11 @@ impl Renderer {
                     } else {
                         &self.tone.post.down
                     },
-                    if i == 0 { puddles.map(|p| &p.down_bg).unwrap_or(&h.down_bg[i]) } else { &h.down_bg[i] },
+                    if i == 0 {
+                        puddles.map(|p| &p.down_bg).unwrap_or(&h.down_bg[i])
+                    } else {
+                        &h.down_bg[i]
+                    },
                 );
             }
             // the exposure: meter the smallest level, move the adapted value towards it
@@ -100,9 +129,19 @@ impl Renderer {
             }
             // (a device lost since this frame began took the meter's buffer as well)
             let lost = self.device_lost().is_some();
-            if let Some(log) = self.tone.exposure_log.as_mut().filter(|_| with_overlays && !lost) {
+            if let Some(log) = self
+                .tone
+                .exposure_log
+                .as_mut()
+                .filter(|_| with_overlays && !lost)
+            {
                 let pre = self.tone.exposure.unwrap_or(0.0) / std::f32::consts::LN_2;
-                log.sample(encoder, &self.tone.adapt_views[self.tone.adapt_front], pre, m);
+                log.sample(
+                    encoder,
+                    &self.tone.adapt_views[self.tone.adapt_front],
+                    pre,
+                    m,
+                );
             }
             // (timed on its last pass: the glow chain with the metering, see GpuTimers)
             for i in (0..levels).rev() {
@@ -114,7 +153,8 @@ impl Renderer {
                 post_pass(encoder, &h.up[i], timer, &self.tone.post.up, &h.up_bg[i]);
             }
             let final_view = if fxaa { &h.ldr } else { scene_view };
-            let tonemap_bg = &puddles.map(|p| &p.tonemap_bg).unwrap_or(&h.tonemap_bg)[self.tone.adapt_front];
+            let tonemap_bg =
+                &puddles.map(|p| &p.tonemap_bg).unwrap_or(&h.tonemap_bg)[self.tone.adapt_front];
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("tone map"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -174,7 +214,13 @@ impl Renderer {
 
     // --- the smaller picture scaled up to the window, the HUD on top at full size;
     // the smaller the picture, the more it is sharpened
-    pub(crate) fn encode_upscale(&self, encoder: &mut wgpu::CommandEncoder, scene: &Scene, f: &FrameCtx, timers: &mut PassTimers) {
+    pub(crate) fn encode_upscale(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        scene: &Scene,
+        f: &FrameCtx,
+        timers: &mut PassTimers,
+    ) {
         let (width, height, full_w) = (f.width, f.height, f.full_w);
         let overlays = &f.overlays;
         if let Some((_, bg)) = &f.scene_target {
@@ -182,7 +228,12 @@ impl Renderer {
             self.queue.write_buffer(
                 &self.scale.upscale_buf,
                 0,
-                bytemuck::cast_slice(&[width as f32, height as f32, sharpen.clamp(0.0, 0.8), if f.vanilla_fxaa { 1.0 } else { 0.0 }]),
+                bytemuck::cast_slice(&[
+                    width as f32,
+                    height as f32,
+                    sharpen.clamp(0.0, 0.8),
+                    if f.vanilla_fxaa { 1.0 } else { 0.0 },
+                ]),
             );
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("upscale"),

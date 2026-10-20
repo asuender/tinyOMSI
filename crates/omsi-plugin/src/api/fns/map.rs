@@ -9,7 +9,12 @@ const NEW: &str = crate::api::VERSION;
 const MAX_OBJECTS: usize = 2000;
 
 fn place(p: [f64; 4]) -> Vec<(&'static str, Value)> {
-    vec![("x", p[0].into()), ("y", p[1].into()), ("z", p[2].into()), ("heading", p[3].into())]
+    vec![
+        ("x", p[0].into()),
+        ("y", p[1].into()),
+        ("z", p[2].into()),
+        ("heading", p[3].into()),
+    ]
 }
 
 pub static FNS: &[ApiFn] = &[

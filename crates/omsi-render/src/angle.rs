@@ -85,9 +85,14 @@ where
 fn no_parallel_compiles(device: &wgpu::Device) {
     use glow::HasContext;
     // SAFETY: the context is only locked (made current) to set a piece of its state
-    let Some(hal) = (unsafe { device.as_hal::<wgpu::hal::api::Gles>() }) else { return };
+    let Some(hal) = (unsafe { device.as_hal::<wgpu::hal::api::Gles>() }) else {
+        return;
+    };
     let gl = hal.context().lock();
-    if gl.supported_extensions().contains("GL_KHR_parallel_shader_compile") {
+    if gl
+        .supported_extensions()
+        .contains("GL_KHR_parallel_shader_compile")
+    {
         // SAFETY: the extension is there, so the KHR entry point is loaded
         unsafe { gl.max_shader_compiler_threads(0) };
         log::info!("ANGLE: no parallel shader compiler threads (GL_KHR_parallel_shader_compile)");

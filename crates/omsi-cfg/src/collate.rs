@@ -76,17 +76,30 @@ pub fn windows_cmp(a: &str, b: &str) -> Ordering {
         // accents: the plain letter first
         .then_with(|| {
             let accents = |s: &str| -> Vec<bool> {
-                s.chars().filter(|c| c.is_alphabetic()).map(|c| c.to_lowercase().collect::<String>() != base_letters(c)).collect()
+                s.chars()
+                    .filter(|c| c.is_alphabetic())
+                    .map(|c| c.to_lowercase().collect::<String>() != base_letters(c))
+                    .collect()
             };
             accents(a).cmp(&accents(b))
         })
         // case: the small letter first, as Windows has it
         .then_with(|| {
-            let upper = |s: &str| -> Vec<bool> { s.chars().filter(|c| c.is_alphabetic()).map(char::is_uppercase).collect() };
+            let upper = |s: &str| -> Vec<bool> {
+                s.chars()
+                    .filter(|c| c.is_alphabetic())
+                    .map(char::is_uppercase)
+                    .collect()
+            };
             upper(a).cmp(&upper(b))
         })
         // the hyphens and apostrophes left out above, then the text itself
-        .then_with(|| a.chars().filter(|c| matches!(c, '-' | '\'')).count().cmp(&b.chars().filter(|c| matches!(c, '-' | '\'')).count()))
+        .then_with(|| {
+            a.chars()
+                .filter(|c| matches!(c, '-' | '\''))
+                .count()
+                .cmp(&b.chars().filter(|c| matches!(c, '-' | '\'')).count())
+        })
         .then_with(|| a.cmp(b))
 }
 
@@ -103,15 +116,55 @@ mod tests {
     /// The order OMSI 2's start point list shows synthetic names in (a Grundorf copy).
     #[test]
     fn names_sort_as_omsi_lists_them() {
-        let got = sorted(&["beta", "Äpfel", "Apfelz", "Alpha", "Gamma", "Az", "a-c", "ab", "Nordspitze Bauernhof"]);
-        assert_eq!(got, ["ab", "a-c", "Alpha", "Äpfel", "Apfelz", "Az", "beta", "Gamma", "Nordspitze Bauernhof"]);
+        let got = sorted(&[
+            "beta",
+            "Äpfel",
+            "Apfelz",
+            "Alpha",
+            "Gamma",
+            "Az",
+            "a-c",
+            "ab",
+            "Nordspitze Bauernhof",
+        ]);
+        assert_eq!(
+            got,
+            [
+                "ab",
+                "a-c",
+                "Alpha",
+                "Äpfel",
+                "Apfelz",
+                "Az",
+                "beta",
+                "Gamma",
+                "Nordspitze Bauernhof"
+            ]
+        );
     }
 
     /// Punctuation before digits before letters, digit by digit: Gerolstein's depot places.
     #[test]
     fn punctuation_digits_letters() {
-        let got = sorted(&["(519) Halle", "(518, 519, 563) Hof", "(518) Bahnhof", "5 Markt", "Markt", " Kirche"]);
-        assert_eq!(got, [" Kirche", "(518) Bahnhof", "(518, 519, 563) Hof", "(519) Halle", "5 Markt", "Markt"]);
+        let got = sorted(&[
+            "(519) Halle",
+            "(518, 519, 563) Hof",
+            "(518) Bahnhof",
+            "5 Markt",
+            "Markt",
+            " Kirche",
+        ]);
+        assert_eq!(
+            got,
+            [
+                " Kirche",
+                "(518) Bahnhof",
+                "(518, 519, 563) Hof",
+                "(519) Halle",
+                "5 Markt",
+                "Markt"
+            ]
+        );
     }
 
     #[test]

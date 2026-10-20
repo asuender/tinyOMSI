@@ -61,7 +61,12 @@ pub struct GroundLook {
 impl MapData {
     pub fn new(layers: std::sync::Arc<Layers>) -> MapData {
         let mut cells: HashMap<(i32, i32), Cell> = HashMap::new();
-        let new_cell = || Cell { land: vec![Vec::new(); layers::LAND_CLASSES], paved: vec![Vec::new(); layers::PAVE_CLASSES], paint: vec![Vec::new(); layers::PAINT_CLASSES], ..Default::default() };
+        let new_cell = || Cell {
+            land: vec![Vec::new(); layers::LAND_CLASSES],
+            paved: vec![Vec::new(); layers::PAVE_CLASSES],
+            paint: vec![Vec::new(); layers::PAINT_CLASSES],
+            ..Default::default()
+        };
         for (class, tris) in layers.land.iter().enumerate() {
             for t in tris.chunks_exact(3) {
                 let c = cell_of((t[0] + t[1] + t[2]) / 3.0);
@@ -81,21 +86,42 @@ impl MapData {
             }
         }
         for (i, b) in layers.buildings.iter().enumerate() {
-            let c = cell_of(b.outline.iter().fold(Vec2::ZERO, |a, p| a + *p) / b.outline.len().max(1) as f32);
-            cells.entry(c).or_insert_with(new_cell).buildings.push(i as u32);
+            let c = cell_of(
+                b.outline.iter().fold(Vec2::ZERO, |a, p| a + *p) / b.outline.len().max(1) as f32,
+            );
+            cells
+                .entry(c)
+                .or_insert_with(new_cell)
+                .buildings
+                .push(i as u32);
         }
         for (i, t) in layers.trees.iter().enumerate() {
-            cells.entry(cell_of(Vec2::new(t[0], t[1]))).or_insert_with(new_cell).trees.push(i as u32);
+            cells
+                .entry(cell_of(Vec2::new(t[0], t[1])))
+                .or_insert_with(new_cell)
+                .trees
+                .push(i as u32);
         }
         for (i, inst) in layers.instances.iter().enumerate() {
-            cells.entry(cell_of(inst.at)).or_insert_with(new_cell).instances.push(i as u32);
+            cells
+                .entry(cell_of(inst.at))
+                .or_insert_with(new_cell)
+                .instances
+                .push(i as u32);
         }
         let model_centre = layers
             .models
             .iter()
             .map(|m| {
-                let (lo, hi) = m.iter().flatten().fold((Vec2::splat(f32::MAX), Vec2::splat(f32::MIN)), |(l, h), p| (l.min(p.truncate()), h.max(p.truncate())));
-                if lo.x <= hi.x { (lo + hi) * 0.5 } else { Vec2::ZERO }
+                let (lo, hi) = m.iter().flatten().fold(
+                    (Vec2::splat(f32::MAX), Vec2::splat(f32::MIN)),
+                    |(l, h), p| (l.min(p.truncate()), h.max(p.truncate())),
+                );
+                if lo.x <= hi.x {
+                    (lo + hi) * 0.5
+                } else {
+                    Vec2::ZERO
+                }
             })
             .collect();
         let lines = layers
@@ -103,8 +129,14 @@ impl MapData {
             .iter()
             .enumerate()
             .map(|(i, l)| {
-                let lo = l.points.iter().fold(Vec2::splat(f32::MAX), |a, p| a.min(*p));
-                let hi = l.points.iter().fold(Vec2::splat(f32::MIN), |a, p| a.max(*p));
+                let lo = l
+                    .points
+                    .iter()
+                    .fold(Vec2::splat(f32::MAX), |a, p| a.min(*p));
+                let hi = l
+                    .points
+                    .iter()
+                    .fold(Vec2::splat(f32::MIN), |a, p| a.max(*p));
                 (lo, hi, i)
             })
             .collect();
@@ -117,14 +149,21 @@ impl MapData {
                 if a.abs() < 1e-3 {
                     continue;
                 }
-                let (x0, y0) = ((lo.x / PAVED_CELL).floor() as i32, (lo.y / PAVED_CELL).floor() as i32);
-                let (x1, y1) = ((hi.x / PAVED_CELL).floor() as i32, (hi.y / PAVED_CELL).floor() as i32);
+                let (x0, y0) = (
+                    (lo.x / PAVED_CELL).floor() as i32,
+                    (lo.y / PAVED_CELL).floor() as i32,
+                );
+                let (x1, y1) = (
+                    (hi.x / PAVED_CELL).floor() as i32,
+                    (hi.y / PAVED_CELL).floor() as i32,
+                );
                 if (x1 as i64 - x0 as i64 + 1) * (y1 as i64 - y0 as i64 + 1) > 40_000 {
                     continue;
                 }
                 for y in y0..=y1 {
                     for x in x0..=x1 {
-                        let q = Vec2::new((x as f32 + 0.5) * PAVED_CELL, (y as f32 + 0.5) * PAVED_CELL);
+                        let q =
+                            Vec2::new((x as f32 + 0.5) * PAVED_CELL, (y as f32 + 0.5) * PAVED_CELL);
                         let sgn = a.signum();
                         let e = |u: Vec2, v: Vec2| (v - u).perp_dot(q - u) * sgn >= -PAVED_CELL;
                         if e(t[0], t[1]) && e(t[1], t[2]) && e(t[2], t[0]) {
@@ -134,7 +173,13 @@ impl MapData {
                 }
             }
         }
-        MapData { layers, cells, lines, paved_cells, model_centre }
+        MapData {
+            layers,
+            cells,
+            lines,
+            paved_cells,
+            model_centre,
+        }
     }
 
     /// The map's paving lies under most of a road along `points` (its middle sampled every
@@ -151,7 +196,10 @@ impl MapData {
             for i in 0..k {
                 let q = a.lerp(b, (i as f64 + 0.5) / k as f64).as_vec2();
                 n += 1;
-                if self.paved_cells.contains(&((q.x / PAVED_CELL).floor() as i32, (q.y / PAVED_CELL).floor() as i32)) {
+                if self.paved_cells.contains(&(
+                    (q.x / PAVED_CELL).floor() as i32,
+                    (q.y / PAVED_CELL).floor() as i32,
+                )) {
                     hit += 1;
                 }
             }
@@ -175,14 +223,30 @@ impl MapData {
     /// Everything of the ground within `radius` of `centre` (world), relative to `anchor`: the
     /// land, the paved surfaces and the tracks.
     #[allow(dead_code)]
-    pub fn build_ground(&self, p: &mut Painter, anchor: DVec2, centre: DVec2, radius: f64, pal: &Palette, look: GroundLook) {
+    pub fn build_ground(
+        &self,
+        p: &mut Painter,
+        anchor: DVec2,
+        centre: DVec2,
+        radius: f64,
+        pal: &Palette,
+        look: GroundLook,
+    ) {
         self.build_land(p, anchor, centre, radius, pal, look);
         self.build_paved(p, anchor, centre, radius, pal, look);
         self.build_lines(p, anchor, centre, radius, pal, look);
     }
 
     /// The tiles' ground, water, woods and trees.
-    pub fn build_land(&self, p: &mut Painter, anchor: DVec2, centre: DVec2, radius: f64, pal: &Palette, look: GroundLook) {
+    pub fn build_land(
+        &self,
+        p: &mut Painter,
+        anchor: DVec2,
+        centre: DVec2,
+        radius: f64,
+        pal: &Palette,
+        look: GroundLook,
+    ) {
         let k = self.shift(anchor);
         let c = (centre - self.layers.origin).as_vec2();
         let v = |q: Vec2| (q + k).extend(0.0);
@@ -216,12 +280,25 @@ impl MapData {
     /// The splines' and the models' ground as they lay it, pressed flat: grass strips, yards and
     /// car parks, then the streets - carriageways and pavements one dark surface, their middle
     /// (`layers::PAVE_INNER`) bright over it, so that a dark rim runs along their edge.
-    pub fn build_paved(&self, p: &mut Painter, anchor: DVec2, centre: DVec2, radius: f64, pal: &Palette, look: GroundLook) {
+    pub fn build_paved(
+        &self,
+        p: &mut Painter,
+        anchor: DVec2,
+        centre: DVec2,
+        radius: f64,
+        pal: &Palette,
+        look: GroundLook,
+    ) {
         let k = self.shift(anchor);
         let c = (centre - self.layers.origin).as_vec2();
         let v = |q: Vec2| (q + k).extend(0.0);
         let cells: Vec<&Cell> = self.cells_near(c, radius as f32).collect();
-        for (classes, fill) in [(&[layers::PAVE_GREEN][..], pal.grass), (&[layers::PAVE_AREA][..], pal.area), (&[layers::PAVE_FOOT, layers::PAVE_ROAD][..], pal.foot), (&[layers::PAVE_INNER][..], pal.road)] {
+        for (classes, fill) in [
+            (&[layers::PAVE_GREEN][..], pal.grass),
+            (&[layers::PAVE_AREA][..], pal.area),
+            (&[layers::PAVE_FOOT, layers::PAVE_ROAD][..], pal.foot),
+            (&[layers::PAVE_INNER][..], pal.road),
+        ] {
             for cell in &cells {
                 for &class in classes {
                     for t in cell.paved[class].chunks_exact(3) {
@@ -233,7 +310,10 @@ impl MapData {
         // the paint on the roads (lane lines, crossings, arrows) over the street, near only: from
         // far it is a blur that only dirties the white of the roads
         if look.surfaces {
-            for (class, col) in [(layers::PAINT_WHITE, pal.lane_paint), (layers::PAINT_AMBER, pal.lane_amber)] {
+            for (class, col) in [
+                (layers::PAINT_WHITE, pal.lane_paint),
+                (layers::PAINT_AMBER, pal.lane_amber),
+            ] {
                 for cell in &cells {
                     for t in cell.paint[class].chunks_exact(3) {
                         p.world_poly(&[v(t[0]), v(t[1]), v(t[2])], col);
@@ -244,7 +324,15 @@ impl MapData {
     }
 
     /// Railways as a grey band with white dashes (Google's way), tram tracks as a fine line.
-    pub fn build_lines(&self, p: &mut Painter, anchor: DVec2, centre: DVec2, radius: f64, pal: &Palette, look: GroundLook) {
+    pub fn build_lines(
+        &self,
+        p: &mut Painter,
+        anchor: DVec2,
+        centre: DVec2,
+        radius: f64,
+        pal: &Palette,
+        look: GroundLook,
+    ) {
         let k = self.shift(anchor);
         let c = (centre - self.layers.origin).as_vec2();
         let r = radius as f32;
@@ -274,17 +362,36 @@ impl MapData {
     /// and their roofs with a fine edge (`solid`, for a depth-tested layer), both at full height
     /// (the layer's `height` raises them), and their roofs flat from above (`flat`).
     #[allow(clippy::too_many_arguments)]
-    pub fn build_houses(&self, shadows: &mut Painter, solid: &mut Painter, flat: &mut Painter, anchor: DVec2, centre: DVec2, radius: f64, models: usize, pal: &Palette) {
+    pub fn build_houses(
+        &self,
+        shadows: &mut Painter,
+        solid: &mut Painter,
+        flat: &mut Painter,
+        anchor: DVec2,
+        centre: DVec2,
+        radius: f64,
+        models: usize,
+        pal: &Palette,
+    ) {
         let k = self.shift(anchor);
         let c = (centre - self.layers.origin).as_vec2();
-        let ids: Vec<u32> = self.cells_near(c, radius as f32).flat_map(|cell| cell.buildings.iter().copied()).collect();
+        let ids: Vec<u32> = self
+            .cells_near(c, radius as f32)
+            .flat_map(|cell| cell.buildings.iter().copied())
+            .collect();
         let light = -Vec2::from(SHADOW_DIR).normalize();
         let sd = Vec2::from(SHADOW_DIR);
         let t0 = std::time::Instant::now();
         // the models that are drawn as they are: the nearest first, while the build's budget of
         // triangles lasts and the view is near enough to tell a roof from a prism; the rest of
         // the houses are footprints with walls
-        let mut inst: Vec<u32> = if radius <= MODEL_RADIUS { self.cells_near(c, radius as f32).flat_map(|cell| cell.instances.iter().copied()).collect() } else { Vec::new() };
+        let mut inst: Vec<u32> = if radius <= MODEL_RADIUS {
+            self.cells_near(c, radius as f32)
+                .flat_map(|cell| cell.instances.iter().copied())
+                .collect()
+        } else {
+            Vec::new()
+        };
         inst.sort_by(|a, b| {
             let d = |i: &u32| (self.layers.instances[*i as usize].at - c).length_squared();
             d(a).total_cmp(&d(b))
@@ -292,7 +399,11 @@ impl MapData {
         let mut drawn: hashbrown::HashSet<u32> = hashbrown::HashSet::new();
         let mut spent = 0usize;
         for &i in &inst {
-            let tris = self.layers.models.get(self.layers.instances[i as usize].model as usize).map_or(0, |m| m.len());
+            let tris = self
+                .layers
+                .models
+                .get(self.layers.instances[i as usize].model as usize)
+                .map_or(0, |m| m.len());
             if spent + tris > models {
                 continue;
             }
@@ -336,7 +447,11 @@ impl MapData {
                 // (the model itself is drawn below)
                 // flat: an edge, then the roof
                 for t in &b.roof {
-                    let tri = [o[t[0] as usize].extend(0.0), o[t[1] as usize].extend(0.0), o[t[2] as usize].extend(0.0)];
+                    let tri = [
+                        o[t[0] as usize].extend(0.0),
+                        o[t[1] as usize].extend(0.0),
+                        o[t[2] as usize].extend(0.0),
+                    ];
                     flat.grown_tri(tri, 0.15, 0.7, pal.roof_edge);
                 }
                 continue;
@@ -362,7 +477,11 @@ impl MapData {
             }
             // flat: an edge, then the roof
             for t in &b.roof {
-                let tri = [o[t[0] as usize].extend(0.0), o[t[1] as usize].extend(0.0), o[t[2] as usize].extend(0.0)];
+                let tri = [
+                    o[t[0] as usize].extend(0.0),
+                    o[t[1] as usize].extend(0.0),
+                    o[t[2] as usize].extend(0.0),
+                ];
                 flat.grown_tri(tri, 0.15, 0.7, pal.roof_edge);
             }
         }
@@ -386,12 +505,31 @@ impl MapData {
 
     /// A placed house model: its faces as they are, lit by which way they face (walls turned to
     /// face away from the model's middle, roofs by their pitch against the light).
-    fn model(&self, solid: &mut Painter, it: layers::Instance, k: Vec2, light: Vec2, pal: &Palette) {
-        let Some(faces) = self.layers.models.get(it.model as usize) else { return };
-        let centre_local = self.model_centre.get(it.model as usize).copied().unwrap_or(Vec2::ZERO);
+    fn model(
+        &self,
+        solid: &mut Painter,
+        it: layers::Instance,
+        k: Vec2,
+        light: Vec2,
+        pal: &Palette,
+    ) {
+        let Some(faces) = self.layers.models.get(it.model as usize) else {
+            return;
+        };
+        let centre_local = self
+            .model_centre
+            .get(it.model as usize)
+            .copied()
+            .unwrap_or(Vec2::ZERO);
         let a = (-(it.heading as f64)).to_radians();
         let (sn, cs) = (a.sin() as f32, a.cos() as f32);
-        let to_world = |v: Vec3| Vec3::new(v.x * cs - v.y * sn + it.at.x + k.x, v.x * sn + v.y * cs + it.at.y + k.y, v.z);
+        let to_world = |v: Vec3| {
+            Vec3::new(
+                v.x * cs - v.y * sn + it.at.x + k.x,
+                v.x * sn + v.y * cs + it.at.y + k.y,
+                v.z,
+            )
+        };
         let c = {
             let v = Vec3::new(centre_local.x, centre_local.y, 0.0);
             to_world(v).truncate()
@@ -420,7 +558,10 @@ impl MapData {
                 if n.z < 0.0 {
                     n = -n;
                 }
-                let away = (1.0 - n.z) * (1.0 - (0.5 + 0.5 * n.truncate().normalize_or_zero().dot(light)).clamp(0.0, 1.0));
+                let away = (1.0 - n.z)
+                    * (1.0
+                        - (0.5 + 0.5 * n.truncate().normalize_or_zero().dot(light))
+                            .clamp(0.0, 1.0));
                 let col = pal.roof.mix(pal.wall_dark, (away * 0.9).clamp(0.0, 0.45));
                 solid.solid_tri(p[0], p[1], p[2], col, col, col);
             }
@@ -430,14 +571,24 @@ impl MapData {
     /// The layers' extent (world).
     pub fn extent(&self) -> Option<(DVec2, DVec2)> {
         let (lo, hi) = self.layers.bounds()?;
-        Some((self.layers.origin + lo.as_dvec2(), self.layers.origin + hi.as_dvec2()))
+        Some((
+            self.layers.origin + lo.as_dvec2(),
+            self.layers.origin + hi.as_dvec2(),
+        ))
     }
 }
 
 /// A tree's crown: a ten-sided disc with a darker rim (a full circle each was most of the
 /// vertices of a leafy suburb).
 fn crown(p: &mut Painter, at: Vec3, r: f32, fill: Color, edge: Color) {
-    let ring = |r: f32| -> Vec<Vec3> { (0..10).map(|k| { let a = std::f32::consts::TAU * k as f32 / 10.0; at + Vec3::new(a.cos() * r, a.sin() * r, 0.0) }).collect() };
+    let ring = |r: f32| -> Vec<Vec3> {
+        (0..10)
+            .map(|k| {
+                let a = std::f32::consts::TAU * k as f32 / 10.0;
+                at + Vec3::new(a.cos() * r, a.sin() * r, 0.0)
+            })
+            .collect()
+    };
     p.world_poly(&ring(r + 0.35), edge);
     p.world_poly(&ring(r), fill);
 }

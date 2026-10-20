@@ -78,7 +78,9 @@ pub(crate) fn open_url(url: &str) {
 
 /// The text onto the system's clipboard (UIPasteboard).
 pub(crate) fn set_clipboard(text: &str) -> bool {
-    let Ok(t) = CString::new(text) else { return false };
+    let Ok(t) = CString::new(text) else {
+        return false;
+    };
     // SAFETY: a nul-terminated string the call only reads
     unsafe { openomsi_swift_set_clipboard(t.as_ptr()) != 0 }
 }

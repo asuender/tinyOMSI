@@ -46,7 +46,8 @@ pub use unpack::unpack;
 pub const REPO: &str = "openOMSI-org/openOMSI";
 pub const REPO_URL: &str = "https://github.com/openOMSI-org/openOMSI";
 const LATEST_API: &str = "https://api.github.com/repos/openOMSI-org/openOMSI/releases/latest";
-const RELEASES_API: &str = "https://api.github.com/repos/openOMSI-org/openOMSI/releases?per_page=100";
+const RELEASES_API: &str =
+    "https://api.github.com/repos/openOMSI-org/openOMSI/releases?per_page=100";
 const RELEASE_PAGES: u32 = 5;
 const NEWEST_API: &str = "https://api.github.com/repos/openOMSI-org/openOMSI/releases?per_page=10";
 pub const FIRST_SELF_TESTED: &str = "0.2.32";
@@ -76,7 +77,11 @@ pub enum Status {
     Checking,
     UpToDate,
     Available(Release),
-    Downloading { release: Release, done: u64, total: u64 },
+    Downloading {
+        release: Release,
+        done: u64,
+        total: u64,
+    },
     /// Downloaded and checked, not installed (`Updater::prefetch`, the game's background
     /// download): `install` puts this file in place without fetching it again.
     Downloaded(Release),
@@ -112,7 +117,19 @@ pub struct Updater {
 
 impl Default for Updater {
     fn default() -> Self {
-        Updater { status: Arc::new(Mutex::new(Status::Idle)), dismissed: false, checked_once: false, auto_started: false, relaunched: false, updated: None, last_check: None, dismissed_version: None, game_was_running: false, checked_beta: None, check_generation: Arc::default() }
+        Updater {
+            status: Arc::new(Mutex::new(Status::Idle)),
+            dismissed: false,
+            checked_once: false,
+            auto_started: false,
+            relaunched: false,
+            updated: None,
+            last_check: None,
+            dismissed_version: None,
+            game_was_running: false,
+            checked_beta: None,
+            check_generation: Arc::default(),
+        }
     }
 }
 
@@ -163,17 +180,29 @@ impl Updater {
 
     /// Download and install `r` (in the background).
     pub fn install(&mut self, r: Release) {
-        if matches!(self.status(), Status::Downloading { .. } | Status::Installing(_) | Status::Restarting(_)) {
+        if matches!(
+            self.status(),
+            Status::Downloading { .. } | Status::Installing(_) | Status::Restarting(_)
+        ) {
             return;
         }
         self.dismissed = false;
-        self.set(if downloaded(&r) { Status::Installing(r.clone()) } else { Status::Downloading { release: r.clone(), done: 0, total: r.size } });
+        self.set(if downloaded(&r) {
+            Status::Installing(r.clone())
+        } else {
+            Status::Downloading {
+                release: r.clone(),
+                done: 0,
+                total: r.size,
+            }
+        });
         let status = self.status.clone();
         std::thread::spawn(move || {
             let result = download_and_install(&r, &status);
             if let Err(e) = result {
                 log::warn!("update to {}: {e:#}", r.version);
-                *lock(&status) = Status::Failed(format!("openOMSI was not updated to {}: {e}", r.version));
+                *lock(&status) =
+                    Status::Failed(format!("openOMSI was not updated to {}: {e}", r.version));
             }
         });
     }
@@ -181,21 +210,38 @@ impl Updater {
     /// Download `r` without installing it (in the background, the game's way): the file
     /// waits in the data folder, checked, until `install` puts it in place.
     pub fn prefetch(&mut self, r: Release) {
-        if matches!(self.status(), Status::Downloading { .. } | Status::Downloaded(_) | Status::Installing(_) | Status::Restarting(_)) {
+        if matches!(
+            self.status(),
+            Status::Downloading { .. }
+                | Status::Downloaded(_)
+                | Status::Installing(_)
+                | Status::Restarting(_)
+        ) {
             return;
         }
-        self.set(Status::Downloading { release: r.clone(), done: 0, total: r.size });
+        self.set(Status::Downloading {
+            release: r.clone(),
+            done: 0,
+            total: r.size,
+        });
         let status = self.status.clone();
         std::thread::spawn(move || {
             let file = download_dir().join(&r.asset_name);
             match download(&r, &file, &status) {
                 Ok(()) => {
-                    log::info!("update {}: downloaded in the background ({})", r.version, file.display());
+                    log::info!(
+                        "update {}: downloaded in the background ({})",
+                        r.version,
+                        file.display()
+                    );
                     *lock(&status) = Status::Downloaded(r);
                 }
                 Err(e) => {
                     log::warn!("update {}: background download: {e:#}", r.version);
-                    *lock(&status) = Status::Failed(format!("openOMSI {} could not be downloaded: {e}", r.version));
+                    *lock(&status) = Status::Failed(format!(
+                        "openOMSI {} could not be downloaded: {e}",
+                        r.version
+                    ));
                 }
             }
         });
@@ -222,7 +268,11 @@ pub fn current_version() -> &'static str {
 
 /// `0.1.7` / `v0.1.7` as numbers (missing parts are 0).
 fn version_parts(v: &str) -> Vec<u64> {
-    v.trim().trim_start_matches(['v', 'V']).split(['.', '-', '+']).map_while(|p| p.parse::<u64>().ok()).collect()
+    v.trim()
+        .trim_start_matches(['v', 'V'])
+        .split(['.', '-', '+'])
+        .map_while(|p| p.parse::<u64>().ok())
+        .collect()
 }
 
 /// A pull request's test build: `release.yml` gives it the version `<release>-pr<number>`.
@@ -274,7 +324,16 @@ pub fn agent() -> ureq::Agent {
         .timeout_read(std::time::Duration::from_secs(30))
         .user_agent(&format!("openOMSI/{} (updater)", current_version()));
     // (through the proxy the system is set to use, #1000)
-    match crate::proxy::system_proxy().and_then(|p| ureq::Proxy::new(&p).map_err(|e| log::warn!("network: the proxy {} cannot be used: {e}", crate::proxy::redact(&p))).ok()) {
+    match crate::proxy::system_proxy().and_then(|p| {
+        ureq::Proxy::new(&p)
+            .map_err(|e| {
+                log::warn!(
+                    "network: the proxy {} cannot be used: {e}",
+                    crate::proxy::redact(&p)
+                )
+            })
+            .ok()
+    }) {
         Some(proxy) => b.proxy(proxy).build(),
         None => b.build(),
     }
@@ -294,7 +353,10 @@ fn transient(e: &ureq::Error) -> bool {
 
 /// `f` until it works, at most `TRIES` times with the pauses between (only for failures
 /// that may pass, see `transient`).
-fn with_retries<T>(what: &str, mut f: impl FnMut() -> Result<T, ureq::Error>) -> Result<T, ureq::Error> {
+fn with_retries<T>(
+    what: &str,
+    mut f: impl FnMut() -> Result<T, ureq::Error>,
+) -> Result<T, ureq::Error> {
     let mut last = None;
     for (k, pause) in TRIES.iter().enumerate() {
         if *pause > 0 {
@@ -317,18 +379,34 @@ fn fetch_text(url: &str) -> anyhow::Result<String> {
     if let Some(p) = url.strip_prefix("file://") {
         return Ok(std::fs::read_to_string(p)?);
     }
-    let r = with_retries("asking GitHub", || agent().get(url).set("Accept", "application/vnd.github+json").call()).map_err(|e| anyhow::anyhow!("{}", short_error(&e)))?;
+    let r = with_retries("asking GitHub", || {
+        agent()
+            .get(url)
+            .set("Accept", "application/vnd.github+json")
+            .call()
+    })
+    .map_err(|e| anyhow::anyhow!("{}", short_error(&e)))?;
     Ok(r.into_string()?)
 }
 
 fn short_error(e: &ureq::Error) -> String {
     match e {
-        ureq::Error::Status(403 | 429, _) => "GitHub refused for now (too many requests from this address); it is tried again later".to_string(),
+        ureq::Error::Status(403 | 429, _) => {
+            "GitHub refused for now (too many requests from this address); it is tried again later"
+                .to_string()
+        }
         ureq::Error::Status(code, _) => format!("the server answered {code}"),
         ureq::Error::Transport(t) => match t.kind() {
-            ureq::ErrorKind::Dns => "the name github.com could not be looked up (no internet?)".to_string(),
-            ureq::ErrorKind::ConnectionFailed => "no connection to GitHub (a firewall or a proxy?)".to_string(),
-            ureq::ErrorKind::Io => format!("the connection to GitHub broke off or timed out ({})", t.message().unwrap_or("no answer")),
+            ureq::ErrorKind::Dns => {
+                "the name github.com could not be looked up (no internet?)".to_string()
+            }
+            ureq::ErrorKind::ConnectionFailed => {
+                "no connection to GitHub (a firewall or a proxy?)".to_string()
+            }
+            ureq::ErrorKind::Io => format!(
+                "the connection to GitHub broke off or timed out ({})",
+                t.message().unwrap_or("no answer")
+            ),
             k => format!("no connection ({k})"),
         },
     }
@@ -345,9 +423,15 @@ fn start_check(status: &Mutex<Status>, generation: &std::sync::atomic::AtomicU64
     generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1
 }
 
-fn finish_check(status: &Mutex<Status>, generation: &std::sync::atomic::AtomicU64, mine: u64, result: Status) -> bool {
+fn finish_check(
+    status: &Mutex<Status>,
+    generation: &std::sync::atomic::AtomicU64,
+    mine: u64,
+    result: Status,
+) -> bool {
     let mut s = lock(status);
-    let newest = generation.load(std::sync::atomic::Ordering::SeqCst) == mine && matches!(*s, Status::Checking);
+    let newest = generation.load(std::sync::atomic::Ordering::SeqCst) == mine
+        && matches!(*s, Status::Checking);
     if newest {
         *s = result;
     }
@@ -366,9 +450,14 @@ fn latest_on(beta: bool) -> anyhow::Result<Option<Release>> {
     if STORE_BUILD {
         return Ok(None);
     }
-    let url = omsi_cfg::flags::OMSI_UPDATE_URL.var().map(str::to_string).unwrap_or_else(|| LATEST_API.to_string());
+    let url = omsi_cfg::flags::OMSI_UPDATE_URL
+        .var()
+        .map(str::to_string)
+        .unwrap_or_else(|| LATEST_API.to_string());
     if url == LATEST_API && beta {
-        return match fetch_text(NEWEST_API).and_then(|t| Ok(serde_json::from_str::<serde_json::Value>(&t)?)) {
+        return match fetch_text(NEWEST_API)
+            .and_then(|t| Ok(serde_json::from_str::<serde_json::Value>(&t)?))
+        {
             Ok(v) => newest_of(&v, current_version(), &crate::recovery::listed_broken()),
             Err(e) => {
                 log::info!("update check (beta): the GitHub API: {e:#} - asking github.com for the stable release");
@@ -393,24 +482,41 @@ fn latest_on(beta: bool) -> anyhow::Result<Option<Release>> {
 /// all that vouches for it then, and the size is checked by the download itself).
 fn latest_from_site() -> anyhow::Result<Option<Release>> {
     let page = format!("{REPO_URL}/releases/latest");
-    let r = with_retries("asking github.com", || agent().head(&page).call()).map_err(|e| anyhow::anyhow!("{}", short_error(&e)))?;
+    let r = with_retries("asking github.com", || agent().head(&page).call())
+        .map_err(|e| anyhow::anyhow!("{}", short_error(&e)))?;
     let tag = r.get_url().rsplit('/').next().unwrap_or("").to_string();
     if !tag.starts_with(['v', 'V']) {
         anyhow::bail!("github.com named no release ({})", r.get_url());
     }
     let version = tag.trim_start_matches(['v', 'V']).to_string();
-    if is_test_build(current_version()) || !newer(&version, current_version()) || crate::recovery::is_bad(&version) {
+    if is_test_build(current_version())
+        || !newer(&version, current_version())
+        || crate::recovery::is_bad(&version)
+    {
         return Ok(None);
     }
-    let Some(name) = asset_name(&version) else { return Ok(None) };
+    let Some(name) = asset_name(&version) else {
+        return Ok(None);
+    };
     let url = format!("{REPO_URL}/releases/download/{tag}/{name}");
     // (the files come a few minutes after the tag: not there yet, nothing to offer yet)
     let size = match with_retries("looking for the file", || agent().head(&url).call()) {
-        Ok(r) => r.header("Content-Length").and_then(|v| v.parse().ok()).unwrap_or(0),
+        Ok(r) => r
+            .header("Content-Length")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0),
         Err(ureq::Error::Status(404, _)) => return Ok(None),
         Err(e) => anyhow::bail!("{}", short_error(&e)),
     };
-    Ok(Some(Release { version, page: format!("{REPO_URL}/releases/tag/{tag}"), notes: String::new(), asset_name: name, asset_url: url, size, sha256: None }))
+    Ok(Some(Release {
+        version,
+        page: format!("{REPO_URL}/releases/tag/{tag}"),
+        notes: String::new(),
+        asset_name: name,
+        asset_url: url,
+        size,
+        sha256: None,
+    }))
 }
 
 pub fn beta_channel() -> bool {
@@ -418,7 +524,11 @@ pub fn beta_channel() -> bool {
     omsi_launcher_lib::settings_from_text(text.as_deref())["update_channel"] == "beta"
 }
 
-fn newest_of(v: &serde_json::Value, current: &str, broken: &[String]) -> anyhow::Result<Option<Release>> {
+fn newest_of(
+    v: &serde_json::Value,
+    current: &str,
+    broken: &[String],
+) -> anyhow::Result<Option<Release>> {
     let tag = |r: &serde_json::Value| r["tag_name"].as_str().unwrap_or("").to_string();
     let mut list: Vec<&serde_json::Value> = v
         .as_array()
@@ -437,20 +547,33 @@ fn newest_of(v: &serde_json::Value, current: &str, broken: &[String]) -> anyhow:
 }
 
 /// A release described as the GitHub API does, when newer than `current`.
-fn parse_release(v: &serde_json::Value, current: &str, beta: bool) -> anyhow::Result<Option<Release>> {
-    let tag = v["tag_name"].as_str().ok_or_else(|| anyhow::anyhow!("the release has no tag"))?;
+fn parse_release(
+    v: &serde_json::Value,
+    current: &str,
+    beta: bool,
+) -> anyhow::Result<Option<Release>> {
+    let tag = v["tag_name"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("the release has no tag"))?;
     let version = tag.trim_start_matches(['v', 'V']).to_string();
     if is_test_build(current) {
-        log::info!("update check: {current} is a pull request's test build, {version} is not offered");
+        log::info!(
+            "update check: {current} is a pull request's test build, {version} is not offered"
+        );
         return Ok(None);
     }
-    if v["draft"].as_bool() == Some(true) || (!beta && v["prerelease"].as_bool() == Some(true)) || !newer(&version, current) {
+    if v["draft"].as_bool() == Some(true)
+        || (!beta && v["prerelease"].as_bool() == Some(true))
+        || !newer(&version, current)
+    {
         return Ok(None);
     }
     // (a release that failed to start here, or would not even run its self-test, is not
     // offered again: only a newer one is, see `recovery`)
     if crate::recovery::is_bad(&version) {
-        log::info!("update check: {version} failed on this computer before and is not offered again");
+        log::info!(
+            "update check: {version} failed on this computer before and is not offered again"
+        );
         return Ok(None);
     }
     let found = release_of(v)?;
@@ -462,18 +585,36 @@ fn parse_release(v: &serde_json::Value, current: &str, beta: bool) -> anyhow::Re
 }
 
 fn release_of(v: &serde_json::Value) -> anyhow::Result<Option<Release>> {
-    let tag = v["tag_name"].as_str().ok_or_else(|| anyhow::anyhow!("the release has no tag"))?;
+    let tag = v["tag_name"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("the release has no tag"))?;
     let version = tag.trim_start_matches(['v', 'V']).to_string();
-    let Some(want) = asset_name(&version) else { return Ok(None) };
-    let Some(a) = v["assets"].as_array().and_then(|a| a.iter().find(|a| a["name"].as_str() == Some(want.as_str()))) else { return Ok(None) };
+    let Some(want) = asset_name(&version) else {
+        return Ok(None);
+    };
+    let Some(a) = v["assets"]
+        .as_array()
+        .and_then(|a| a.iter().find(|a| a["name"].as_str() == Some(want.as_str())))
+    else {
+        return Ok(None);
+    };
     Ok(Some(Release {
         version,
-        page: v["html_url"].as_str().map(str::to_string).unwrap_or_else(|| format!("{REPO_URL}/releases/tag/{tag}")),
+        page: v["html_url"]
+            .as_str()
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("{REPO_URL}/releases/tag/{tag}")),
         notes: v["body"].as_str().unwrap_or("").to_string(),
         asset_name: want,
-        asset_url: a["browser_download_url"].as_str().ok_or_else(|| anyhow::anyhow!("the release file has no address"))?.to_string(),
+        asset_url: a["browser_download_url"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("the release file has no address"))?
+            .to_string(),
         size: a["size"].as_u64().unwrap_or(0),
-        sha256: a["digest"].as_str().and_then(|d| d.strip_prefix("sha256:")).map(|h| h.to_ascii_lowercase()),
+        sha256: a["digest"]
+            .as_str()
+            .and_then(|d| d.strip_prefix("sha256:"))
+            .map(|h| h.to_ascii_lowercase()),
     }))
 }
 
@@ -488,19 +629,29 @@ pub fn releases() -> anyhow::Result<Vec<Listed>> {
     if STORE_BUILD {
         return Ok(Vec::new());
     }
-    releases_paged(|page| fetch_text(&format!("{RELEASES_API}&page={page}")), beta_channel())
+    releases_paged(
+        |page| fetch_text(&format!("{RELEASES_API}&page={page}")),
+        beta_channel(),
+    )
 }
 
-fn releases_paged(fetch: impl Fn(u32) -> anyhow::Result<String>, beta: bool) -> anyhow::Result<Vec<Listed>> {
+fn releases_paged(
+    fetch: impl Fn(u32) -> anyhow::Result<String>,
+    beta: bool,
+) -> anyhow::Result<Vec<Listed>> {
     let mut all = Vec::new();
     for page in 1..=RELEASE_PAGES {
-        let items = match fetch(page).and_then(|t| Ok(serde_json::from_str::<serde_json::Value>(&t)?)) {
-            Ok(serde_json::Value::Array(items)) => items,
-            Err(e) if page == 1 => return Err(e),
-            _ => break,
-        };
+        let items =
+            match fetch(page).and_then(|t| Ok(serde_json::from_str::<serde_json::Value>(&t)?)) {
+                Ok(serde_json::Value::Array(items)) => items,
+                Err(e) if page == 1 => return Err(e),
+                _ => break,
+            };
         let full = items.len() == 100;
-        let too_old = items.iter().filter_map(|r| r["tag_name"].as_str()).any(|t| newer(FIRST_SELF_TESTED, t.trim_start_matches(['v', 'V'])));
+        let too_old = items
+            .iter()
+            .filter_map(|r| r["tag_name"].as_str())
+            .any(|t| newer(FIRST_SELF_TESTED, t.trim_start_matches(['v', 'V'])));
         all.extend(items);
         if !full || too_old {
             break;
@@ -514,13 +665,25 @@ fn releases_of(v: &serde_json::Value, beta: bool) -> Vec<Listed> {
         .as_array()
         .into_iter()
         .flatten()
-        .filter(|r| r["draft"].as_bool() != Some(true) && (beta || r["prerelease"].as_bool() != Some(true)))
+        .filter(|r| {
+            r["draft"].as_bool() != Some(true) && (beta || r["prerelease"].as_bool() != Some(true))
+        })
         .filter_map(|r| {
             let release = release_of(r).ok().flatten()?;
-            let published = r["published_at"].as_str().and_then(|d| d.get(..10)).unwrap_or("").to_string();
-            Some(Listed { release, published, beta: r["prerelease"].as_bool() == Some(true) })
+            let published = r["published_at"]
+                .as_str()
+                .and_then(|d| d.get(..10))
+                .unwrap_or("")
+                .to_string();
+            Some(Listed {
+                release,
+                published,
+                beta: r["prerelease"].as_bool() == Some(true),
+            })
         })
-        .filter(|l| !is_test_build(&l.release.version) && !newer(FIRST_SELF_TESTED, &l.release.version))
+        .filter(|l| {
+            !is_test_build(&l.release.version) && !newer(FIRST_SELF_TESTED, &l.release.version)
+        })
         .collect();
     list.sort_by(|a, b| compare(&b.release.version, &a.release.version));
     list.dedup_by(|a, b| compare(&a.release.version, &b.release.version).is_eq());
@@ -549,7 +712,9 @@ pub fn downloaded(r: &Release) -> bool {
     let file = download_dir().join(&r.asset_name);
     let note = std::fs::read_to_string(checked_note(&file)).unwrap_or_default();
     let len = std::fs::metadata(&file).map(|m| m.len()).unwrap_or(0);
-    let Some((n, sha)) = note.trim().split_once(' ') else { return false };
+    let Some((n, sha)) = note.trim().split_once(' ') else {
+        return false;
+    };
     if len == 0 || n.parse::<u64>().ok() != Some(len) || (r.size > 0 && r.size != len) {
         return false;
     }
@@ -557,7 +722,9 @@ pub fn downloaded(r: &Release) -> bool {
         (None, _) => true,
         (Some(want), got) if got == want => true,
         (Some(want), "-") => {
-            let Ok(mut f) = std::fs::File::open(&file) else { return false };
+            let Ok(mut f) = std::fs::File::open(&file) else {
+                return false;
+            };
             // (read in blocks: sha2 0.11's hasher is no `io::Write` any more)
             let mut h = sha2::Sha256::new();
             let mut buf = vec![0u8; 1 << 16];
@@ -585,8 +752,16 @@ fn download(r: &Release, to: &Path, status: &Mutex<Status>) -> anyhow::Result<()
         return Ok(());
     }
     let part = to.with_extension("part");
-    if std::fs::metadata(&part).and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age < std::time::Duration::from_secs(15)) {
-        anyhow::bail!("another download of openOMSI {} is under way; try again in a moment", r.version);
+    if std::fs::metadata(&part)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age < std::time::Duration::from_secs(15))
+    {
+        anyhow::bail!(
+            "another download of openOMSI {} is under way; try again in a moment",
+            r.version
+        );
     }
     let _ = std::fs::remove_file(checked_note(to));
     let mut hasher = sha2::Sha256::new();
@@ -604,19 +779,31 @@ fn download(r: &Release, to: &Path, status: &Mutex<Status>) -> anyhow::Result<()
         } else {
             let from = done;
             let resp = with_retries("downloading", || {
-                let req = agent().get(&r.asset_url).set("Accept", "application/octet-stream");
-                if from > 0 { req.set("Range", &format!("bytes={from}-")).call() } else { req.call() }
+                let req = agent()
+                    .get(&r.asset_url)
+                    .set("Accept", "application/octet-stream");
+                if from > 0 {
+                    req.set("Range", &format!("bytes={from}-")).call()
+                } else {
+                    req.call()
+                }
             })
             .map_err(|e| anyhow::anyhow!("{}", short_error(&e)))?;
             if done > 0 && resp.status() != 206 {
                 // (the server sends the whole file again: start over)
-                log::info!("update {}: the server does not continue a download; starting over", r.version);
+                log::info!(
+                    "update {}: the server does not continue a download; starting over",
+                    r.version
+                );
                 hasher = sha2::Sha256::new();
                 out = std::fs::File::create(&part)?;
                 done = 0;
             }
             if done == 0 {
-                total = resp.header("Content-Length").and_then(|v| v.parse().ok()).unwrap_or(r.size);
+                total = resp
+                    .header("Content-Length")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(r.size);
             }
             Box::new(resp.into_reader())
         };
@@ -628,7 +815,11 @@ fn download(r: &Release, to: &Path, status: &Mutex<Status>) -> anyhow::Result<()
                     out.write_all(&buf[..n])?;
                     hasher.update(&buf[..n]);
                     done += n as u64;
-                    *lock(status) = Status::Downloading { release: r.clone(), done, total: total.max(done) };
+                    *lock(status) = Status::Downloading {
+                        release: r.clone(),
+                        done,
+                        total: total.max(done),
+                    };
                 }
                 Err(e) => break Some(e),
             }
@@ -637,7 +828,12 @@ fn download(r: &Release, to: &Path, status: &Mutex<Status>) -> anyhow::Result<()
             None if total == 0 || done >= total => break,
             // (ended early: the connection was cut without an error)
             None => {}
-            Some(e) => log::info!("update {}: the download broke off at {} of {} bytes ({e}) - going on", r.version, done, total),
+            Some(e) => log::info!(
+                "update {}: the download broke off at {} of {} bytes ({e}) - going on",
+                r.version,
+                done,
+                total
+            ),
         }
         if done > before {
             breaks = 0;
@@ -657,14 +853,21 @@ fn download(r: &Release, to: &Path, status: &Mutex<Status>) -> anyhow::Result<()
         anyhow::bail!("the download stopped at {} of {} bytes", done, r.size);
     }
     if let Some(want) = &r.sha256 {
-        let got: String = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
+        let got: String = hasher
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
         if &got != want {
             let _ = std::fs::remove_file(&part);
             anyhow::bail!("the downloaded file is damaged (SHA-256 {got}, GitHub lists {want})");
         }
     }
     std::fs::rename(&part, to)?;
-    let _ = std::fs::write(checked_note(to), format!("{} {}", done, r.sha256.as_deref().unwrap_or("-")));
+    let _ = std::fs::write(
+        checked_note(to),
+        format!("{} {}", done, r.sha256.as_deref().unwrap_or("-")),
+    );
     Ok(())
 }
 
@@ -680,7 +883,11 @@ fn download_and_install(r: &Release, status: &Mutex<Status>) -> anyhow::Result<(
     {
         let place = install_place()?;
         if !writable(&place.dir) {
-            let admin = if cfg!(windows) { " (or start it once as administrator)" } else { "" };
+            let admin = if cfg!(windows) {
+                " (or start it once as administrator)"
+            } else {
+                ""
+            };
             anyhow::bail!("the folder {} cannot be written. Put openOMSI in a folder of yours{admin} and update again", short_path(&place.dir));
         }
     }
@@ -693,7 +900,9 @@ fn download_and_install(r: &Release, status: &Mutex<Status>) -> anyhow::Result<(
         let place = install_place()?;
         if let Err(e) = install_archive(&file, &place) {
             // (a program that cannot start here is never offered again, only a newer one)
-            if e.downcast_ref::<crate::recovery::SelfTestFailed>().is_some() {
+            if e.downcast_ref::<crate::recovery::SelfTestFailed>()
+                .is_some()
+            {
                 crate::recovery::mark_bad(&r.version);
             }
             return Err(e);
@@ -728,18 +937,37 @@ pub fn install_place() -> anyhow::Result<Place> {
     // and after a second swap a deleted file that could not be started at all, #811)
     static EXE: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
     let exe = EXE
-        .get_or_init(|| std::env::current_exe().ok().map(|e| program_path(&e.canonicalize().unwrap_or(e))))
+        .get_or_init(|| {
+            std::env::current_exe()
+                .ok()
+                .map(|e| program_path(&e.canonicalize().unwrap_or(e)))
+        })
         .clone()
         .ok_or_else(|| anyhow::anyhow!("the program's own path is not known"))?;
     if is_dev_build(&exe) {
-        anyhow::bail!("this is a development build ({}); update it with git and cargo", short_path(&exe));
+        anyhow::bail!(
+            "this is a development build ({}); update it with git and cargo",
+            short_path(&exe)
+        );
     }
     // (macOS runs an app opened straight from Downloads from a read-only copy elsewhere)
     if exe.to_string_lossy().contains("/AppTranslocation/") {
         anyhow::bail!("macOS runs openOMSI from a temporary read-only copy. Move openOMSI.app into your Applications folder (or any folder), start it from there and update again");
     }
-    let bundle = exe.ancestors().find(|p| p.extension().map(|e| e.eq_ignore_ascii_case("app")).unwrap_or(false)).map(Path::to_path_buf);
-    let dir = bundle.as_deref().unwrap_or(&exe).parent().ok_or_else(|| anyhow::anyhow!("no folder around {}", exe.display()))?.to_path_buf();
+    let bundle = exe
+        .ancestors()
+        .find(|p| {
+            p.extension()
+                .map(|e| e.eq_ignore_ascii_case("app"))
+                .unwrap_or(false)
+        })
+        .map(Path::to_path_buf);
+    let dir = bundle
+        .as_deref()
+        .unwrap_or(&exe)
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("no folder around {}", exe.display()))?
+        .to_path_buf();
     Ok(Place { dir, bundle, exe })
 }
 
@@ -754,7 +982,11 @@ fn program_path(exe: &Path) -> PathBuf {
     while let Some(t) = s.strip_suffix(OLD) {
         // (`openomsi.exe.2.old-update`: put aside beside an older one, see `aside_of`)
         s = match t.rsplit_once('.') {
-            Some((head, n)) if !head.is_empty() && !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) => head.to_string(),
+            Some((head, n))
+                if !head.is_empty() && !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) =>
+            {
+                head.to_string()
+            }
             _ => t.to_string(),
         };
     }
@@ -789,7 +1021,9 @@ pub fn is_dev_build(exe: &Path) -> bool {
     let text = exe.to_string_lossy().to_ascii_lowercase();
     let parts: Vec<&str> = text.split(['/', '\\']).filter(|p| !p.is_empty()).collect();
     let profile = |s: &str| s == "release" || s == "debug";
-    parts.windows(2).any(|w| w[0] == "target" && profile(w[1])) || parts.windows(3).any(|w| w[0] == "target" && profile(w[2])) || in_cargo_target_dir(exe)
+    parts.windows(2).any(|w| w[0] == "target" && profile(w[1]))
+        || parts.windows(3).any(|w| w[0] == "target" && profile(w[2]))
+        || in_cargo_target_dir(exe)
 }
 
 /// Whether `exe` was built into a Cargo target directory of any name (`CARGO_TARGET_DIR`):
@@ -797,7 +1031,10 @@ pub fn is_dev_build(exe: &Path) -> bool {
 /// in a folder not called `target` was taken for an installed game, so the start guard
 /// "updated" it from the releases and opened its dialog over the desktop.
 fn in_cargo_target_dir(exe: &Path) -> bool {
-    exe.ancestors().skip(2).take(2).any(|d| std::fs::read_to_string(d.join("CACHEDIR.TAG")).is_ok_and(|t| t.contains("cargo")))
+    exe.ancestors()
+        .skip(2)
+        .take(2)
+        .any(|d| std::fs::read_to_string(d.join("CACHEDIR.TAG")).is_ok_and(|t| t.contains("cargo")))
 }
 
 const STAGING: &str = ".openomsi-update";
@@ -852,10 +1089,22 @@ pub fn install_archive(zip: &Path, place: &Place) -> anyhow::Result<()> {
     install_archive_with(zip, place, true)
 }
 
-pub(crate) fn install_archive_with(zip: &Path, place: &Place, self_test: bool) -> anyhow::Result<()> {
+pub(crate) fn install_archive_with(
+    zip: &Path,
+    place: &Place,
+    self_test: bool,
+) -> anyhow::Result<()> {
     let staging = place.dir.join(STAGING);
-    unpack(zip, &staging).map_err(|e| anyhow::anyhow!("could not unpack the update into {} ({e})", short_path(&place.dir)))?;
-    let mut items: Vec<String> = std::fs::read_dir(&staging)?.flatten().map(|e| e.file_name().to_string_lossy().to_string()).collect();
+    unpack(zip, &staging).map_err(|e| {
+        anyhow::anyhow!(
+            "could not unpack the update into {} ({e})",
+            short_path(&place.dir)
+        )
+    })?;
+    let mut items: Vec<String> = std::fs::read_dir(&staging)?
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .collect();
     if place.bundle.is_some() {
         items.retain(|n| n.to_ascii_lowercase().ends_with(".app"));
     }
@@ -874,15 +1123,26 @@ pub(crate) fn install_archive_with(zip: &Path, place: &Place, self_test: bool) -
     // the new program must start before it replaces the old one: a build that cannot even
     // be loaded here (a library missing, a broken file) stops now, with nothing replaced
     if self_test {
-        let program = crate::recovery::staged_program(&staging).ok_or_else(|| anyhow::anyhow!("the update archive holds no program to start"))?;
+        let program = crate::recovery::staged_program(&staging)
+            .ok_or_else(|| anyhow::anyhow!("the update archive holds no program to start"))?;
         if let Err(e) = crate::recovery::self_test(&program, std::time::Duration::from_secs(30)) {
             let _ = std::fs::remove_dir_all(&staging);
             return Err(e.into());
         }
     }
     // what an earlier update put here and this one no longer brings
-    let before: Vec<String> = std::fs::read_to_string(place.dir.join(MANIFEST)).map(|t| t.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty() && !l.contains(['/', '\\']) && l != ".." && l != ".").collect()).unwrap_or_default();
-    let gone: Vec<String> = before.into_iter().filter(|n| !items.iter().any(|i| i.eq_ignore_ascii_case(n))).collect();
+    let before: Vec<String> = std::fs::read_to_string(place.dir.join(MANIFEST))
+        .map(|t| {
+            t.lines()
+                .map(|l| l.trim().to_string())
+                .filter(|l| !l.is_empty() && !l.contains(['/', '\\']) && l != ".." && l != ".")
+                .collect()
+        })
+        .unwrap_or_default();
+    let gone: Vec<String> = before
+        .into_iter()
+        .filter(|n| !items.iter().any(|i| i.eq_ignore_ascii_case(n)))
+        .collect();
     // the version these files are, for going back to it; and the earlier list of what an
     // update brought, set aside with the files it lists
     let _ = std::fs::write(place.dir.join(crate::recovery::PREVIOUS), current_version());
@@ -902,10 +1162,16 @@ pub(crate) fn install_archive_with(zip: &Path, place: &Place, self_test: bool) -
             let old = aside_of(&target);
             let had = target.exists() || target.is_symlink();
             if had {
-                std::fs::rename(&target, &old).map_err(|e| anyhow::anyhow!("{} cannot be replaced ({e}) - is the folder writable?", short_path(&target)))?;
+                std::fs::rename(&target, &old).map_err(|e| {
+                    anyhow::anyhow!(
+                        "{} cannot be replaced ({e}) - is the folder writable?",
+                        short_path(&target)
+                    )
+                })?;
             }
             moved.push((target.clone(), had.then_some(old)));
-            std::fs::rename(staging.join(name), &target).map_err(|e| anyhow::anyhow!("{} cannot be written ({e})", short_path(&target)))?;
+            std::fs::rename(staging.join(name), &target)
+                .map_err(|e| anyhow::anyhow!("{} cannot be written ({e})", short_path(&target)))?;
         }
         for name in &gone {
             let target = place.dir.join(name);
@@ -945,7 +1211,11 @@ pub(crate) fn install_archive_with(zip: &Path, place: &Place, self_test: bool) -
     }
     let _ = std::fs::write(place.dir.join(MANIFEST), items.join("\n") + "\n");
     let _ = std::fs::remove_dir_all(&staging);
-    log::info!("update: {} replaced in {}", items.join(", "), place.dir.display());
+    log::info!(
+        "update: {} replaced in {}",
+        items.join(", "),
+        place.dir.display()
+    );
     Ok(())
 }
 
@@ -983,10 +1253,13 @@ pub fn cleanup_now() {
             if let Ok(rd) = std::fs::read_dir(&place.dir) {
                 for e in rd.flatten() {
                     let p = e.path();
-                    if p.file_name().map(|n| {
-                        let n = n.to_string_lossy();
-                        n.ends_with(OLD) || n.ends_with(crate::recovery::BAD)
-                    }).unwrap_or(false) {
+                    if p.file_name()
+                        .map(|n| {
+                            let n = n.to_string_lossy();
+                            n.ends_with(OLD) || n.ends_with(crate::recovery::BAD)
+                        })
+                        .unwrap_or(false)
+                    {
                         remove_any(&p);
                         left |= p.exists();
                     }
@@ -1031,7 +1304,10 @@ pub fn open_url(url: &str) {
     #[cfg(target_os = "macos")]
     let _ = std::process::Command::new("open").arg(url).spawn();
     #[cfg(target_os = "windows")]
-    let _ = std::process::Command::new("rundll32").arg("url.dll,FileProtocolHandler").arg(url).spawn();
+    let _ = std::process::Command::new("rundll32")
+        .arg("url.dll,FileProtocolHandler")
+        .arg(url)
+        .spawn();
     #[cfg(target_os = "ios")]
     {
         // (the Swift app's UIApplication.open, linked into the same program, see omsi-app's
@@ -1074,7 +1350,15 @@ mod tests {
             ]
         });
         let r = parse_release(&v, "0.1.7", false).unwrap().unwrap();
-        assert_eq!((r.version.as_str(), r.asset_url.as_str(), r.size, r.sha256.as_deref()), ("0.1.9", "https://x/mine", 42, Some("abcdef")));
+        assert_eq!(
+            (
+                r.version.as_str(),
+                r.asset_url.as_str(),
+                r.size,
+                r.sha256.as_deref()
+            ),
+            ("0.1.9", "https://x/mine", 42, Some("abcdef"))
+        );
         // not newer, a draft, or without this platform's file: nothing to offer
         assert!(parse_release(&v, "0.1.9", false).unwrap().is_none());
         let mut d = v.clone();
@@ -1121,7 +1405,10 @@ mod tests {
         let versions: Vec<&str> = list.iter().map(|l| l.release.version.as_str()).collect();
         assert_eq!(versions, ["0.2.38", "0.2.37", "0.2.33", "0.2.32"]);
         assert_eq!(list[0].published, "2026-10-12");
-        assert_eq!((list[0].release.asset_url.as_str(), list[0].release.size), ("https://x/v0.2.38.zip", 7));
+        assert_eq!(
+            (list[0].release.asset_url.as_str(), list[0].release.size),
+            ("https://x/v0.2.38.zip", 7)
+        );
         assert!(releases_of(&serde_json::json!({"message": "rate limited"}), false).is_empty());
     }
 
@@ -1145,13 +1432,35 @@ mod tests {
             };
             Ok(serde_json::Value::Array(list).to_string())
         };
-        let versions: Vec<String> = releases_paged(fetch, false).unwrap().into_iter().map(|l| l.release.version).collect();
-        assert_eq!(versions, ["0.3.150", "0.3.90", "0.3.80", "0.3.70", "0.3.60", "0.3.50", "0.3.40"]);
+        let versions: Vec<String> = releases_paged(fetch, false)
+            .unwrap()
+            .into_iter()
+            .map(|l| l.release.version)
+            .collect();
+        assert_eq!(
+            versions,
+            ["0.3.150", "0.3.90", "0.3.80", "0.3.70", "0.3.60", "0.3.50", "0.3.40"]
+        );
         assert_eq!(pages.get(), 2);
 
-        let rate_limited = |page: u32| if page == 1 { Ok(r#"{"message": "rate limited"}"#.to_string()) } else { anyhow::bail!("offline") };
+        let rate_limited = |page: u32| {
+            if page == 1 {
+                Ok(r#"{"message": "rate limited"}"#.to_string())
+            } else {
+                anyhow::bail!("offline")
+            }
+        };
         assert!(releases_paged(rate_limited, false).unwrap().is_empty());
-        let page_two_fails = |page: u32| if page == 1 { Ok(serde_json::Value::Array((0..100).map(|n| release(n, n != 7)).collect()).to_string()) } else { anyhow::bail!("offline") };
+        let page_two_fails = |page: u32| {
+            if page == 1 {
+                Ok(
+                    serde_json::Value::Array((0..100).map(|n| release(n, n != 7)).collect())
+                        .to_string(),
+                )
+            } else {
+                anyhow::bail!("offline")
+            }
+        };
         assert_eq!(releases_paged(page_two_fails, false).unwrap().len(), 1);
         assert!(releases_paged(|_| anyhow::bail!("offline"), false).is_err());
 
@@ -1160,13 +1469,22 @@ mod tests {
             pages.set(pages.get() + 1);
             let list: Vec<_> = match page {
                 1 => (100..200).rev().map(|n| release(n, true)).collect(),
-                2 => (0..100).rev().map(|n| release_of_minor(2, n, false)).collect(),
+                2 => (0..100)
+                    .rev()
+                    .map(|n| release_of_minor(2, n, false))
+                    .collect(),
                 _ => panic!("page {page} asked after releases too old to list"),
             };
             Ok(serde_json::Value::Array(list).to_string())
         };
         let found = releases_paged(reaches_unlisted, false).unwrap();
-        assert_eq!((found.first().map(|l| l.release.version.as_str()), found.len()), (Some("0.2.99"), 68));
+        assert_eq!(
+            (
+                found.first().map(|l| l.release.version.as_str()),
+                found.len()
+            ),
+            (Some("0.2.99"), 68)
+        );
         assert_eq!(pages.get(), 2);
     }
 
@@ -1182,7 +1500,12 @@ mod tests {
         };
         let beta = release("v0.3.7", true, false);
         assert!(parse_release(&beta, "0.3.5", false).unwrap().is_none());
-        assert_eq!(parse_release(&beta, "0.3.5", true).unwrap().map(|r| r.version), Some("0.3.7".into()));
+        assert_eq!(
+            parse_release(&beta, "0.3.5", true)
+                .unwrap()
+                .map(|r| r.version),
+            Some("0.3.7".into())
+        );
 
         let list = serde_json::json!([
             release("v0.3.9", false, true),
@@ -1191,27 +1514,77 @@ mod tests {
             release("v0.3.5", false, false),
             release("v0.3.6", true, false),
         ]);
-        assert_eq!(newest_of(&list, "0.3.5", &[]).unwrap().map(|r| r.version), Some("0.3.7".into()));
+        assert_eq!(
+            newest_of(&list, "0.3.5", &[]).unwrap().map(|r| r.version),
+            Some("0.3.7".into())
+        );
         assert!(newest_of(&list, "0.3.7", &[]).unwrap().is_none());
         assert!(newest_of(&list, "0.3.8", &[]).unwrap().is_none());
-        assert!(newest_of(&serde_json::json!({"message": "rate limited"}), "0.3.5", &[]).is_err());
-        assert_eq!(newest_of(&list, "0.3.4", &["0.3.7".into()]).unwrap().map(|r| r.version), Some("0.3.6".into()));
+        assert!(newest_of(
+            &serde_json::json!({"message": "rate limited"}),
+            "0.3.5",
+            &[]
+        )
+        .is_err());
+        assert_eq!(
+            newest_of(&list, "0.3.4", &["0.3.7".into()])
+                .unwrap()
+                .map(|r| r.version),
+            Some("0.3.6".into())
+        );
         let mut one_platform = release("v0.3.8", true, false);
         one_platform["assets"] = serde_json::json!([{"name": "openOMSI-0.3.8-some-other-platform.zip", "browser_download_url": "https://x/o.zip", "size": 7}]);
-        let with_one_platform = serde_json::json!([one_platform, release("v0.3.7", true, false), release("v0.3.5", false, false)]);
-        assert_eq!(newest_of(&with_one_platform, "0.3.5", &[]).unwrap().map(|r| r.version), Some("0.3.7".into()));
+        let with_one_platform = serde_json::json!([
+            one_platform,
+            release("v0.3.7", true, false),
+            release("v0.3.5", false, false)
+        ]);
+        assert_eq!(
+            newest_of(&with_one_platform, "0.3.5", &[])
+                .unwrap()
+                .map(|r| r.version),
+            Some("0.3.7".into())
+        );
 
-        let stable_only: Vec<(String, bool)> = releases_of(&list, false).into_iter().map(|l| (l.release.version, l.beta)).collect();
+        let stable_only: Vec<(String, bool)> = releases_of(&list, false)
+            .into_iter()
+            .map(|l| (l.release.version, l.beta))
+            .collect();
         assert_eq!(stable_only, [("0.3.5".to_string(), false)]);
-        let with_betas: Vec<(String, bool)> = releases_of(&list, true).into_iter().map(|l| (l.release.version, l.beta)).collect();
-        assert_eq!(with_betas, [("0.3.7".to_string(), true), ("0.3.6".to_string(), true), ("0.3.5".to_string(), false)]);
+        let with_betas: Vec<(String, bool)> = releases_of(&list, true)
+            .into_iter()
+            .map(|l| (l.release.version, l.beta))
+            .collect();
+        assert_eq!(
+            with_betas,
+            [
+                ("0.3.7".to_string(), true),
+                ("0.3.6".to_string(), true),
+                ("0.3.5".to_string(), false)
+            ]
+        );
     }
 
     #[test]
     fn a_look_waits_for_the_one_running_unless_the_channel_changed() {
-        let r = Release { version: "0.3.7".into(), page: String::new(), notes: String::new(), asset_name: String::new(), asset_url: String::new(), size: 0, sha256: None };
+        let r = Release {
+            version: "0.3.7".into(),
+            page: String::new(),
+            notes: String::new(),
+            asset_name: String::new(),
+            asset_url: String::new(),
+            size: 0,
+            sha256: None,
+        };
         for switched in [false, true] {
-            assert!(check_waits(&Status::Downloading { release: r.clone(), done: 0, total: 1 }, switched));
+            assert!(check_waits(
+                &Status::Downloading {
+                    release: r.clone(),
+                    done: 0,
+                    total: 1
+                },
+                switched
+            ));
             assert!(check_waits(&Status::Installing(r.clone()), switched));
             assert!(!check_waits(&Status::Idle, switched));
             assert!(!check_waits(&Status::UpToDate, switched));
@@ -1226,11 +1599,21 @@ mod tests {
         let generation = std::sync::atomic::AtomicU64::new(0);
         let old = start_check(&status, &generation);
         let new = start_check(&status, &generation);
-        assert!(!finish_check(&status, &generation, old, Status::Available(r.clone())));
+        assert!(!finish_check(
+            &status,
+            &generation,
+            old,
+            Status::Available(r.clone())
+        ));
         assert_eq!(lock(&status).clone(), Status::Checking);
         assert!(finish_check(&status, &generation, new, Status::UpToDate));
         assert_eq!(lock(&status).clone(), Status::UpToDate);
-        assert!(!finish_check(&status, &generation, new, Status::Available(r)));
+        assert!(!finish_check(
+            &status,
+            &generation,
+            new,
+            Status::Available(r)
+        ));
         assert_eq!(lock(&status).clone(), Status::UpToDate);
     }
 
@@ -1250,7 +1633,10 @@ mod tests {
         use sha2::Digest;
         use std::io::{BufRead, BufReader};
         let data: Vec<u8> = (0..600_000u32).map(|i| (i * 7 + i / 13) as u8).collect();
-        let sha: String = sha2::Sha256::digest(&data).iter().map(|b| format!("{b:02x}")).collect();
+        let sha: String = sha2::Sha256::digest(&data)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let served = data.clone();
@@ -1275,11 +1661,18 @@ mod tests {
                 let head = if from > 0 {
                     format!("HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {from}-{}/{}\r\nConnection: close\r\n\r\n", rest.len(), served.len() - 1, served.len())
                 } else {
-                    format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", rest.len())
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        rest.len()
+                    )
                 };
                 let _ = c.write_all(head.as_bytes());
                 // (the first answer breaks off at 40 %)
-                let send = if n == 0 { &rest[..rest.len() * 2 / 5] } else { rest };
+                let send = if n == 0 {
+                    &rest[..rest.len() * 2 / 5]
+                } else {
+                    rest
+                };
                 let _ = c.write_all(send);
             }
         });
@@ -1306,18 +1699,39 @@ mod tests {
 
     #[test]
     fn the_program_path_survives_the_swap() {
-        assert_eq!(program_path(Path::new("/home/me/openOMSI/openomsi")), PathBuf::from("/home/me/openOMSI/openomsi"));
-        assert_eq!(program_path(Path::new("/home/me/openOMSI/openomsi.old-update")), PathBuf::from("/home/me/openOMSI/openomsi"));
-        assert_eq!(program_path(Path::new("/home/me/openOMSI/openomsi.old-update (deleted)")), PathBuf::from("/home/me/openOMSI/openomsi"));
-        assert_eq!(program_path(Path::new("C:\\Games\\openOMSI\\openomsi.exe.old-update")), PathBuf::from("C:\\Games\\openOMSI\\openomsi.exe"));
-        assert_eq!(program_path(Path::new("C:\\Games\\openOMSI\\openomsi.exe.2.old-update")), PathBuf::from("C:\\Games\\openOMSI\\openomsi.exe"));
+        assert_eq!(
+            program_path(Path::new("/home/me/openOMSI/openomsi")),
+            PathBuf::from("/home/me/openOMSI/openomsi")
+        );
+        assert_eq!(
+            program_path(Path::new("/home/me/openOMSI/openomsi.old-update")),
+            PathBuf::from("/home/me/openOMSI/openomsi")
+        );
+        assert_eq!(
+            program_path(Path::new("/home/me/openOMSI/openomsi.old-update (deleted)")),
+            PathBuf::from("/home/me/openOMSI/openomsi")
+        );
+        assert_eq!(
+            program_path(Path::new("C:\\Games\\openOMSI\\openomsi.exe.old-update")),
+            PathBuf::from("C:\\Games\\openOMSI\\openomsi.exe")
+        );
+        assert_eq!(
+            program_path(Path::new("C:\\Games\\openOMSI\\openomsi.exe.2.old-update")),
+            PathBuf::from("C:\\Games\\openOMSI\\openomsi.exe")
+        );
     }
 
     #[test]
     fn development_builds_are_recognised() {
-        assert!(is_dev_build(Path::new("/src/openOMSI/target/release/openomsi")));
-        assert!(is_dev_build(Path::new("C:\\src\\target\\x86_64-pc-windows-msvc\\release\\openomsi.exe")));
-        assert!(!is_dev_build(Path::new("/Applications/openOMSI.app/Contents/MacOS/openomsi")));
+        assert!(is_dev_build(Path::new(
+            "/src/openOMSI/target/release/openomsi"
+        )));
+        assert!(is_dev_build(Path::new(
+            "C:\\src\\target\\x86_64-pc-windows-msvc\\release\\openomsi.exe"
+        )));
+        assert!(!is_dev_build(Path::new(
+            "/Applications/openOMSI.app/Contents/MacOS/openomsi"
+        )));
         assert!(!is_dev_build(Path::new("/home/me/Games/openOMSI/openomsi")));
         let dir = std::env::temp_dir().join(format!("openomsi-dev-build-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("builds/release")).unwrap();
@@ -1338,42 +1752,80 @@ mod tests {
         std::fs::write(dir.join("openomsi-launcher"), "old cli").unwrap();
         std::fs::write(dir.join("retired.dll"), "old").unwrap();
         std::fs::write(dir.join("Vehicles/MyMod/bus.bus"), "mod").unwrap();
-        std::fs::write(dir.join(MANIFEST), "openomsi\nopenomsi-launcher\nretired.dll\n").unwrap();
+        std::fs::write(
+            dir.join(MANIFEST),
+            "openomsi\nopenomsi-launcher\nretired.dll\n",
+        )
+        .unwrap();
         // the new release
         let zip_path = root.join("new.zip");
         {
             let mut z = zip::ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
             let o = zip::write::SimpleFileOptions::default().unix_permissions(0o755);
-            for (n, body) in [("openomsi", "new game"), ("openomsi-launcher", "new cli"), ("README.md", "readme")] {
+            for (n, body) in [
+                ("openomsi", "new game"),
+                ("openomsi-launcher", "new cli"),
+                ("README.md", "readme"),
+            ] {
                 z.start_file(n, o).unwrap();
                 z.write_all(body.as_bytes()).unwrap();
             }
             z.finish().unwrap();
         }
-        let place = Place { dir: dir.clone(), bundle: None, exe: dir.join("openomsi") };
+        let place = Place {
+            dir: dir.clone(),
+            bundle: None,
+            exe: dir.join("openomsi"),
+        };
         install_archive_with(&zip_path, &place, false).unwrap();
-        assert_eq!(std::fs::read_to_string(dir.join("openomsi")).unwrap(), "new game");
-        assert_eq!(std::fs::read_to_string(dir.join("openomsi-launcher")).unwrap(), "new cli");
-        assert_eq!(std::fs::read_to_string(dir.join("README.md")).unwrap(), "readme");
+        assert_eq!(
+            std::fs::read_to_string(dir.join("openomsi")).unwrap(),
+            "new game"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir.join("openomsi-launcher")).unwrap(),
+            "new cli"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir.join("README.md")).unwrap(),
+            "readme"
+        );
         assert!(!dir.join("retired.dll").exists());
-        assert_eq!(std::fs::read_to_string(dir.join("Vehicles/MyMod/bus.bus")).unwrap(), "mod");
-        assert_eq!(std::fs::read_to_string(dir.join("openomsi.old-update")).unwrap(), "old game");
+        assert_eq!(
+            std::fs::read_to_string(dir.join("Vehicles/MyMod/bus.bus")).unwrap(),
+            "mod"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir.join("openomsi.old-update")).unwrap(),
+            "old game"
+        );
         assert!(!dir.join(STAGING).exists());
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            assert_eq!(std::fs::metadata(dir.join("openomsi")).unwrap().permissions().mode() & 0o777, 0o755);
+            assert_eq!(
+                std::fs::metadata(dir.join("openomsi"))
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o755
+            );
         }
         // an archive without a program replaces nothing
         let bad = root.join("bad.zip");
         {
             let mut z = zip::ZipWriter::new(std::fs::File::create(&bad).unwrap());
-            z.start_file("notes.txt", zip::write::SimpleFileOptions::default()).unwrap();
+            z.start_file("notes.txt", zip::write::SimpleFileOptions::default())
+                .unwrap();
             z.write_all(b"x").unwrap();
             z.finish().unwrap();
         }
         assert!(install_archive_with(&bad, &place, false).is_err());
-        assert_eq!(std::fs::read_to_string(dir.join("openomsi")).unwrap(), "new game");
+        assert_eq!(
+            std::fs::read_to_string(dir.join("openomsi")).unwrap(),
+            "new game"
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -1390,18 +1842,32 @@ mod tests {
         {
             let mut z = zip::ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
             let o = zip::write::SimpleFileOptions::default().unix_permissions(0o755);
-            for (n, body) in [("openOMSI.app/Contents/MacOS/openomsi", "new game"), ("README.md", "readme"), ("LICENSE", "license")] {
+            for (n, body) in [
+                ("openOMSI.app/Contents/MacOS/openomsi", "new game"),
+                ("README.md", "readme"),
+                ("LICENSE", "license"),
+            ] {
                 z.start_file(n, o).unwrap();
                 z.write_all(body.as_bytes()).unwrap();
             }
             z.finish().unwrap();
         }
-        let place = Place { dir: dir.clone(), bundle: Some(bundle.clone()), exe: bundle.join("Contents/MacOS/openomsi") };
+        let place = Place {
+            dir: dir.clone(),
+            bundle: Some(bundle.clone()),
+            exe: bundle.join("Contents/MacOS/openomsi"),
+        };
         install_archive_with(&zip_path, &place, false).unwrap();
-        assert_eq!(std::fs::read_to_string(bundle.join("Contents/MacOS/openomsi")).unwrap(), "new game");
+        assert_eq!(
+            std::fs::read_to_string(bundle.join("Contents/MacOS/openomsi")).unwrap(),
+            "new game"
+        );
         assert!(!dir.join("README.md").exists());
         assert!(!dir.join("LICENSE").exists());
-        assert_eq!(std::fs::read_to_string(dir.join("Other.txt")).unwrap(), "theirs");
+        assert_eq!(
+            std::fs::read_to_string(dir.join("Other.txt")).unwrap(),
+            "theirs"
+        );
         assert!(!dir.join(STAGING).exists());
         let _ = std::fs::remove_dir_all(&root);
     }

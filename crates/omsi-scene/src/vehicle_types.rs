@@ -1,7 +1,6 @@
 //! Vehicle render sets, slots, looks and the vehicle prefetch.
 use super::*;
 
-
 /// GPU-side representation of a vehicle instance: one render instance per mesh.
 pub struct VehicleRender {
     pub window_wipers: Option<crate::window_wipers::WindowWipers>,
@@ -131,7 +130,12 @@ pub struct MultiLight {
 
 impl MultiLight {
     /// The light map made of the maps in `mask`, from the shared store or read now.
-    pub fn composite(&mut self, renderer: &Renderer, scene: &mut Scene, mask: u32) -> Option<TextureId> {
+    pub fn composite(
+        &mut self,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        mask: u32,
+    ) -> Option<TextureId> {
         let mut key = String::from("lightmap-sum:");
         for (k, (path, _)) in self.maps.iter().enumerate() {
             if mask & (1 << k) != 0 {
@@ -151,7 +155,9 @@ impl MultiLight {
             if mask & (1 << k) == 0 {
                 continue;
             }
-            let Ok(img) = omsi_texture::decode_file(path) else { continue };
+            let Ok(img) = omsi_texture::decode_file(path) else {
+                continue;
+            };
             match &mut sum {
                 None => sum = Some(img),
                 Some(acc) => {
@@ -233,14 +239,25 @@ impl VariantSlot {
             let i = if v.is_finite() { v.trunc() as i64 } else { 0 };
             self.entries[i.clamp(0, self.entries.len() as i64 - 1) as usize]
         };
-        let x = self.var.trim().parse().ok().or_else(|| var(&self.var)).unwrap_or(0.0);
+        let x = self
+            .var
+            .trim()
+            .parse()
+            .ok()
+            .or_else(|| var(&self.var))
+            .unwrap_or(0.0);
         if self.entries.is_empty() && x.is_finite() {
             let n = x.round_ties_even();
             if n >= 2.0 && ((n - 2.0) as usize) < self.more.len() {
                 return self.more[(n - 2.0) as usize];
             }
         }
-        if change_picks_item(x) || self.more_vars.iter().any(|v| var(v).is_some_and(change_picks_item)) {
+        if change_picks_item(x)
+            || self
+                .more_vars
+                .iter()
+                .any(|v| var(v).is_some_and(change_picks_item))
+        {
             item
         } else {
             base
@@ -297,7 +314,12 @@ impl DynTex {
 }
 
 impl Look {
-    pub(super) fn add(&self, renderer: &Renderer, scene: &mut Scene, tex: Option<TextureId>) -> MaterialId {
+    pub(super) fn add(
+        &self,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        tex: Option<TextureId>,
+    ) -> MaterialId {
         renderer.address_next.set(self.dyn_tex.address);
         renderer.add_material_extra(
             scene,
@@ -316,7 +338,11 @@ impl Look {
 
     /// This half with one vehicle's text and script textures, set up as
     /// `instantiate_vehicle` sets up a `DynSlot`.
-    pub(super) fn for_vehicle(&self, text: &[Option<TextureId>], script: &[Option<TextureId>]) -> Look {
+    pub(super) fn for_vehicle(
+        &self,
+        text: &[Option<TextureId>],
+        script: &[Option<TextureId>],
+    ) -> Look {
         let d = self.dyn_tex;
         let mut l = self.clone();
         l.dyn_tex = DynTex {
@@ -457,7 +483,9 @@ impl SlotSpec {
     }
 
     pub fn per_vehicle(&self) -> bool {
-        self.base.dyn_tex.any() || self.item.as_ref().is_some_and(|i| i.dyn_tex.any()) || self.more.iter().any(|i| i.dyn_tex.any())
+        self.base.dyn_tex.any()
+            || self.item.as_ref().is_some_and(|i| i.dyn_tex.any())
+            || self.more.iter().any(|i| i.dyn_tex.any())
     }
 
     pub fn for_vehicle(
@@ -468,7 +496,11 @@ impl SlotSpec {
         SlotSpec {
             base: self.base.for_vehicle(text, script),
             item: self.item.as_ref().map(|i| i.for_vehicle(text, script)),
-            more: self.more.iter().map(|i| i.for_vehicle(text, script)).collect(),
+            more: self
+                .more
+                .iter()
+                .map(|i| i.for_vehicle(text, script))
+                .collect(),
         }
     }
 }
@@ -511,7 +543,8 @@ pub struct VehiclePrefetch {
 #[derive(Default)]
 pub(super) struct PreparedVehicles {
     pub(super) meshes: HashMap<(PathBuf, usize), omsi_render::PreparedMesh>,
-    pub(super) textures: HashMap<PathBuf, (omsi_render::PreparedTexture, omsi_texture::PixelFormat)>,
+    pub(super) textures:
+        HashMap<PathBuf, (omsi_render::PreparedTexture, omsi_texture::PixelFormat)>,
 }
 
 impl World {
@@ -720,7 +753,11 @@ pub(super) fn vehicle_bump_names(
 pub fn lamp_set(indices: &[i32], n: usize) -> Vec<usize> {
     let mut set: Vec<usize> = Vec::new();
     for &k in indices {
-        if k >= 0 && (k as usize) < n && !set.contains(&(k as usize)) && set.len() < omsi_render::MAX_LAMPS_PER_MESH as usize {
+        if k >= 0
+            && (k as usize) < n
+            && !set.contains(&(k as usize))
+            && set.len() < omsi_render::MAX_LAMPS_PER_MESH as usize
+        {
             set.push(k as usize);
         }
     }
@@ -734,6 +771,9 @@ impl VehicleRender {
     pub fn seat_lamps(&self, n: usize, lamps: &[i32; 4]) -> Option<(u32, u32)> {
         let set = lamp_set(lamps, n);
         let blocks = self.interior_blocks.get()?;
-        blocks.iter().find(|b| b.1 == set).map(|b| (b.0, set.len() as u32))
+        blocks
+            .iter()
+            .find(|b| b.1 == set)
+            .map(|b| (b.0, set.len() as u32))
     }
 }

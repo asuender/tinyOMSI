@@ -90,7 +90,15 @@ fn serve(rx: std::sync::mpsc::Receiver<Value>, reply: Reply) {
                 }
                 let _ = omsi_launcher_lib::content_dir();
                 let root = omsi_launcher_lib::root_dir().unwrap_or_default();
-                showroom.want(Look { root, map: s("map"), bus: s("bus"), paint: s("paint"), weather: s("weather"), time: f("time", 540.0) as i32, date: s("date") });
+                showroom.want(Look {
+                    root,
+                    map: s("map"),
+                    bus: s("bus"),
+                    paint: s("paint"),
+                    weather: s("weather"),
+                    time: f("time", 540.0) as i32,
+                    date: s("date"),
+                });
                 send(&id, json!({ "ok": true }), &[]);
             }
             "orbit" => {
@@ -114,14 +122,22 @@ fn serve(rx: std::sync::mpsc::Receiver<Value>, reply: Reply) {
             }
             "frame" => {
                 // (a drag and the wheel come with the picture they ask for: one round trip)
-                let (dx, dy, zoom) = (f("dx", 0.0) as f32, f("dy", 0.0) as f32, f("zoom", 1.0) as f32);
+                let (dx, dy, zoom) = (
+                    f("dx", 0.0) as f32,
+                    f("dy", 0.0) as f32,
+                    f("zoom", 1.0) as f32,
+                );
                 if dx != 0.0 || dy != 0.0 {
                     showroom.orbit(dx, dy);
                 }
                 if zoom != 1.0 {
                     showroom.zoom_by(zoom);
                 }
-                if let Some(view) = req.get("view").and_then(Value::as_str).and_then(PreviewView::from_name) {
+                if let Some(view) = req
+                    .get("view")
+                    .and_then(Value::as_str)
+                    .and_then(PreviewView::from_name)
+                {
                     showroom.set_view(view);
                 }
                 if showroom.follow(&mut quality, false) {
@@ -144,7 +160,8 @@ fn serve(rx: std::sync::mpsc::Receiver<Value>, reply: Reply) {
                 let (w, h) = (f("w", 960.0) as u32, f("h", 540.0) as u32);
                 let _ = showroom.preview(r, w, h);
                 let head = json!({ "ok": true, "busy": showroom.busy, "failed": showroom.failed(), "error": showroom.error, "moving": showroom.moving(), "picture": showroom.has_picture(), "view": showroom.view.name(), "views": showroom.views() });
-                let new = showroom.drawn != before || req.get("force").and_then(Value::as_bool).unwrap_or(false);
+                let new = showroom.drawn != before
+                    || req.get("force").and_then(Value::as_bool).unwrap_or(false);
                 match (new, showroom.picture()) {
                     (true, Some(tex)) => {
                         // (lighter while it turns: the still picture after it is the sharp one)
@@ -160,29 +177,56 @@ fn serve(rx: std::sync::mpsc::Receiver<Value>, reply: Reply) {
                 let (map, date, trip) = (s("map"), s("date"), s("trip"));
                 let surface = req.get("surface").and_then(Value::as_bool).unwrap_or(true);
                 std::thread::spawn(move || {
-                    let global = omsi_cfg::find_in_roots(&map).map(|(_, p)| p).or_else(|| omsi_launcher_lib::content_path(&map).ok()).unwrap_or_else(|| PathBuf::from(&map));
-                    let v = omsi_launcher_model::mapview::export(&map, &global, &date, &trip, 0.6, surface);
+                    let global = omsi_cfg::find_in_roots(&map)
+                        .map(|(_, p)| p)
+                        .or_else(|| omsi_launcher_lib::content_path(&map).ok())
+                        .unwrap_or_else(|| PathBuf::from(&map));
+                    let v = omsi_launcher_model::mapview::export(
+                        &map, &global, &date, &trip, 0.6, surface,
+                    );
                     out(&id, json!({ "ok": true }), v.to_string().as_bytes());
                 });
             }
             "map_ground" => {
                 let out = reply.clone();
                 let (map, date) = (s("map"), s("date"));
-                let (x, y, reach, mpp) = (f("x", 0.0), f("y", 0.0), f("reach", 1500.0), f("mpp", 2.0));
+                let (x, y, reach, mpp) =
+                    (f("x", 0.0), f("y", 0.0), f("reach", 1500.0), f("mpp", 2.0));
                 let light = req.get("light").and_then(Value::as_bool).unwrap_or(false);
                 std::thread::spawn(move || {
-                    let global = omsi_cfg::find_in_roots(&map).map(|(_, p)| p).or_else(|| omsi_launcher_lib::content_path(&map).ok()).unwrap_or_else(|| PathBuf::from(&map));
-                    let body = map_ground(&map, &global, &date, glam::DVec2::new(x, y), reach, mpp, light);
+                    let global = omsi_cfg::find_in_roots(&map)
+                        .map(|(_, p)| p)
+                        .or_else(|| omsi_launcher_lib::content_path(&map).ok())
+                        .unwrap_or_else(|| PathBuf::from(&map));
+                    let body = map_ground(
+                        &map,
+                        &global,
+                        &date,
+                        glam::DVec2::new(x, y),
+                        reach,
+                        mpp,
+                        light,
+                    );
                     out(&id, json!({ "ok": true }), &body);
                 });
             }
             "pads" => pads.ask(req, reply.clone()),
             "key_actions" => {
                 let out = reply.clone();
-                std::thread::spawn(move || out(&id, json!({ "ok": true }), super::key_actions::key_actions(&req).to_string().as_bytes()));
+                std::thread::spawn(move || {
+                    out(
+                        &id,
+                        json!({ "ok": true }),
+                        super::key_actions::key_actions(&req).to_string().as_bytes(),
+                    )
+                });
             }
             "quit" => break,
-            other => send(&id, json!({ "ok": false, "error": format!("unknown command {other}") }), &[]),
+            other => send(
+                &id,
+                json!({ "ok": false, "error": format!("unknown command {other}") }),
+                &[],
+            ),
         }
     }
     super::showroom::clear_placing_mark();
@@ -195,7 +239,15 @@ fn serve(rx: std::sync::mpsc::Receiver<Value>, reply: Reply) {
 /// each: position, extrusion, width in metres and in pixels (`f32` pairs), the colour (sRGB
 /// bytes, straight alpha). The page widens each by its extrusion times the larger of the two
 /// widths, as the game's shader does.
-fn map_ground(map: &str, global: &std::path::Path, date: &str, at: glam::DVec2, reach: f64, mpp: f64, light: bool) -> Vec<u8> {
+fn map_ground(
+    map: &str,
+    global: &std::path::Path,
+    date: &str,
+    at: glam::DVec2,
+    reach: f64,
+    mpp: f64,
+    light: bool,
+) -> Vec<u8> {
     use std::sync::Arc;
     type Read = (String, glam::DVec2, Arc<omsi_navigator::MapGround>);
     static LAST: Mutex<Option<Read>> = Mutex::new(None);
@@ -205,7 +257,8 @@ fn map_ground(map: &str, global: &std::path::Path, date: &str, at: glam::DVec2, 
         match last.as_ref().filter(|r| r.0 == key) {
             Some(r) => (r.1, r.2.clone()),
             None => {
-                let (origin, net, layers) = omsi_launcher_model::mapview::map_network(map, global, date);
+                let (origin, net, layers) =
+                    omsi_launcher_model::mapview::map_network(map, global, date);
                 let package = global.parent().and_then(omsi_map::package::Package::open);
                 let g = Arc::new(omsi_navigator::MapGround::new(net, layers, package));
                 *last = Some((key, origin, g.clone()));
@@ -219,7 +272,13 @@ fn map_ground(map: &str, global: &std::path::Path, date: &str, at: glam::DVec2, 
     let pal = omsi_mapdraw::style::palette(light);
     let css = |c: omsi_ui::Color| {
         let c = c.0;
-        format!("rgba({},{},{},{:.3})", (c[0] * 255.0).round(), (c[1] * 255.0).round(), (c[2] * 255.0).round(), c[3])
+        format!(
+            "rgba({},{},{},{:.3})",
+            (c[0] * 255.0).round(),
+            (c[1] * 255.0).round(),
+            (c[2] * 255.0).round(),
+            c[3]
+        )
     };
     let head = json!({
         "anchor": [b.anchor.x - origin.x, b.anchor.y - origin.y],
@@ -235,11 +294,14 @@ fn map_ground(map: &str, global: &std::path::Path, date: &str, at: glam::DVec2, 
     })
     .to_string();
     let verts = ground_v.iter().chain(solid).chain(flat);
-    let mut out = Vec::with_capacity(4 + head.len() + 28 * (ground_v.len() + solid.len() + flat.len()));
+    let mut out =
+        Vec::with_capacity(4 + head.len() + 28 * (ground_v.len() + solid.len() + flat.len()));
     out.extend_from_slice(&(head.len() as u32).to_le_bytes());
     out.extend_from_slice(head.as_bytes());
     for v in verts {
-        for x in [v.pos[0], v.pos[1], v.ext[0], v.ext[1], v.width[0], v.width[1]] {
+        for x in [
+            v.pos[0], v.pos[1], v.ext[0], v.ext[1], v.width[0], v.width[1],
+        ] {
             out.extend_from_slice(&x.to_le_bytes());
         }
         out.extend(v.color.map(|c| (c.clamp(0.0, 1.0) * 255.0).round() as u8));
@@ -256,7 +318,12 @@ impl Showroom {
 /// The preview's renderer: no window, the launcher window's own options.
 fn open_renderer(options: omsi_render::RenderOptions) -> anyhow::Result<Renderer> {
     let instance = crate::graphics_instance();
-    let r = pollster::block_on(Renderer::new_with(&instance, None, Some(wgpu::TextureFormat::Rgba8UnormSrgb), options))?;
+    let r = pollster::block_on(Renderer::new_with(
+        &instance,
+        None,
+        Some(wgpu::TextureFormat::Rgba8UnormSrgb),
+        options,
+    ))?;
     log::info!("launcher service: renderer on {}", r.adapter_name);
     Ok(r)
 }
@@ -265,19 +332,42 @@ fn open_renderer(options: omsi_render::RenderOptions) -> anyhow::Result<Renderer
 fn read_jpeg(r: &Renderer, tex: &wgpu::Texture, quality: u8) -> anyhow::Result<Vec<u8>> {
     let (w, h) = (tex.width(), tex.height());
     let row = (w * 4).div_ceil(256) * 256;
-    let buf = r.device.create_buffer(&wgpu::BufferDescriptor { label: Some("preview readback"), size: (row * h) as u64, usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ, mapped_at_creation: false });
-    let mut enc = r.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("preview readback") });
+    let buf = r.device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("preview readback"),
+        size: (row * h) as u64,
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+    let mut enc = r
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("preview readback"),
+        });
     enc.copy_texture_to_buffer(
         tex.as_image_copy(),
-        wgpu::TexelCopyBufferInfo { buffer: &buf, layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(row), rows_per_image: Some(h) } },
-        wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+        wgpu::TexelCopyBufferInfo {
+            buffer: &buf,
+            layout: wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(row),
+                rows_per_image: Some(h),
+            },
+        },
+        wgpu::Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
     );
     r.queue.submit([enc.finish()]);
     let slice = buf.slice(..);
     slice.map_async(wgpu::MapMode::Read, |_| {});
     omsi_render::wait_gpu(&r.device, None).ok();
     let data = slice.get_mapped_range();
-    let bgra = matches!(tex.format(), wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb);
+    let bgra = matches!(
+        tex.format(),
+        wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb
+    );
     // (the rows as they are, without the copy's padding: the encoder takes the card's own pixels)
     let mut pixels = Vec::with_capacity((w * h * 4) as usize);
     for y in 0..h as usize {
@@ -286,7 +376,11 @@ fn read_jpeg(r: &Renderer, tex: &wgpu::Texture, quality: u8) -> anyhow::Result<V
     drop(data);
     buf.unmap();
     let mut jpeg = Vec::new();
-    let kind = if bgra { jpeg_encoder::ColorType::Bgra } else { jpeg_encoder::ColorType::Rgba };
+    let kind = if bgra {
+        jpeg_encoder::ColorType::Bgra
+    } else {
+        jpeg_encoder::ColorType::Rgba
+    };
     jpeg_encoder::Encoder::new(&mut jpeg, quality).encode(&pixels, w as u16, h as u16, kind)?;
     Ok(jpeg)
 }

@@ -45,7 +45,10 @@ impl PeopleSim {
                     continue;
                 }
                 let sh = s.heading.to_radians();
-                let (s_fwd, s_right) = (DVec2::new(sh.sin(), sh.cos()), DVec2::new(sh.cos(), -sh.sin()));
+                let (s_fwd, s_right) = (
+                    DVec2::new(sh.sin(), sh.cos()),
+                    DVec2::new(sh.cos(), -sh.sin()),
+                );
                 let same_way = bn.fwd().dot(s_fwd) > 0.0;
                 // Without a route, use the nearest stop ahead, not the one just left.
                 if wants_request && same_way && d.truncate().dot(s_fwd) <= 25.0 {
@@ -73,7 +76,11 @@ impl PeopleSim {
                 // (0x61f3e3); one in free drive only lets its riders off. So does one at the
                 // last stop of the IBIS route it is set to, whatever the destination shown.
                 let ends_route = bn.route.as_ref().is_some_and(|r| r.is_last_stop(s));
-                match if ends_route { AtStop::Empties } else { at_stop(*id, s, bn.terminus.as_deref(), &bn.takes) } {
+                match if ends_route {
+                    AtStop::Empties
+                } else {
+                    at_stop(*id, s, bn.terminus.as_deref(), &bn.takes)
+                } {
                     AtStop::Empties => {
                         reg.all_exit = true;
                         continue;
@@ -84,7 +91,8 @@ impl PeopleSim {
                 if same_way {
                     let lateral = d.truncate().dot(s_right);
                     let along = d.truncate().dot(s_fwd);
-                    let in_box = lateral.abs() < 2.0 && along.abs() < (s.length as f64 - 5.0).max(0.0);
+                    let in_box =
+                        lateral.abs() < 2.0 && along.abs() < (s.length as f64 - 5.0).max(0.0);
                     self.stops.get_mut(id).unwrap().buses.push((bn.id, in_box));
                 }
             }
@@ -101,7 +109,13 @@ impl PeopleSim {
     /// sub_61c33c: the bus at stop `stop` person `i` gets into, and why: with a line record,
     /// the nearest of the buses listed whose terminus goes there - else the nearest whose
     /// duty takes them there (`fit`); without, the first listed.
-    pub fn bus_for(&self, i: usize, stop: i64, buses: &[BusNow], bus_ix: &HashMap<BusId, usize>) -> Option<(BusId, Fit)> {
+    pub fn bus_for(
+        &self,
+        i: usize,
+        stop: i64,
+        buses: &[BusNow],
+        bus_ix: &HashMap<BusId, usize>,
+    ) -> Option<(BusId, Fit)> {
         let s = self.stops.get(&stop)?;
         let p = self.pax(i)?;
         match p.line.and_then(|k| s.lines.get(k)) {
@@ -113,8 +127,15 @@ impl PeopleSim {
                 }
                 // (or the destination of another route of its service ending where its own
                 // does: a circular's people wait for the stop it ends at)
-                let f = fit(stop, s, p.dest.as_deref(), termini, bn.terminus.as_deref()?, &bn.takes)
-                    .or_else(|| bn.route.as_ref().and_then(|r| r.takes_waiting_for(termini)))?;
+                let f = fit(
+                    stop,
+                    s,
+                    p.dest.as_deref(),
+                    termini,
+                    bn.terminus.as_deref()?,
+                    &bn.takes,
+                )
+                .or_else(|| bn.route.as_ref().and_then(|r| r.takes_waiting_for(termini)))?;
                 Some((*id, f, (bn.pos - self.people[i].position).length()))
             })),
         }
@@ -140,11 +161,15 @@ impl PeopleSim {
 
     /// Whether the bus stands in the stop's box (the flag of its entry, sub_61ee18).
     pub fn in_stop_box(&self, stop: i64, bus: BusId) -> bool {
-        self.stops.get(&stop).is_some_and(|s| s.buses.iter().any(|b| b.0 == bus && b.1))
+        self.stops
+            .get(&stop)
+            .is_some_and(|s| s.buses.iter().any(|b| b.0 == bus && b.1))
     }
 
     pub fn listed_at(&self, stop: i64, bus: BusId) -> bool {
-        self.stops.get(&stop).is_some_and(|s| s.buses.iter().any(|b| b.0 == bus))
+        self.stops
+            .get(&stop)
+            .is_some_and(|s| s.buses.iter().any(|b| b.0 == bus))
     }
 
     /// sub_7e910c: a free place of the bus (none free: nobody gets on). `off`: the places
@@ -157,9 +182,15 @@ impl PeopleSim {
         if seats.len() < n {
             seats.resize(n, false);
         }
-        let (sit, stand): (Vec<usize>, Vec<usize>) =
-            (0..n).filter(|k| !seats[*k] && !off.get(*k).copied().unwrap_or(false)).partition(|k| places[*k].seated);
-        let free = if stand.is_empty() || (!sit.is_empty() && self.rand_f() as f32 >= self.stand_chance) { sit } else { stand };
+        let (sit, stand): (Vec<usize>, Vec<usize>) = (0..n)
+            .filter(|k| !seats[*k] && !off.get(*k).copied().unwrap_or(false))
+            .partition(|k| places[*k].seated);
+        let free =
+            if stand.is_empty() || (!sit.is_empty() && self.rand_f() as f32 >= self.stand_chance) {
+                sit
+            } else {
+                stand
+            };
         if free.is_empty() {
             return None;
         }
@@ -171,7 +202,9 @@ impl PeopleSim {
     /// sub_5ce4e0: stamp (stamper_prop) or buy (ticketbuy_prop) at a bus that has a
     /// validator / a cash desk, else nothing to do; the ticket bought (sub_5ce2dc).
     pub fn decide_pax_ticket(&mut self, i: usize, bn: &BusNow) -> (u8, u8) {
-        let Some(tp) = self.tickets.clone() else { return (TICKET_NONE, 0) };
+        let Some(tp) = self.tickets.clone() else {
+            return (TICKET_NONE, 0);
+        };
         let mut r = self.rand_f() as f32;
         if !bn.cabin.stampers.is_empty() {
             if r < tp.stamper_prop {
@@ -180,7 +213,10 @@ impl PeopleSim {
             r -= tp.stamper_prop;
         }
         // (the sale also needs the option on, `boarding` not "walk")
-        if bn.cabin.sale.is_some() && r < tp.ticketbuy_prop && !self.boarding.eq_ignore_ascii_case("walk") {
+        if bn.cabin.sale.is_some()
+            && r < tp.ticketbuy_prop
+            && !self.boarding.eq_ignore_ascii_case("walk")
+        {
             let age = self.people[i].age;
             if let Some(t) = self.pick_ticket(age) {
                 return (TICKET_BUY, (t + 1).min(255) as u8);
@@ -209,14 +245,24 @@ impl PeopleSim {
             .stops
             .iter()
             .filter(|(_, o)| (o.pos - pos).length() < reach)
-            .flat_map(|(_, o)| o.spots.iter().zip(&o.taken).filter(|(_, t)| **t).map(|(sp, _)| sp.pos))
+            .flat_map(|(_, o)| {
+                o.spots
+                    .iter()
+                    .zip(&o.taken)
+                    .filter(|(_, t)| **t)
+                    .map(|(sp, _)| sp.pos)
+            })
             .collect();
         let s = self.stops.get(&stop)?;
         let free: Vec<usize> = s
             .taken
             .iter()
             .enumerate()
-            .filter(|(k, t)| !**t && !elsewhere.iter().any(|q| (*q - s.spots[*k].pos).truncate().length() < 0.4))
+            .filter(|(k, t)| {
+                !**t && !elsewhere
+                    .iter()
+                    .any(|q| (*q - s.spots[*k].pos).truncate().length() < 0.4)
+            })
             .map(|(k, _)| k)
             .collect();
         if free.is_empty() {

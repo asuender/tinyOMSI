@@ -107,7 +107,13 @@ pub const VERSION: u32 = 18;
 
 impl Layers {
     pub fn empty(origin: DVec2) -> Layers {
-        Layers { origin, land: vec![Vec::new(); LAND_CLASSES], paved: vec![Vec::new(); PAVE_CLASSES], paint: vec![Vec::new(); PAINT_CLASSES], ..Default::default() }
+        Layers {
+            origin,
+            land: vec![Vec::new(); LAND_CLASSES],
+            paved: vec![Vec::new(); PAVE_CLASSES],
+            paint: vec![Vec::new(); PAINT_CLASSES],
+            ..Default::default()
+        }
     }
 
     /// The extent of everything (relative), for the zoom limits.
@@ -203,7 +209,10 @@ impl Layers {
             return None;
         }
         let origin = DVec2::new(r.f64()?, r.f64()?);
-        let mut out = Layers { origin, ..Default::default() };
+        let mut out = Layers {
+            origin,
+            ..Default::default()
+        };
         for _ in 0..r.count(16)? {
             out.tiles.push([r.f32()?, r.f32()?, r.f32()?, r.f32()?]);
         }
@@ -232,7 +241,14 @@ impl Layers {
             let height = r.f32()?;
             let flags = r.take(1)?[0];
             let inst = r.u32()?;
-            out.buildings.push(Building { outline, roof, height, open: flags & 1 != 0, has_mesh: flags & 2 != 0, inst });
+            out.buildings.push(Building {
+                outline,
+                roof,
+                height,
+                open: flags & 1 != 0,
+                has_mesh: flags & 2 != 0,
+                inst,
+            });
         }
         for _ in 0..r.count(4)? {
             let n = r.count(36)?;
@@ -251,7 +267,11 @@ impl Layers {
             if model as usize >= out.models.len() {
                 return None;
             }
-            out.instances.push(Instance { model, at: Vec2::new(r.f32()?, r.f32()?), heading: r.f32()? });
+            out.instances.push(Instance {
+                model,
+                at: Vec2::new(r.f32()?, r.f32()?),
+                heading: r.f32()?,
+            });
         }
         for _ in 0..r.count(12)? {
             out.trees.push([r.f32()?, r.f32()?, r.f32()?]);
@@ -259,7 +279,11 @@ impl Layers {
         for _ in 0..r.count(9)? {
             let class = r.take(1)?[0];
             let width = r.f32()?;
-            out.lines.push(Line { class, width, points: r.points()? });
+            out.lines.push(Line {
+                class,
+                width,
+                points: r.points()?,
+            });
         }
         Some(out)
     }
@@ -298,19 +322,37 @@ impl Reader<'_> {
     }
     fn points(&mut self) -> Option<Vec<Vec2>> {
         let n = self.count(8)?;
-        (0..n).map(|_| Some(Vec2::new(self.f32()?, self.f32()?))).collect()
+        (0..n)
+            .map(|_| Some(Vec2::new(self.f32()?, self.f32()?)))
+            .collect()
     }
 }
 
 /// Where the layers of a map are kept: `~/.openomsi/cache/mapgen/<name>.bin`.
 pub fn cache_path(map_name: &str) -> Option<std::path::PathBuf> {
     let base = if cfg!(target_os = "ios") {
-        std::path::PathBuf::from(std::env::var_os("OPENOMSI_CONTAINER")?).join("Library").join("Caches")
+        std::path::PathBuf::from(std::env::var_os("OPENOMSI_CONTAINER")?)
+            .join("Library")
+            .join("Caches")
     } else {
-        std::path::PathBuf::from(std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?).join(".openomsi").join("cache")
+        std::path::PathBuf::from(
+            std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?,
+        )
+        .join(".openomsi")
+        .join("cache")
     };
-    let safe: String = map_name.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
-    base.is_absolute().then(|| base.join("mapgen").join(format!("{safe}.bin")))
+    let safe: String = map_name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    base.is_absolute()
+        .then(|| base.join("mapgen").join(format!("{safe}.bin")))
 }
 
 // --- geometry helpers the generator and the drawing share --------------------------------
@@ -357,7 +399,10 @@ pub fn triangulate(p: &[Vec2]) -> Vec<[u16; 3]> {
             if cross < 0.0 {
                 continue;
             }
-            if idx.iter().any(|&j| j != ia && j != ib && j != ic && inside(a, b, c, p[j])) {
+            if idx
+                .iter()
+                .any(|&j| j != ia && j != ib && j != ic && inside(a, b, c, p[j]))
+            {
                 continue;
             }
             out.push([ia as u16, ib as u16, ic as u16]);
@@ -382,7 +427,12 @@ pub fn simplify_ring(p: &[Vec2], tol: f32) -> Vec<Vec2> {
     if n < 4 {
         return p.to_vec();
     }
-    let far = (1..n).max_by(|&a, &b| p[a].distance_squared(p[0]).total_cmp(&p[b].distance_squared(p[0]))).unwrap_or(n / 2);
+    let far = (1..n)
+        .max_by(|&a, &b| {
+            p[a].distance_squared(p[0])
+                .total_cmp(&p[b].distance_squared(p[0]))
+        })
+        .unwrap_or(n / 2);
     let mut keep = vec![false; n];
     keep[0] = true;
     keep[far] = true;
@@ -404,14 +454,24 @@ pub fn simplify_ring(p: &[Vec2], tol: f32) -> Vec<Vec2> {
             stack.push((worst.1, b));
         }
     }
-    p.iter().zip(keep).filter(|(_, k)| *k).map(|(q, _)| *q).collect()
+    p.iter()
+        .zip(keep)
+        .filter(|(_, k)| *k)
+        .map(|(q, _)| *q)
+        .collect()
 }
 
 /// The outlines of the cells set in a grid (`w` x `h`, row-major, row 0 at y = 0), traced along
 /// the cells' edges (each ring anticlockwise around the set cells, holes clockwise), in cell
 /// units. Used for the houses' footprints and the ground's areas.
 pub fn trace_cells(cells: &[bool], w: usize, h: usize) -> Vec<Vec<Vec2>> {
-    let at = |x: i64, y: i64| x >= 0 && y >= 0 && (x as usize) < w && (y as usize) < h && cells[y as usize * w + x as usize];
+    let at = |x: i64, y: i64| {
+        x >= 0
+            && y >= 0
+            && (x as usize) < w
+            && (y as usize) < h
+            && cells[y as usize * w + x as usize]
+    };
     // directed edges with the set cell on their left: keyed by start corner
     let mut edges: hashbrown::HashMap<(i64, i64), Vec<(i64, i64)>> = hashbrown::HashMap::new();
     for y in 0..h as i64 {
@@ -439,11 +499,15 @@ pub fn trace_cells(cells: &[bool], w: usize, h: usize) -> Vec<Vec<Vec2>> {
         let mut cur = start;
         let mut prev_dir = (0i64, 0i64);
         loop {
-            let Some(outs) = edges.get_mut(&cur) else { break };
+            let Some(outs) = edges.get_mut(&cur) else {
+                break;
+            };
             // (at a corner two set cells touch: turn left first, which keeps rings simple)
             let pick = if outs.len() > 1 {
                 let left = (-prev_dir.1, prev_dir.0);
-                outs.iter().position(|o| (o.0 - cur.0, o.1 - cur.1) == left).unwrap_or(0)
+                outs.iter()
+                    .position(|o| (o.0 - cur.0, o.1 - cur.1) == left)
+                    .unwrap_or(0)
             } else {
                 0
             };
@@ -459,9 +523,20 @@ pub fn trace_cells(cells: &[bool], w: usize, h: usize) -> Vec<Vec<Vec2>> {
             ring.push(cur);
         }
         // drop the corners on straight runs
-        let pts: Vec<Vec2> = ring.iter().map(|&(x, y)| Vec2::new(x as f32, y as f32)).collect();
+        let pts: Vec<Vec2> = ring
+            .iter()
+            .map(|&(x, y)| Vec2::new(x as f32, y as f32))
+            .collect();
         let m = pts.len();
-        let kept: Vec<Vec2> = (0..m).filter(|&i| (pts[i] - pts[(i + m - 1) % m]).perp_dot(pts[(i + 1) % m] - pts[i]).abs() > 1e-6).map(|i| pts[i]).collect();
+        let kept: Vec<Vec2> = (0..m)
+            .filter(|&i| {
+                (pts[i] - pts[(i + m - 1) % m])
+                    .perp_dot(pts[(i + 1) % m] - pts[i])
+                    .abs()
+                    > 1e-6
+            })
+            .map(|i| pts[i])
+            .collect();
         if kept.len() >= 3 {
             rings.push(kept);
         }
@@ -480,12 +555,32 @@ mod tests {
         l.land[LAND_FOREST] = vec![Vec2::ZERO, Vec2::X, Vec2::Y];
         l.paved[PAVE_ROAD] = vec![Vec2::ZERO, Vec2::X * 4.0, Vec2::Y];
         l.paint[PAINT_AMBER] = vec![Vec2::ZERO, Vec2::X, Vec2::Y];
-        let outline = vec![Vec2::ZERO, Vec2::new(10.0, 0.0), Vec2::new(10.0, 8.0), Vec2::new(0.0, 8.0)];
-        l.buildings.push(Building { roof: triangulate(&outline), outline, height: 12.5, open: true, has_mesh: true, inst: 0 });
+        let outline = vec![
+            Vec2::ZERO,
+            Vec2::new(10.0, 0.0),
+            Vec2::new(10.0, 8.0),
+            Vec2::new(0.0, 8.0),
+        ];
+        l.buildings.push(Building {
+            roof: triangulate(&outline),
+            outline,
+            height: 12.5,
+            open: true,
+            has_mesh: true,
+            inst: 0,
+        });
         l.models.push(vec![[Vec3::ZERO, Vec3::X, Vec3::Z]]);
-        l.instances.push(Instance { model: 0, at: Vec2::new(3.0, 4.0), heading: 90.0 });
+        l.instances.push(Instance {
+            model: 0,
+            at: Vec2::new(3.0, 4.0),
+            heading: 90.0,
+        });
         l.trees.push([5.0, 6.0, 3.0]);
-        l.lines.push(Line { class: LINE_TRAM, width: 1.5, points: vec![Vec2::ZERO, Vec2::ONE] });
+        l.lines.push(Line {
+            class: LINE_TRAM,
+            width: 1.5,
+            points: vec![Vec2::ZERO, Vec2::ONE],
+        });
         let b = l.to_bytes(42);
         let r = Layers::from_bytes(&b, 42).unwrap();
         assert_eq!(r.buildings, l.buildings);
@@ -505,7 +600,11 @@ mod tests {
         let mut l = Layers::empty(DVec2::ZERO);
         l.models.push(vec![[Vec3::ZERO, Vec3::X, Vec3::Z]]);
         for i in 0..3 {
-            l.instances.push(Instance { model: 0, at: Vec2::new(i as f32, 2.0), heading: 10.0 * i as f32 });
+            l.instances.push(Instance {
+                model: 0,
+                at: Vec2::new(i as f32, 2.0),
+                heading: 10.0 * i as f32,
+            });
         }
         let bytes = l.to_bytes(7);
         let r = Layers::from_bytes(&bytes, 7).expect("the layers read back");
@@ -515,10 +614,23 @@ mod tests {
 
     #[test]
     fn an_l_shaped_house_is_triangulated_inside_its_outline() {
-        let p = vec![Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0), Vec2::new(10.0, 4.0), Vec2::new(4.0, 4.0), Vec2::new(4.0, 10.0), Vec2::new(0.0, 10.0)];
+        let p = vec![
+            Vec2::new(0.0, 0.0),
+            Vec2::new(10.0, 0.0),
+            Vec2::new(10.0, 4.0),
+            Vec2::new(4.0, 4.0),
+            Vec2::new(4.0, 10.0),
+            Vec2::new(0.0, 10.0),
+        ];
         let t = triangulate(&p);
         assert_eq!(t.len(), 4);
-        let area: f32 = t.iter().map(|t| (p[t[1] as usize] - p[t[0] as usize]).perp_dot(p[t[2] as usize] - p[t[0] as usize]) * 0.5).sum();
+        let area: f32 = t
+            .iter()
+            .map(|t| {
+                (p[t[1] as usize] - p[t[0] as usize]).perp_dot(p[t[2] as usize] - p[t[0] as usize])
+                    * 0.5
+            })
+            .sum();
         assert!((area - 64.0).abs() < 1e-3, "{area}");
     }
 

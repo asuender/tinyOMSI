@@ -432,7 +432,11 @@ fn put_tail(w: &mut BitWriter, pose: &Pose) {
     match pose.walker {
         Some(k) => {
             w.put(1, 1);
-            let c = if k.course.is_finite() { k.course.rem_euclid(360.0) } else { k.heading.rem_euclid(360.0) };
+            let c = if k.course.is_finite() {
+                k.course.rem_euclid(360.0)
+            } else {
+                k.heading.rem_euclid(360.0)
+            };
             w.put((c as f64 / 360.0 * 65536.0).round() as u64 % 65536, 16);
         }
         None => w.put(0, 1),
@@ -452,8 +456,16 @@ fn get_tail(r: &mut BitReader, p: &mut Pose) {
     if has_aboard == 1 {
         let aboard = (|| {
             let owner = r.get(16)? as u32;
-            let local = [r.get_fixed(0.005, 14)? as f32, r.get_fixed(0.005, 14)? as f32, r.get_fixed(0.005, 14)? as f32];
-            let seat = if r.get(1)? == 1 { Some(r.get(10)? as u16) } else { None };
+            let local = [
+                r.get_fixed(0.005, 14)? as f32,
+                r.get_fixed(0.005, 14)? as f32,
+                r.get_fixed(0.005, 14)? as f32,
+            ];
+            let seat = if r.get(1)? == 1 {
+                Some(r.get(10)? as u16)
+            } else {
+                None
+            };
             Some(Aboard { owner, local, seat })
         })();
         let Some(aboard) = aboard else { return };
@@ -487,7 +499,11 @@ fn put_walker(w: &mut BitWriter, walker: Option<Walker>) {
             w.put_fixed(k.x, 0.01, 32);
             w.put_fixed(k.y, 0.01, 32);
             w.put_fixed(k.z, 0.01, 24);
-            let h = if k.heading.is_finite() { k.heading.rem_euclid(360.0) } else { 0.0 };
+            let h = if k.heading.is_finite() {
+                k.heading.rem_euclid(360.0)
+            } else {
+                0.0
+            };
             w.put((h as f64 / 360.0 * 65536.0).round() as u64 % 65536, 16);
             w.put_fixed(k.speed as f64, 0.05, 9);
             w.put(k.seated as u64, 1);
@@ -699,8 +715,25 @@ mod tests {
         p.lamps = vec![0.5; MAX_LAMPS];
         p.switches = vec![3.0; MAX_SWITCHES];
         p.values = (0..MAX_VALUES).map(|k| k as f32).collect();
-        p.rear = vec![PartPose { x: 1.0, y: -12.0, z: 0.0, heading: 5.0 }; MAX_REAR];
-        p.walker = Some(Walker { x: 1.0, y: 2.0, z: 3.0, heading: 10.0, speed: 1.4, course: 100.0, seated: false, aboard: None });
+        p.rear = vec![
+            PartPose {
+                x: 1.0,
+                y: -12.0,
+                z: 0.0,
+                heading: 5.0
+            };
+            MAX_REAR
+        ];
+        p.walker = Some(Walker {
+            x: 1.0,
+            y: 2.0,
+            z: 3.0,
+            heading: 10.0,
+            speed: 1.4,
+            course: 100.0,
+            seated: false,
+            aboard: None,
+        });
         let data = encode_state(&p, 6, 0);
         assert!(data.len() <= MAX_STATE_BYTES, "{} bytes", data.len());
         let (_, _, q) = decode_state(&data, 6).unwrap();
@@ -713,7 +746,16 @@ mod tests {
     fn doors_are_fine_and_walkers_keep_their_course() {
         let mut p = bus();
         p.doors = vec![0.37, 0.5, 1.0];
-        p.walker = Some(Walker { x: 1.0, y: 2.0, z: 3.0, heading: 10.0, speed: 1.4, course: 100.0, seated: false, aboard: None });
+        p.walker = Some(Walker {
+            x: 1.0,
+            y: 2.0,
+            z: 3.0,
+            heading: 10.0,
+            speed: 1.4,
+            course: 100.0,
+            seated: false,
+            aboard: None,
+        });
         p.sent_ms = 1234;
         p.radio_keyed = true;
         let (_, _, q) = decode_state(&encode_state(&p, 3, 0), 3).unwrap();
@@ -733,7 +775,9 @@ mod tests {
         // (the sender's clock at the end is optional: an older game's state ends before it;
         // so are the fine door openings and the walker's course after it)
         let b = bus();
-        let optional = 5 + (2 + b.doors.len().min(MAX_DOORS) * 8 + if b.walker.is_some() { 16 } else { 0 }).div_ceil(8);
+        let optional = 5
+            + (2 + b.doors.len().min(MAX_DOORS) * 8 + if b.walker.is_some() { 16 } else { 0 })
+                .div_ceil(8);
         for cut in 0..good.len() - optional {
             assert!(decode_state(&good[..cut], 3).is_none(), "cut at {cut}");
         }
