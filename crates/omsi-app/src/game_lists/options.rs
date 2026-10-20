@@ -532,7 +532,6 @@ pub(super) fn toggle_now(app: &App, id: &str) -> Option<bool> {
         "momentary_gears" => s.momentary_gears,
         "auto_shift" => s.auto_shift,
         "ff_invert" => s.ff_invert,
-        "machine_translation" => s.machine_translation,
         "ui_scale_window" => s.ui_scale_window,
         "tooltips" => s.tooltips,
         "notes" => s.notes,
@@ -943,11 +942,6 @@ fn toggle_set_graphics_and_controls(
         "ff_invert" => {
             app.settings.ff_invert = on;
             Some(("ff_invert", bit))
-        }
-        "machine_translation" => {
-            app.settings.machine_translation = on;
-            crate::mt::enable(on);
-            Some(("machine_translation", bit))
         }
         "ui_scale_window" => {
             app.settings.ui_scale_window = on;

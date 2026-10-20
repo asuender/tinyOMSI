@@ -313,7 +313,6 @@ impl App {
                     self.menus.vehicle_list = menu.vehicles;
                     // (alphabetical)
                     self.menus.vehicle_list.sort_by_key(|v| v.0.to_lowercase());
-                    crate::mt::protect(self.menus.vehicle_list.iter().map(|v| v.0.as_str()));
                 }
                 if self.menus.vehicle_list.is_empty() {
                     self.service_msg = Some(("No vehicles found".into(), 3.0));

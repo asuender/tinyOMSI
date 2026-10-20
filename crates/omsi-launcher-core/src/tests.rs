@@ -504,7 +504,7 @@ fn the_wheels_tremble_settings_round_trip() {
 fn settings_keep_what_the_page_does_not_manage() {
     // the user's file: a key of a newer game, a hand-written one, and the game's other
     // spellings of keys the page writes
-    let old = "# mine\nversion=2\nmsaa=1\nview_distance=1500\nlang=de\ntexmemlimit=401.0\npresence=0\n PrEsEnCe = 1\ndiscord_status=1\n DiScOrD_App_Id = 123456\nfuture_switch=7\nOMSI_Thing = on\nfractal=0\n";
+    let old = "# mine\nversion=2\nmsaa=1\nview_distance=1500\nlang=de\ntexmemlimit=401.0\npresence=0\n PrEsEnCe = 1\ndiscord_status=1\n DiScOrD_App_Id = 123456\nmachine_translation=1\nfuture_switch=7\nOMSI_Thing = on\nfractal=0\n";
     let v = settings_from_text(Some(old));
     assert_eq!(v["msaa"], 1);
     assert_eq!(v["view_distance"], "1500");
@@ -514,7 +514,7 @@ fn settings_keep_what_the_page_does_not_manage() {
     assert!(v.get("texture_memory").is_none());
     assert!(settings_from_text(None).get("presence").is_none());
     assert!(v.get("presence").is_none());
-    for key in ["discord_status", "discord_app_id"] {
+    for key in ["discord_status", "discord_app_id", "machine_translation"] {
         assert!(settings_from_text(None).get(key).is_none());
         assert!(v.get(key).is_none());
     }
@@ -527,6 +527,7 @@ fn settings_keep_what_the_page_does_not_manage() {
     page["video_memory"] = json!("3000");
     page["discord_status"] = json!(true);
     page["discord_app_id"] = json!("123456");
+    page["machine_translation"] = json!(true);
     page["texture_compression"] = json!(false);
     let text = settings_to_text(&page, Some(old));
     for line in [
@@ -550,6 +551,7 @@ fn settings_keep_what_the_page_does_not_manage() {
         "discord_status",
         "discord_app_id",
         "DiScOrD_App_Id",
+        "machine_translation",
         "fractal=",
         "view_distance=1500",
     ] {

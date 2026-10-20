@@ -391,12 +391,6 @@ impl State {
                 .and_then(|x| x.as_str())
                 .unwrap_or("ENG"),
         );
-        host().mt_enable(
-            settings
-                .get("machine_translation")
-                .and_then(|x| x.as_bool())
-                .unwrap_or(false),
-        );
         let keybindings = core::get_keybindings().unwrap_or(serde_json::Value::Null);
         let mut choice = Choice::load();
         // (at the real time, a trip picked in an earlier session has most likely left)
@@ -1144,12 +1138,6 @@ impl State {
                 if !self.content_first {
                     return;
                 }
-                host().mt_protect(
-                    &mut maps
-                        .iter()
-                        .flat_map(|m| [m.name.as_str(), m.friendly.as_str()]),
-                );
-                host().mt_protect(&mut weathers.iter().map(|w| w.name.as_str()));
                 self.maps = maps;
                 self.weathers = weathers;
                 self.pick_map();
@@ -1163,22 +1151,6 @@ impl State {
                 if !self.content_first {
                     return;
                 }
-                host().mt_protect(
-                    &mut batch
-                        .iter()
-                        .flat_map(|v| {
-                            [
-                                v.name.as_str(),
-                                v.manufacturer.as_str(),
-                                v.type_name.as_str(),
-                            ]
-                        })
-                        .chain(
-                            batch
-                                .iter()
-                                .flat_map(|v| v.paints.iter().map(|p| p.as_str())),
-                        ),
-                );
                 self.vehicles.extend(batch);
                 self.set_status(
                     format!(
@@ -1190,29 +1162,6 @@ impl State {
                 );
             }
             Msg::Content(Ok((maps, vehicles, weathers))) => {
-                // (names of things, not the interface: never machine-translated)
-                host().mt_protect(
-                    &mut maps
-                        .iter()
-                        .flat_map(|m| [m.name.as_str(), m.friendly.as_str()]),
-                );
-                host().mt_protect(
-                    &mut vehicles
-                        .iter()
-                        .flat_map(|v| {
-                            [
-                                v.name.as_str(),
-                                v.manufacturer.as_str(),
-                                v.type_name.as_str(),
-                            ]
-                        })
-                        .chain(
-                            vehicles
-                                .iter()
-                                .flat_map(|v| v.paints.iter().map(|p| p.as_str())),
-                        ),
-                );
-                host().mt_protect(&mut weathers.iter().map(|w| w.name.as_str()));
                 let known: std::collections::HashSet<String> = self
                     .maps
                     .iter()
@@ -1285,22 +1234,6 @@ impl State {
                 }
             }
             Msg::Lines { map, date, lines } => {
-                if let Ok(ls) = lines.as_ref() {
-                    host().mt_protect(
-                        &mut ls
-                            .iter()
-                            .flat_map(|l| {
-                                l.termini
-                                    .iter()
-                                    .map(|t| t.as_str())
-                                    .chain([l.name.as_str()])
-                            })
-                            .chain(
-                                ls.iter()
-                                    .flat_map(|l| l.tours.iter().map(|t| t.number.as_str())),
-                            ),
-                    );
-                }
                 if (map, date) != self.lines_for {
                     return;
                 }

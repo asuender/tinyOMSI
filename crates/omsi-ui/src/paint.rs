@@ -425,7 +425,7 @@ impl Painter {
     }
 
     /// [`Painter::text`] of a text that is not the interface's own (a Lua plugin's): drawn as
-    /// it is, not looked up in the translations (nor handed to the machine translation).
+    /// it is, not looked up in the translations.
     #[allow(clippy::too_many_arguments)]
     pub fn text_as_is(
         &mut self,

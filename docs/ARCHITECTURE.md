@@ -419,8 +419,7 @@ checked against it.
   `omsi-scene` 14 and 15, no `thread_local!` (count them with
   `grep -rnE '^\s*(pub(\([a-z:]+\))? )?static ' crates/omsi-app/src | grep -E 'Mutex|Atomic|OnceLock|RwLock|Cell|Lazy|Once\b'`
   and `grep -rn 'thread_local!'`). They are install-once hooks, platform
-  handles and process resources (the signal handler, the tilt sensor, the translation
-  worker, thread pools, the LAN gateway and mods root), memos of file contents and
+  handles and process resources (the signal handler, the tilt sensor, thread pools, the LAN gateway and mods root), memos of file contents and
   environment switches, rate limits of log lines and refreshes, the picture-file numbering
   that is the same for every renderer. The settings and the session's weather that were
   broadcast to loading code through statics are passed down now: the session's look and

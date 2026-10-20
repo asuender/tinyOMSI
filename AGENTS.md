@@ -34,6 +34,9 @@ been removed. Discord activity sharing and Steamworks integration (including the
 have also been removed. Old `presence`, `discord_status` and `discord_app_id` settings are
 ignored and dropped on save. Steam installation discovery, Steam Deck support and
 multiplayer heartbeats remain.
+The `omsi-mt` machine translation crate (NLLB-200 via CTranslate2) and its `omsi-ui`
+fallback hook have been removed; interface texts come only from the translation tables.
+Old `machine_translation` settings are ignored and dropped on save.
 Build, security, crate dependency-boundary and locale checks remain. Source
 line-count limits and the size-budget script have been removed.
 

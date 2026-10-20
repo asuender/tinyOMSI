@@ -29,6 +29,11 @@ The upstream player-count heartbeat and its Cloudflare Worker have been removed.
 save. Discord activity sharing and Steamworks integration, including the Steam overlay,
 have also been removed. Steam installation discovery and Steam Deck support remain.
 
+The optional machine translation of untranslated interface texts (NLLB-200 through
+CTranslate2, a 620 MB model download) has been removed. Interface texts come only from
+the translation tables and OMSI's language files. Old `machine_translation` settings
+are ignored and dropped on save.
+
 Crate dependency-boundary checks remain; formatting-sensitive source line-count
 limits have been removed.
 

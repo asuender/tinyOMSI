@@ -38,7 +38,6 @@ members = [
     "crates/omsi-world",
     "crates/omsi-scene",
     "crates/omsi-photo",
-    "crates/omsi-mt",
     "crates/omsi-app",
     "crates/omsi-srcscan",
     "tools/omsi-check",

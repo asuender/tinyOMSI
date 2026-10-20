@@ -28,7 +28,6 @@ mod placing;
 mod platform;
 mod touch;
 mod units;
-use omsi_mt as mt;
 use omsi_platform::updater;
 mod update_watch;
 use omsi_soundscape::ambience;
@@ -330,8 +329,6 @@ pub(crate) fn prepare(
     optimiser::recover_cut_short();
     ui_language(&settings::Settings::load().language);
     units::Units::from_setting(&settings::Settings::load().units).set();
-    // (a server has no interface to translate)
-    mt::enable(settings::Settings::load().machine_translation && args.server.is_none());
     // the dedicated server: server.cfg decides the world, the rest is a host without a window
     let server_cfg = match args.server.clone() {
         // (a start script asking for the maps: server.cfg written when missing, nothing more

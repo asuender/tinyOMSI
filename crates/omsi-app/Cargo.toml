@@ -31,7 +31,6 @@ omsi-texture = { path = "../omsi-texture" }
 omsi-geometry = { path = "../omsi-geometry" }
 omsi-render = { path = "../omsi-render" }
 omsi-photo = { path = "../omsi-photo" }
-omsi-mt = { path = "../omsi-mt" }
 omsi-sim = { path = "../omsi-sim" }
 omsi-htmlengine = { path = "../omsi-htmlengine" }
 omsi-plugin = { path = "../omsi-plugin" }

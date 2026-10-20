@@ -2828,12 +2828,13 @@ const SETTING_ALIASES: &[(&str, &str)] = &[
 /// OMSI's `texmemlimit=`, its alias) was the textures' budget, which `video_memory=` - all
 /// the game holds on the card - replaced; kept, a 401 or a 1000 meant for the textures would
 /// be taken for something else by whoever reads it next. `presence` counted sessions on
-/// the upstream website. Discord activity settings are retired too.
+/// the upstream website. Discord activity and machine translation settings are retired too.
 const RETIRED_SETTINGS: &[&str] = &[
     "texture_memory",
     "presence",
     "discord_status",
     "discord_app_id",
+    "machine_translation",
 ];
 
 /// A window size as the settings keep it: "WxH" in pixels (each 320..16384), else "auto".
@@ -3107,7 +3108,6 @@ pub fn settings_from_text_on(text: Option<&str>, phone: bool) -> Value {
         ("time_sync", json!(false)),
         ("metar_sync", json!(false)),
         ("metar_station", json!("")),
-        ("machine_translation", json!(false)),
         ("shadow_casters", json!("all")),
         ("shadow_blobs", json!(true)),
         ("reflections", json!(1.0)),
@@ -3653,35 +3653,12 @@ pub fn settings_from_text_on(text: Option<&str>, phone: bool) -> Value {
                     .unwrap_or(100.0))
             }
             "full_tank" | "trip_summary" => v[&k] = json!(b(val)),
-            "nav_arrows"
-            | "nav_ai"
-            | "nav_surface"
-            | "nav_light"
-            | "nav_3d"
-            | "nav_widget"
-            | "get_up"
-            | "time_sync"
-            | "metar_sync"
-            | "ui_scale_window"
-            | "notes"
-            | "machine_translation"
-            | "update_check"
-            | "update_auto"
-            | "update_notify"
-            | "steering_linear"
-            | "old_steering"
-            | "red_steer_spd"
-            | "ff_invert"
-            | "ff_enabled"
-            | "brake_hold"
-            | "auto_clutch"
-            | "momentary_gears"
-            | "auto_shift"
-            | "mouse_steering"
-            | "mouse_right_off"
-            | "mouse_smooth"
-            | "mouse_hold"
-            | "mouse_pedals"
+            "nav_arrows" | "nav_ai" | "nav_surface" | "nav_light" | "nav_3d" | "nav_widget"
+            | "get_up" | "time_sync" | "metar_sync" | "ui_scale_window" | "notes"
+            | "update_check" | "update_auto" | "update_notify" | "steering_linear"
+            | "old_steering" | "red_steer_spd" | "ff_invert" | "ff_enabled" | "brake_hold"
+            | "auto_clutch" | "momentary_gears" | "auto_shift" | "mouse_steering"
+            | "mouse_right_off" | "mouse_smooth" | "mouse_hold" | "mouse_pedals"
             | "blinker_cancel" => v[&k] = json!(b(val)),
             "info_bar" => v[&k] = json!(b(val)),
             "perf_overlay" => v[&k] = json!(perf_overlay_mode(val)),
@@ -4048,7 +4025,7 @@ pub fn settings_to_text(v: &Value, old: Option<&str>) -> String {
         b("precision_zoom", false),
     );
     let text = format!(
-        "{text}pax_voices={}\nnav_arrows={}\nnav_ai={}\nnav_surface={}\nnav_light={}\nnav_3d={}\nnav_widget={}\nnav_size={}\nget_up={}\ntime_speed={}\nmachine_translation={}\nshadow_casters={}\nshadow_blobs={}\nctrl_deadzone={}\nupdate_check={}\nupdate_auto={}\nupdate_notify={}\nreflections={}\nmouse_sens={}\nmouse_pedal_strength={}\ngraphics_api={}\nctrl_off={}\nsteering_linear={}\nold_steering={}\nred_steer_spd={}\nff_invert={}\nwheel_range={}\nwheel_lock={}\nfov={}\ncamera_collision={}\npedal_throttle={}\npedal_brake={}\nseat_x={}\nseat_y={}\nseat_z={}\nseat_pitch_deg={}\nsteer_look={}\nhead_tracking={}\nhead_tracking_yaw_sens={}\nhead_tracking_pitch_sens={}\nhead_tracking_roll_sens={}\nhead_tracking_x_sens={}\nhead_tracking_y_sens={}\nhead_tracking_z_sens={}\nhead_tracking_invert_yaw={}\nhead_tracking_invert_pitch={}\nhead_tracking_invert_roll={}\nhead_tracking_invert_x={}\nhead_tracking_invert_y={}\nhead_tracking_invert_z={}\nff_enabled={}\nbrake_hold={}\nauto_clutch={}\nmomentary_gears={}\nauto_shift={}\nled_glow={}\nled_mips={}\nnight_brightness={}\nui_scale={}\nui_scale_window={}\nchat_size={}\nnotes={}\nmouse_steering={}\nmouse_right_off={}\nmouse_smooth={}\nmouse_hold={}\nblinker_cancel={}\nff_road_vib={}\nff_engine_vib={}\nff_fade={}\n",
+        "{text}pax_voices={}\nnav_arrows={}\nnav_ai={}\nnav_surface={}\nnav_light={}\nnav_3d={}\nnav_widget={}\nnav_size={}\nget_up={}\ntime_speed={}\nshadow_casters={}\nshadow_blobs={}\nctrl_deadzone={}\nupdate_check={}\nupdate_auto={}\nupdate_notify={}\nreflections={}\nmouse_sens={}\nmouse_pedal_strength={}\ngraphics_api={}\nctrl_off={}\nsteering_linear={}\nold_steering={}\nred_steer_spd={}\nff_invert={}\nwheel_range={}\nwheel_lock={}\nfov={}\ncamera_collision={}\npedal_throttle={}\npedal_brake={}\nseat_x={}\nseat_y={}\nseat_z={}\nseat_pitch_deg={}\nsteer_look={}\nhead_tracking={}\nhead_tracking_yaw_sens={}\nhead_tracking_pitch_sens={}\nhead_tracking_roll_sens={}\nhead_tracking_x_sens={}\nhead_tracking_y_sens={}\nhead_tracking_z_sens={}\nhead_tracking_invert_yaw={}\nhead_tracking_invert_pitch={}\nhead_tracking_invert_roll={}\nhead_tracking_invert_x={}\nhead_tracking_invert_y={}\nhead_tracking_invert_z={}\nff_enabled={}\nbrake_hold={}\nauto_clutch={}\nmomentary_gears={}\nauto_shift={}\nled_glow={}\nled_mips={}\nnight_brightness={}\nui_scale={}\nui_scale_window={}\nchat_size={}\nnotes={}\nmouse_steering={}\nmouse_right_off={}\nmouse_smooth={}\nmouse_hold={}\nblinker_cancel={}\nff_road_vib={}\nff_engine_vib={}\nff_fade={}\n",
         match v.get("pax_voices").and_then(|x| x.as_str()).unwrap_or("all") {
             "tickets" => "tickets",
             "off" => "off",
@@ -4062,7 +4039,6 @@ pub fn settings_to_text(v: &Value, old: Option<&str>) -> String {
             Some(Value::Number(x)) => x.as_f64().unwrap_or(1.0).clamp(1.0, 30.0),
             _ => 1.0,
         },
-        b("machine_translation", false),
         if v.get("shadow_casters").and_then(|x| x.as_str()) == Some("omsi") { "omsi" } else { "all" },
         b("shadow_blobs", true),
         f("ctrl_deadzone", 0.0).clamp(0.0, 0.3),

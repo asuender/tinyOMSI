@@ -380,7 +380,6 @@ const general = {
         { type: 'custom', id: 'launcher_size' },
         { type: 'select', key: 'language', label: 'Language', raw: true, options: (s, boot) => (boot?.languages || []).map((l) => [l.code, l.name]) },
         // (texts nobody has translated: translated on this machine)
-        { type: 'toggle', key: 'machine_translation', label: 'Translate the remaining texts automatically (offline, downloads 620 MB once)' },
         { type: 'toggle', key: 'launcher_rest', label: 'The launcher rests while a game runs (gives the graphics card to the game)' },
         { type: 'toggle', key: 'voice_chat', label: 'Voice chat through GreenTeaSpeak (multiplayer)', help: 'Players near you are heard from where they stand, when GreenTeaSpeak runs with the openOMSI plugin and the server names a voice server.' },
         // (larger for those who find the texts hard to read, smaller for more of the picture)

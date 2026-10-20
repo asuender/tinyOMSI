@@ -1,8 +1,7 @@
 //! What the launcher's model asks of the program it runs in: the game program (omsi-app)
 //! installs a `Host` once, before the model is made (`set`). Everything here is what only the
-//! game has - the interface's language and machine translation, the previous run's crash on a
-//! phone, the city map read the way the navigator reads it - so the model needs none of the
-//! game's modules.
+//! game has - the interface's language, the previous run's crash on a phone, the city map read
+//! the way the navigator reads it - so the model needs none of the game's modules.
 //!
 //! Without a host (the model's own tests) every call answers as if nothing were there.
 
@@ -15,10 +14,6 @@ use std::sync::OnceLock;
 pub trait Host: Send + Sync {
     /// Show the interface in `code` (the settings' ENG / DEU / FRA / RUS).
     fn ui_language(&self, _code: &str) {}
-    /// Machine translation of the interface on or off, and texts it must leave alone (names
-    /// of maps, buses, lines).
-    fn mt_enable(&self, _on: bool) {}
-    fn mt_protect(&self, _texts: &mut dyn Iterator<Item = &str>) {}
     /// A phone: what the previous run said last and the end of its log, when it crashed.
     fn previous_run_crash(&self) -> Option<(String, String)> {
         None

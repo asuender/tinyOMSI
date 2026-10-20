@@ -277,10 +277,6 @@ pub struct Settings {
     pub metar_sync: bool,
     /// The airport (ICAO) whose report the METAR sync follows; empty: the one nearest the map.
     pub metar_station: String,
-    /// Texts the interface has no translation of are translated on this machine by a
-    /// neural translation model (downloaded once, ~620 MB), for the languages OMSI has no
-    /// language files of.
-    pub machine_translation: bool,
     /// Which meshes cast sun shadows: "all" solid ones, or "omsi" - only those the models
     /// mark `[shadow]`, as OMSI 2's shadows do.
     pub shadow_casters: String,
@@ -586,7 +582,6 @@ impl Settings {
             time_sync: false,
             metar_sync: false,
             metar_station: String::new(),
-            machine_translation: false,
             shadow_casters: "all".into(),
             ctrl_deadzone: 0.0,
             right_stick_look: true,
@@ -1098,7 +1093,6 @@ impl Settings {
                         .collect::<String>()
                         .to_ascii_uppercase()
                 }
-                "machine_translation" => s.machine_translation = b(v),
                 "ctrl_deadzone" => {
                     s.ctrl_deadzone = v
                         .parse::<f32>()

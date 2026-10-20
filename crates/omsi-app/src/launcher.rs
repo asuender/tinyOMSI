@@ -4,8 +4,8 @@
 //! here: the helper service the
 //! desktop launcher runs (`openomsi --launcher-service`: the bus preview drawn with the game's
 //! own scene in `showroom`, the city map, the controllers), and the program's side of the
-//! launcher's model (`AppHost`): the interface's language, machine translation and the city map
-//! read the way the navigator reads it.
+//! launcher's model (`AppHost`): the interface's language and the city map read the way the
+//! navigator reads it.
 
 mod key_actions;
 mod pads;
@@ -28,8 +28,7 @@ use std::path::{Path, PathBuf};
 
 /// The program's side of the launcher's model, for every model made from here on. Whatever
 /// makes a launcher `state::State` (another front end bridging to it) or reads a map through
-/// `mapview` calls this first: the state sets the interface language and machine translation
-/// through it.
+/// `mapview` calls this first: the state sets the interface language through it.
 pub(crate) fn install() {
     omsi_launcher_model::host::set(Box::new(AppHost));
 }
@@ -65,12 +64,6 @@ struct AppHost;
 impl Host for AppHost {
     fn ui_language(&self, code: &str) {
         crate::ui_language(code);
-    }
-    fn mt_enable(&self, on: bool) {
-        crate::mt::enable(on);
-    }
-    fn mt_protect(&self, texts: &mut dyn Iterator<Item = &str>) {
-        crate::mt::protect(texts);
     }
     #[cfg(target_os = "ios")]
     fn previous_run_crash(&self) -> Option<(String, String)> {
