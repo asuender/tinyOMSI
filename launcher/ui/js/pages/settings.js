@@ -5,7 +5,7 @@
 import { html, useState, useEffect, useRef } from '../../vendor/preact-htm.js';
 import { S, useStore, set, toast, remembered, remember } from '../store.js';
 import { t } from '../i18n.js';
-import { call, onPhone, inTauri } from '../api.js';
+import { call, inTauri } from '../api.js';
 import { Button, Card, Select, Input, Toggle, Tabs, Slider, PageHead, useConfirm } from '../ui.js';
 import { saveSettings, applyTheme, fitWindow, launcherSize, LAUNCHER_SIZES, launcherLayout, LAUNCHER_LAYOUTS } from '../data.js';
 import { UpdateRow, checkUpdates } from '../updates.js';
@@ -181,7 +181,7 @@ const CUSTOM = {
   optimise: () => html`<${OptimiseBlock} />`,
   profiles: () => html`<${ProfilesBlock} />`,
   theme: () => html`<${ThemeRow} />`,
-  launcher_layout: () => !onPhone && html`<${LauncherLayoutRow} />`,
+  launcher_layout: () => html`<${LauncherLayoutRow} />`,
   launcher_size: () => inTauri && html`<${LauncherSizeRow} />`,
   corner: () => html`<${CornerRow} />`,
   version: () => html`<${VersionRow} />`,

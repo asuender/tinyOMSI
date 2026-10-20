@@ -36,7 +36,7 @@ impl UpdateWatch {
         let s = omsi_launcher_lib::settings_from_text(text.as_deref());
         let on = |k: &str, d: bool| s.get(k).and_then(|v| v.as_bool()).unwrap_or(d);
         let testing = omsi_cfg::flags::OMSI_UPDATE_URL.is_set();
-        let installable = testing || updater::install_place().is_ok() || cfg!(target_os = "android");
+        let installable = testing || updater::install_place().is_ok();
         let enabled = on("update_check", true)
             && !omsi_cfg::flags::OMSI_NO_UPDATE.is_set()
             && !updater::is_test_build(updater::current_version())
@@ -82,7 +82,7 @@ impl UpdateWatch {
                     // (a quick download: this card takes the place of "is out" still showing)
                     let found = format!("openOMSI {} is out", r.version);
                     notices.retain(|n| !(n.kind == NoticeKind::Update && n.text.starts_with(&found)));
-                    let text = if cfg!(target_os = "android") || !self.auto {
+                    let text = if !self.auto {
                         format!("openOMSI {} is downloaded: the launcher offers it when this session ends", r.version)
                     } else {
                         format!("openOMSI {} is downloaded: it is installed when this session ends", r.version)

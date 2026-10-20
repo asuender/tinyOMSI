@@ -3,8 +3,7 @@
 openOMSI's launcher for Windows, macOS and Linux: a [Tauri 2](https://tauri.app) window whose
 page (`ui/`) puts the duty together - map, bus, line and tour or a free drive, start time,
 date, season, weather and traffic - and keeps the driver's profile, the settings, the key
-bindings, the mods and the running games. Android shows the same page in a web view over the
-game's window; iPhone, iPad and the Mac app have a SwiftUI launcher (`apple/`) over the
+bindings, the mods and the running games. iPhone, iPad and the Mac app have a SwiftUI launcher (`apple/`) over the
 window-free model `crates/omsi-launcher-model`. The game has no launcher window of its own.
 
 * `src-tauri/` - the program. Its commands (`src/commands.rs`) call `omsi-launcher-core`

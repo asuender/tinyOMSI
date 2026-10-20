@@ -17,7 +17,7 @@ fn main() {
 /// Steam's rich presence (`src/steam.rs`) on the targets `assets/steam_redist` has the library
 /// for: `cfg(steam)`, and the library copied beside the binary, where the game looks for it
 /// at its start (`@loader_path` on macOS, `$ORIGIN` on Linux, the exe's folder on Windows) -
-/// without it there the game does not start at all. Android, Windows on ARM and Linux on ARM
+/// without it there the game does not start at all. iOS, Windows on ARM and Linux on ARM
 /// have no Steam library and are built without it.
 fn steam() {
     println!("cargo::rustc-check-cfg=cfg(steam)");

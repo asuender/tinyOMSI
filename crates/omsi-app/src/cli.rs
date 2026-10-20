@@ -234,7 +234,7 @@ pub(crate) struct Args {
     pub(crate) clock_moved: Option<String>,
     /// The game starts at this device's date and time (`real_time::start_at_now`): a duty
     /// must not move the clock then. (A field, not a global: a second drive in the same
-    /// process - Android's launcher - starts from its own arguments.)
+    /// process - the iOS launcher - starts from its own arguments.)
     #[arg(skip)]
     pub(crate) start_synced: bool,
     /// The world the duty start opened, for the session to go on with (see

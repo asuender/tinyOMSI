@@ -1,5 +1,5 @@
 //! The built-in backend of `[htmltexture]`: a small HTML/CSS/JavaScript engine that needs no
-//! browser and no extra dependency, so it runs the same on every desktop and on Android.
+//! browser and no extra dependency, so it runs the same on every supported platform.
 //!
 //! What a page may use:
 //! * HTML: nested elements, `<style>`, `<script>`, inline `style=""`, `id`, `class`, entities,

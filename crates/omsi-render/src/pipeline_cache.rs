@@ -82,10 +82,8 @@ pub(crate) fn open(device: &wgpu::Device, info: &wgpu::AdapterInfo) {
 }
 
 /// The cache to build `device`'s pipelines with, if it has one. While they are being made it
-/// is also written to its file every couple of seconds: a phone's first start compiles for
-/// half a minute and more, and when Android ended the app meanwhile (a start that seemed to
-/// hang, #1708) nothing of it was kept - the cache was written only once every pipeline was
-/// there, and each start began from nothing again.
+/// is also written to its file every couple of seconds so an interrupted first start does
+/// not lose all compilation progress.
 pub(crate) fn get(device: &wgpu::Device) -> Option<wgpu::PipelineCache> {
     let mut slot = SLOT.lock().unwrap_or_else(|e| e.into_inner());
     let s = slot.as_mut().filter(|s| &s.device == device)?;
@@ -145,7 +143,7 @@ fn write_if_changed(path: &Path, data: &[u8], on_disk: &mut Option<u64>) -> std:
     Ok(true)
 }
 
-/// A game killed while it wrote (Android does that) leaves its temporary file, which no later
+/// A game killed while it wrote leaves its temporary file, which no later
 /// run - with another process id - would ever overwrite. Those a while old are removed; a
 /// younger one may be another game's, writing right now.
 fn remove_stale_temporaries(path: &Path) {

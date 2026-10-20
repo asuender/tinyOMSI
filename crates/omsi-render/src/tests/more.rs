@@ -483,9 +483,9 @@ fn render_scale_auto_keeps_ordinary_windows_sharp() {
     // the default window and a 2560x1080 screen are drawn at full size
     assert_eq!(scene_scale_for(0.0, 1600, 900), 1.0);
     assert_eq!(scene_scale_for(0.0, 2560, 1080), 1.0);
-    // Mac/Android cap this at 2.8 million pixels; desktops keep it at full size.
+    // Mac/iOS cap this at 2.8 million pixels; other desktops keep it at full size.
     let s = scene_scale_for(0.0, 3200, 1800);
-    if cfg!(target_os = "macos") || cfg!(target_os = "android") {
+    if cfg!(any(target_os = "macos", target_os = "ios")) {
         assert!((s - 0.697).abs() < 0.01, "{s}");
         assert!((3200.0 * s * 1800.0 * s - AUTO_SCALE_PIXELS).abs() < 1.0);
     } else {
@@ -496,7 +496,7 @@ fn render_scale_auto_keeps_ordinary_windows_sharp() {
     // what is asked for, within 0.5..1 - on a Mac or a phone a scale over the pixel
     // budget is capped like the automatic one
     let s = scene_scale_for(0.75, 3200, 1800);
-    if cfg!(target_os = "macos") || cfg!(target_os = "android") {
+    if cfg!(any(target_os = "macos", target_os = "ios")) {
         assert!((s - 0.697).abs() < 0.01, "{s}");
         assert!((3200.0 * s * 1800.0 * s - AUTO_SCALE_PIXELS).abs() < 1.0);
     } else {

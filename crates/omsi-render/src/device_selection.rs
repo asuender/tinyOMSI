@@ -29,7 +29,7 @@ pub(super) fn select_array_path(adapter: &wgpu::Adapter, limits: &wgpu::Limits, 
 }
 
 fn without_storage(downlevel: &wgpu::DownlevelLimits, limits: &wgpu::Limits) -> ArrayPath {
-    if !cfg!(target_os = "android") && lamps_fit(downlevel, limits) { ArrayPath::LightTextures } else { ArrayPath::NoStorage }
+    if lamps_fit(downlevel, limits) { ArrayPath::LightTextures } else { ArrayPath::NoStorage }
 }
 
 pub(crate) fn lamps_fit(downlevel: &wgpu::DownlevelLimits, limits: &wgpu::Limits) -> bool {

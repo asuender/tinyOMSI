@@ -21,7 +21,7 @@ const ALIVE_MS = 25 * 60 * 1000;
 // of its own (Cloudflare's per place, shields.io's, GitHub's), and showed other numbers.
 const WINDOW_MS = 10 * 60 * 1000;
 const windowStart = (now) => Math.floor(now / WINDOW_MS) * WINDOW_MS;
-const SYSTEMS = ["windows", "macos", "linux", "android"];
+const SYSTEMS = ["windows", "macos", "linux"];
 // More sessions than this are not believed: the counter is a small number, and nobody
 // is to fill the object's memory with made-up ids (a new id over it is not counted).
 const MAX_SESSIONS = 50_000;

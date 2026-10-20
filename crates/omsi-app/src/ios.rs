@@ -3,7 +3,7 @@
 //! The app is the Swift one (`apple/`): it keeps UIKit's scene life cycle, and its scene
 //! shows the launcher made for Apple's systems (SwiftUI, `apple/Shared`). The game is this
 //! library: `openomsi_ios_main` runs winit's event loop (which is UIKit's `UIApplicationMain`),
-//! and as on Android the launcher and the game share one process - the launcher hands the
+//! and the launcher and the game share one process - the launcher hands the
 //! game's command line over (`omsi_launcher_lib::launch` keeps it, see `apple_bridge`), the
 //! game opens its window on the same scene, in front of the launcher's, and when the session
 //! ends (the menu's Quit) that window goes and the launcher is there again.
@@ -112,7 +112,7 @@ pub extern "C" fn openomsi_ios_scene_ready() {
 
 /// The log to the console (Xcode's, the Mac's Console app) and to `game.log` in the app's
 /// data folder; the previous run's is kept as `game-prev.log` for the launcher's crash
-/// report (`previous_run_crash`), as on Android.
+/// report (`previous_run_crash`).
 fn init_log() {
     let dir = omsi_launcher_lib::data_dir();
     let (now, prev) = (dir.join("game.log"), dir.join("game-prev.log"));
@@ -156,7 +156,7 @@ impl log::Log for TeeLogger {
 }
 
 /// When the app's previous run closed while a drive was going: what it said last and the
-/// end of its log, for the launcher's crash dialog (see `android::previous_run_crash`).
+/// end of its log, for the launcher's crash dialog.
 pub(crate) fn previous_run_crash() -> Option<(String, String)> {
     let p = omsi_launcher_lib::data_dir().join("game-prev.log");
     let text = std::fs::read_to_string(&p).ok()?;

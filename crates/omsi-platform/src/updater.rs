@@ -14,9 +14,6 @@
 //!   longer has go as well (`.openomsi-files` lists them); nothing else in the folder - the
 //!   mods, the content - is touched. Then the new launcher is started and this one ends; the
 //!   next start deletes the `*.old-update` files.
-//! * **Android**: the APK is downloaded and handed to the system's package installer
-//!   (`OmsiActivity.installApk`, a PackageInstaller session). The system asks the player;
-//!   Cancel comes back as an error here, Update replaces the app and starts it again.
 //!
 //! The network is not taken for granted: every request is tried again after a pause when it
 //! fails (a timeout, a dropped connection, a 5xx), a download that breaks off goes on where it
@@ -36,7 +33,7 @@
 //! `0.1.1313-pr1192`) is never offered a release: it would replace the build being tested.
 
 // (a phone installs through the system: the unpacking and swapping below are the computers')
-#![cfg_attr(any(target_os = "android", target_os = "ios"), allow(dead_code))]
+#![cfg_attr(target_os = "ios", allow(dead_code))]
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -84,9 +81,6 @@ pub enum Status {
     /// download): `install` puts this file in place without fetching it again.
     Downloaded(Release),
     Installing(Release),
-    /// Android: the system's installer has the APK and asks the player.
-    #[cfg_attr(not(any(target_os = "android", target_os = "ios")), allow(dead_code))]
-    WaitingForInstaller(Release),
     /// A computer: the new launcher is being started; this one ends.
     Restarting(Release),
     Failed(String),
@@ -169,7 +163,7 @@ impl Updater {
 
     /// Download and install `r` (in the background).
     pub fn install(&mut self, r: Release) {
-        if matches!(self.status(), Status::Downloading { .. } | Status::Installing(_) | Status::WaitingForInstaller(_) | Status::Restarting(_)) {
+        if matches!(self.status(), Status::Downloading { .. } | Status::Installing(_) | Status::Restarting(_)) {
             return;
         }
         self.dismissed = false;
@@ -187,7 +181,7 @@ impl Updater {
     /// Download `r` without installing it (in the background, the game's way): the file
     /// waits in the data folder, checked, until `install` puts it in place.
     pub fn prefetch(&mut self, r: Release) {
-        if matches!(self.status(), Status::Downloading { .. } | Status::Downloaded(_) | Status::Installing(_) | Status::WaitingForInstaller(_) | Status::Restarting(_)) {
+        if matches!(self.status(), Status::Downloading { .. } | Status::Downloaded(_) | Status::Installing(_) | Status::Restarting(_)) {
             return;
         }
         self.set(Status::Downloading { release: r.clone(), done: 0, total: r.size });
@@ -205,21 +199,6 @@ impl Updater {
                 }
             }
         });
-    }
-
-    /// Android: what the system's installer answered (polled every frame while it has the
-    /// APK). A computer: nothing to poll.
-    pub fn poll(&mut self) {
-        #[cfg(target_os = "android")]
-        if let Status::WaitingForInstaller(r) = self.status() {
-            match crate::android::hooks().and_then(|h| (h.install_status)()) {
-                Some((3, _)) => self.set(Status::Failed(format!("openOMSI was not updated to {}: the installation was cancelled.", r.version))),
-                Some((4, msg)) => self.set(Status::Failed(format!("openOMSI was not updated to {}: {}", r.version, if msg.is_empty() { "the system's installer refused the package." } else { msg.as_str() }))),
-                Some((6, _)) => self.set(Status::Failed(format!("openOMSI was not updated to {}: installing apps was not allowed for openOMSI (Settings → Apps → openOMSI → Install unknown apps).", r.version))),
-                // (2, success: the system ends this process and starts the new app)
-                _ => {}
-            }
-        }
     }
 
     /// Forget a failure or an offer (the dialog's "Close" / "Not now").
@@ -266,9 +245,7 @@ fn compare(a: &str, b: &str) -> std::cmp::Ordering {
 
 /// The release file for this platform, as `release.yml` names it.
 pub fn asset_name(version: &str) -> Option<String> {
-    let suffix = if cfg!(target_os = "android") {
-        "android-arm64.apk"
-    } else if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+    let suffix = if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
         "windows-x64.zip"
     } else if cfg!(all(target_os = "windows", target_arch = "aarch64")) {
         "windows-arm64.zip"
@@ -379,7 +356,7 @@ fn finish_check(status: &Mutex<Status>, generation: &std::sync::atomic::AtomicU6
 
 fn check_waits(status: &Status, switched: bool) -> bool {
     match status {
-        Status::Downloading { .. } | Status::Installing(_) | Status::WaitingForInstaller(_) | Status::Restarting(_) => true,
+        Status::Downloading { .. } | Status::Installing(_) | Status::Restarting(_) => true,
         Status::Checking | Status::Downloaded(_) => !switched,
         _ => false,
     }
@@ -699,7 +676,7 @@ pub fn install_now(r: &Release) -> anyhow::Result<()> {
 
 fn download_and_install(r: &Release, status: &Mutex<Status>) -> anyhow::Result<()> {
     // (on a computer: where it goes must be writable before 15 MB are fetched for nothing)
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[cfg(not(target_os = "ios"))]
     {
         let place = install_place()?;
         if !writable(&place.dir) {
@@ -711,15 +688,7 @@ fn download_and_install(r: &Release, status: &Mutex<Status>) -> anyhow::Result<(
     download(r, &file, status)?;
     log::info!("update {}: downloaded {}", r.version, file.display());
     *lock(status) = Status::Installing(r.clone());
-    #[cfg(target_os = "android")]
-    {
-        (crate::android::hooks().ok_or_else(|| anyhow::anyhow!("the system's package installer could not be reached"))?.install_apk)(&file)?;
-        // (the new version is noted: the app that starts after the update says so)
-        let _ = std::fs::write(download_dir().join("updating-to"), &r.version);
-        *lock(status) = Status::WaitingForInstaller(r.clone());
-        Ok(())
-    }
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[cfg(not(target_os = "ios"))]
     {
         let place = install_place()?;
         if let Err(e) = install_archive(&file, &place) {
@@ -1043,10 +1012,10 @@ pub fn just_updated() -> Option<String> {
     if v.is_empty() {
         return None;
     }
-    // (only when it is this build: a cancelled Android installation leaves the note)
+    // Keep a pending update note until that version has started.
     if !newer(&v, current_version()) {
         let _ = std::fs::remove_file(&p);
-        // old APKs and archives go too
+        // old archives go too
         if let Ok(rd) = std::fs::read_dir(download_dir()) {
             for e in rd.flatten() {
                 let _ = std::fs::remove_file(e.path());
@@ -1059,8 +1028,6 @@ pub fn just_updated() -> Option<String> {
 
 /// Open a web page in the system's browser.
 pub fn open_url(url: &str) {
-    #[cfg(target_os = "android")]
-    let _ = crate::android::hooks().map(|h| (h.open_url)(url));
     #[cfg(target_os = "macos")]
     let _ = std::process::Command::new("open").arg(url).spawn();
     #[cfg(target_os = "windows")]
@@ -1077,7 +1044,7 @@ pub fn open_url(url: &str) {
             unsafe { openomsi_swift_open_url(u.as_ptr()) }
         }
     }
-    #[cfg(all(unix, not(target_os = "macos"), not(target_os = "android"), not(target_os = "ios")))]
+    #[cfg(all(unix, not(target_os = "macos"), not(target_os = "ios")))]
     let _ = std::process::Command::new("xdg-open").arg(url).spawn();
 }
 

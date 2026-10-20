@@ -129,7 +129,7 @@ impl TripPanel {
 
 /// The text on the system's clipboard; false when there is none to be had.
 pub(crate) fn to_clipboard(text: &str) -> bool {
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[cfg(not(target_os = "ios"))]
     {
         thread_local! {
             // (kept alive: on X11 the text is gone when the clipboard is dropped)
@@ -146,11 +146,6 @@ pub(crate) fn to_clipboard(text: &str) -> bool {
     #[cfg(target_os = "ios")]
     {
         crate::apple::set_clipboard(text)
-    }
-    #[cfg(target_os = "android")]
-    {
-        let _ = text;
-        false
     }
 }
 

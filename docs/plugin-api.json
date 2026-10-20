@@ -1649,7 +1649,7 @@
       "name": "game.platform",
       "group": "game",
       "since": "0.2.22",
-      "doc": "The system the game runs on: `\"windows\"`, `\"macos\"`, `\"linux\"`, `\"android\"`.",
+      "doc": "The system the game runs on: `\"windows\"`, `\"macos\"`, `\"linux\"`.",
       "params": [],
       "returns": "string",
       "multi": false,

@@ -43,7 +43,7 @@ const mode = (s) => s.graphics || 'vanilla_plus';
 const classic = (s) => mode(s) === 'vanilla';
 const traced = (s) => mode(s) === 'enhanced_plus';
 const enhanced = (s) => mode(s) === 'enhanced' || traced(s);
-const mobile = (s, p) => p === 'android' || p === 'ios';
+const mobile = (s, p) => p === 'ios';
 const windows = (s, p) => p === 'windows';
 const tripleOn = (s) => !!s.triple_screen;
 const vrOn = (s, p) => windows(s, p) && !!s.vr;

@@ -56,7 +56,7 @@ pub(crate) struct PeopleView {
     /// What the posing reads of the simulation, taken at each sync (its buffer kept).
     pub(crate) frame: PeopleFrame,
     pub(crate) sync_frame: u32,
-    /// Animation choice for this session, refreshed on Android in-process launches.
+    /// Animation choice for this session, refreshed on iOS in-process launches.
     pub(crate) enhanced_poses: bool,
     pub(crate) mirror_hz: Option<f32>,
     /// The people are drawn with the avatars of "Character models: High quality" (this

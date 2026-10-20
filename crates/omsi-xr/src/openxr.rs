@@ -1,5 +1,5 @@
 //! Optional PCVR session. This module is only compiled on Windows; the normal
-//! desktop and Android render paths do not depend on an OpenXR runtime.
+//! other render paths do not depend on an OpenXR runtime.
 
 use anyhow::{anyhow, bail, Context, Result};
 use glam::{DVec3, Mat4, Quat, Vec3, Vec4};

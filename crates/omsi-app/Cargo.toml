@@ -5,10 +5,8 @@ edition.workspace = true
 license.workspace = true
 description = "The openOMSI application: loads a map and renders it"
 
-# The game is a library with a small `main` around it: the Android build takes the same
-# library as a shared object (`cargo rustc --lib --crate-type cdylib`, see
-# scripts/build-android.sh), which the phone's NativeActivity loads; the iPhone, iPad and
-# Mac apps link it as a static library (`--crate-type staticlib`, see scripts/build-apple.sh)
+# The game is a library with a small `main` around it. The iPhone, iPad and Mac apps
+# link it as a static library (`--crate-type staticlib`, see scripts/build-apple.sh)
 # into the Swift app, whose launcher talks to it through `apple_bridge`.
 [lib]
 name = "openomsi_game"
@@ -87,7 +85,7 @@ jpeg-encoder = { version = "0.7.1", features = ["simd"] }
 
 # the desktop's clipboard and file dialogs (a phone has neither in this form; an iPhone's
 # come from the Swift side, see `apple`)
-[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+[target.'cfg(not(target_os = "ios"))'.dependencies]
 arboard = { version = "3", default-features = false }
 rfd.workspace = true
 # the allocator of the desktop game (see main.rs). Its version 2: version 3, the crate's
@@ -114,16 +112,6 @@ windows = { workspace = true, features = ["Win32_Devices_HumanInterfaceDevice", 
 [target.'cfg(windows)'.dependencies.wgpu]
 workspace = true
 features = ["angle"]
-
-# the interface's machine translation (`mt`): CTranslate2 with Meta's NLLB model, as the
-# `trad` crate does it (Apple's Accelerate for the maths; Apple silicon only)
-# Android: winit's NativeActivity backend, the system log, and JNI for the few things only
-# Java offers (storage permission, the screen's cut-outs, vibration)
-[target.'cfg(target_os = "android")'.dependencies]
-winit = { workspace = true, features = ["android-native-activity"] }
-android_logger = "0.15"
-jni = "0.21"
-ndk-context = "0.1"
 
 [dev-dependencies]
 # the control names from a table (`ControlNames::from_table`) for the key picker's tests

@@ -2045,7 +2045,7 @@ pub fn code_button(code: u32) -> Option<usize> {
     let (hi, lo) = (code >> 16, (code & 0xFFFF) as usize);
     if cfg!(target_os = "macos") {
         (hi == 9 && lo >= 1).then(|| lo - 1)
-    } else if cfg!(target_os = "linux") || cfg!(target_os = "android") {
+    } else if cfg!(target_os = "linux") {
         match lo {
             0x120..=0x12f => Some(lo - 0x120),
             0x2c0..=0x2e7 => Some(16 + lo - 0x2c0),

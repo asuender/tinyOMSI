@@ -46,13 +46,13 @@ jobs:
             exit 1
           fi
           files=$(gh release view "v$VERSION" --json assets --jq '.assets[].name')
-          for f in windows-x64.zip windows-arm64.zip macos-arm64.zip macos-x64.zip linux-x64.zip linux-arm64.zip android-arm64.apk server-linux-x64.zip server-linux-arm64.zip server-windows-x64.zip server-windows-arm64.zip; do
+          for f in windows-x64.zip windows-arm64.zip macos-arm64.zip macos-x64.zip linux-x64.zip linux-arm64.zip server-linux-x64.zip server-linux-arm64.zip server-windows-x64.zip server-windows-arm64.zip; do
             if ! printf '%s\n' "$files" | grep -qx "openOMSI-$VERSION-$f"; then
               echo "::error::v$VERSION has no openOMSI-$VERSION-$f: only a beta of every platform can be promoted"
               exit 1
             fi
           done
-          for f in openOMSI-android.apk SHA256SUMS; do
+          for f in SHA256SUMS; do
             if ! printf '%s\n' "$files" | grep -qx "$f"; then
               echo "::error::v$VERSION has no $f"
               exit 1

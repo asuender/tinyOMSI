@@ -5,7 +5,7 @@
 - **The game** is the same Rust library as everywhere (`crates/omsi-app`, `openomsi_game`),
   built as a static library for `aarch64-apple-ios`, `aarch64-apple-ios-sim` and the Mac
   (`scripts/build-apple.sh rust …`) and linked into a Swift app (`apple/`).
-- **iPhone and iPad** (`crates/omsi-app/src/ios.rs`): as on Android, the launcher and the
+- **iPhone and iPad** (`crates/omsi-app/src/ios.rs`): the launcher and the
   game share one process. `main.swift` calls `openomsi_ios_main`, which runs winit's event
   loop (that is UIKit's `UIApplicationMain`). The app keeps UIKit's scene life cycle: its
   scene delegate (`apple/iOS/SceneDelegate.swift`) shows the launcher in the scene's window,
@@ -26,8 +26,7 @@
   city map uses (`mapview::overview`).
 - **Layouts**: the desktop launcher's sidebar (Drive, Multiplayer, Profile, Mods, Settings,
   Controls; Running games, Tutorials, Setup; the driver at the foot) on a Mac and an iPad,
-  icons only below 1040 points. A phone has a launcher of its own, as the phone launcher
-  of the other systems (`launcher/ui/js/mobile`): a rail of icons (Drive, Multiplayer,
+  icons only below 1040 points. A phone has a launcher of its own: a rail of icons (Drive, Multiplayer,
   Profile, Mods, Settings, More); Drive is the bus with the destination sign and Start over
   it and the duty as grouped rows, each opening a full-screen sheet (maps, buses, paints,
   lines, tours, trips and start places beside the route map, time and date by steps,
@@ -36,7 +35,7 @@
   sign, Start the duty) and Continue; the map and bus pickers are sheets. The window's size decides, so Split View, Stage Manager and a
   phone that folds change it as they change.
 - **Cross-Platform Launcher** (Settings → General, and Setup): the launcher drawn by the game
-  instead - on a phone laid out as on Android, on a Mac as on Windows and Linux. Its own
+  instead - on a phone laid out for touch, on a Mac as on Windows and Linux. Its own
   Settings → General switches back. The setting is `cross_platform_launcher` in
   `settings.cfg`.
 
@@ -46,7 +45,7 @@
   "openOMSI" (also reachable from a Mac's Finder over a cable). Put a complete OMSI 2 there
   as `OMSI 2`, or choose a copy on iCloud Drive or a USB drive under Setup (the access is kept
   as a bookmark). Settings, profiles and logs are in `Library/Application Support/openOMSI`.
-  `game.log` and `crash.log` as on Android; `openOMSI/env.txt` takes `OMSI_*` switches.
+  Logs are `game.log` and `crash.log`; `openOMSI/env.txt` takes `OMSI_*` switches.
 - Mac: as before (`~/.openomsi`, the content folder beside the app or `~/.openomsi/content`).
 
 ## Building

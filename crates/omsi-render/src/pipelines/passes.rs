@@ -45,8 +45,7 @@ pub(crate) fn leave_out_enhanced(options: &RenderOptions, adapter_name: &str) ->
     options.preview_only
         || sixteen_texture_units()
         || (options.no_enhanced
-            && (cfg!(target_os = "android")
-                || adapter_name.to_ascii_lowercase().contains("opengl")
+            && (adapter_name.to_ascii_lowercase().contains("opengl")
                 || gl_backend()))
 }
 

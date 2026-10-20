@@ -48,11 +48,11 @@ Release → Run workflow** from `main` (or `gh workflow run release.yml --ref ma
 
 1. works out the version with `scripts/version.sh`;
 2. builds Windows x64 and ARM64 (MSVC), macOS for Apple silicon and Intel, Linux x64 and
-   ARM64 and Android in parallel, and packs the dedicated server from the Linux and Windows
+   ARM64 in parallel, and packs the dedicated server from the Linux and Windows
    builds;
 3. creates the pre-release `v<version>` (tag on that commit) with the archives
    `openOMSI-<version>-windows-x64.zip`, `-windows-arm64.zip`, `-macos-arm64.zip`,
-   `-macos-x64.zip`, `-linux-x64.zip`, `-linux-arm64.zip`, `-android-arm64.apk`,
+   `-macos-x64.zip`, `-linux-x64.zip`, `-linux-arm64.zip`,
    `-server-linux-x64.zip`, `-server-linux-arm64.zip`, `-server-windows-x64.zip`,
    `-server-windows-arm64.zip`, the installers `-windows-x64-setup.exe`,
    `-windows-arm64-setup.exe`, `-macos-arm64.dmg` and `-macos-x64.dmg`, a `SHA256SUMS`
@@ -92,7 +92,7 @@ The launcher's updater checks each archive against the SHA-256 that GitHub's API
 it before installing it (when the API cannot be reached and the updater falls back to
 github.com, it relies on the HTTPS connection alone).
 
-Pull requests build Windows x64, macOS for Apple silicon, Linux x64 and Android without
+Pull requests build Windows x64, macOS for Apple silicon, Linux x64 without
 publishing anything; every push to `main` builds all the platforms above, also without
 publishing. Build output never goes into the repository (`target/` and `dist/` are ignored).
 
@@ -103,8 +103,6 @@ A pull request's builds are test builds for anyone who wants to try the change:
 * their version names the pull request, `<version>-pr<number>` (e.g. `0.1.1313-pr1192`),
   in the launcher's side bar, `game.log` and crash reports;
 * the updater never offers them a release, so a test build stays until it is deleted;
-* the Android one is an app of its own, *openOMSI PR #N* (`org.openomsi.game.pr`), that
-  installs beside the release and shares its `openOMSI` folder;
 * [`.github/workflows/pr_builds.yml`](../.github/workflows/pr_builds.yml) comments on the
   pull request with a download link per platform (through [nightly.link](https://nightly.link),
   no GitHub account needed) once they are built, and updates that comment on every push.

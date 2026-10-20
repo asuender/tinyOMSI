@@ -225,8 +225,6 @@ fn picture(backend: wgpu::Backend, device_type: wgpu::DeviceType, name: &str, vr
     let gl = backend == wgpu::Backend::Gl;
     let shared = if gl { shared_chip_by_name(name) } else { None };
     let weak = (gl && (shared == Some(true) || vram.is_none()))
-        // (a phone's chip, whatever type its driver reports: some say "other")
-        || cfg!(target_os = "android")
         || (device_type == wgpu::DeviceType::IntegratedGpu && backend != wgpu::Backend::Metal)
         || vram.is_some_and(|v| v <= 2560);
     if weak {
@@ -473,7 +471,7 @@ impl Renderer {
     }
 }
 
-#[cfg(all(test, not(target_os = "android")))]
+#[cfg(all(test))]
 mod tests {
     use super::{ceiling_for, chip_name, dxgi_names_card, one_card, picture, rest_of_card, shared_chip_by_name, Ceiling, GpuMemory, Picture};
     use wgpu::{Backend, DeviceType};

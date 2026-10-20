@@ -12,7 +12,7 @@ setting `presence`, on by default; after a 429 it waits half an hour); a session
 What it gets is a random id made for that session, the game's version and the kind of system -
 no name, and no address is stored.
 
-- `GET /players` - `{"players": 12, "systems": {"windows": 9, "linux": 2, "android": 1}, "updated": "...", "next": "..."}`
+- `GET /players` - `{"players": 12, "systems": {"windows": 9, "linux": 3}, "updated": "...", "next": "..."}`
   (the website reads it)
 - `GET /badge` - the count for a [shields.io endpoint badge](https://shields.io/badges/endpoint-badge)
   (the README shows it)

@@ -12,7 +12,7 @@ Generated from `crates/omsi-cfg/src/flags.rs` - edit the list there and run
   `frame`: every frame in `Renderer::render_inner`; `test`: tests and examples only.
 
 Values are read once per process and cached (`omsi_cfg::env`): changing the environment of a running game has no
-effect. On Android, `openOMSI/env.txt` holds `NAME=value` lines that are set before the game starts.
+effect. On iOS, `openOMSI/env.txt` holds `NAME=value` lines that are set before the game starts.
 
 ## Debug output
 
@@ -369,9 +369,9 @@ effect. On Android, `openOMSI/env.txt` holds `NAME=value` lines that are set bef
 |---|---|---|---|---|---|
 | `OMSI_AMBIENCE_DIR` | text | - | use | soundscape | The folder of the ambience's recordings (its pack.json), instead of `ambience` beside the program or in ~/.openomsi. |
 | `OMSI_AVATARS_DIR` | text | - | use | platform | The folder of the passenger avatars (its pack.json), instead of `avatars` beside the program or in ~/.openomsi. |
-| `OMSI_BACKEND` | text | settings | use | app | vulkan, dx12, metal, gl or angle (dx11, d3d11; Windows): the graphics API tried first (overrides the settings). Set at runtime by the launcher and on Android. |
+| `OMSI_BACKEND` | text | settings | use | app | vulkan, dx12, metal, gl or angle (dx11, d3d11; Windows): the graphics API tried first (overrides the settings). Set at runtime by the launcher. |
 | `OMSI_CLOUDFLARED` | text | - | use | net | Path of the cloudflared binary for the LAN tunnel (searched after the game's folder, before the PATH). |
-| `OMSI_CONTENT` | text | beside the game | use | app, cfg, launcher-core, sim | The content folder (mods, archives, screenshots). Set at runtime on Android and iOS. |
+| `OMSI_CONTENT` | text | beside the game | use | app, cfg, launcher-core, sim | The content folder (mods, archives, screenshots). Set at runtime on iOS. |
 | `OMSI_CONTENT_ZIP` | text | - | use | cfg | Extra content archives, separated like PATH (as --content-zip). |
 | `OMSI_GUARD_STATE` | text | - | use | guard, launcher-api | Set by the start guard for the process it notes: <pid>:<its state file> (what the watcher reads). |
 | `OMSI_HEALTH_URL` | text | built-in | use | platform | Another list of broken releases (URL or file:///...json) for the start guard instead of release/health.json on GitHub. |
@@ -382,7 +382,7 @@ effect. On Android, `openOMSI/env.txt` holds `NAME=value` lines that are set bef
 | `OMSI_PLUGIN_HOST32` | text | beside the game | use | plugin | Path of omsi-plugin-host32.exe. |
 | `OMSI_PRESENCE_URL` | text | built-in | use | platform | Base URL of the presence ("playing now") service. |
 | `OMSI_ROOT` | text | found | use | app, lan, launcher-core, o3d, sim | The OMSI 2 installation folder (also the content root for tests that need real content). |
-| `OMSI_SAFE_GPU` | num | 0 | use | app | Restarts after a lost graphics device: lighter on the card each time. Set at runtime on Android and by the restart. |
+| `OMSI_SAFE_GPU` | num | 0 | use | app | Restarts after a lost graphics device: lighter on the card each time. Set at runtime by the restart. |
 | `OMSI_SAFE_MODE` | bool | off | use | guard, launcher-api, render | Safe mode, set by the start guard after failed starts: the basic render pipelines and no plugins. |
 | `OMSI_SCREEN_AT` | text | - | once | app, launcher-core | x,y: the screen (a point on the desktop, pixels) the game window opens on; the launcher sets it to where it stands. |
 | `OMSI_TOMORROW_API_KEY` | text | private key file | use | app, platform | Private Tomorrow.io API key for map-selected weather; never include it in map configs or logs. |

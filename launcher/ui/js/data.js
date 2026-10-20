@@ -1,6 +1,6 @@
 // Loading the content and keeping the duty: what the pages share.
 
-import { call, on, onPhone, inTauri } from './api.js';
+import { call, on, inTauri } from './api.js';
 import { S, set, toast, remembered } from './store.js';
 import { setLanguage, t, hhmm } from './i18n.js';
 
@@ -278,7 +278,6 @@ export const dutyHof = () => (S.choice.hof_manual ? S.choice.hof : S.hof) || '';
 let ibisAsked = '';
 let ibisTrip = null;
 export async function loadIbis(trip = ibisTrip) {
-  if (onPhone) return;
   ibisTrip = trip;
   const c = S.choice;
   const hof = /\.(bus|ovh)/i.test(dutyHof()) ? '' : dutyHof();
@@ -446,7 +445,6 @@ export async function start(extra) {
   try {
     const d = await duty(extra);
     const r = await call('launch', { duty: d });
-    set({ gameStarted: true });
     if (d.lan !== 'off' && !d.tutorial) set({ page: 'games' });
     toast(r.others ? t('The game is starting ({n} already running)', { n: r.others }) : t('The game is starting…'), 'ok');
     pollNow();
@@ -516,7 +514,6 @@ function startPolling() {
     if (busy || Date.now() % every < 1000) pollNow();
   }, 1000);
   on('games-ended', () => {
-    set({ gameStarted: false });
     pollNow();
     loadProfiles();
     loadSituations();

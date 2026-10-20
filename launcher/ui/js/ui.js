@@ -4,7 +4,6 @@
 import { html, useEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { Icon } from './icons.js';
 import { t } from './i18n.js';
-import { onPhone } from './api.js';
 
 export { html };
 
@@ -66,11 +65,6 @@ export function Select({ value, options, onChange, disabled, raw, placeholder })
   useEffect(() => {
     if (open && place) list.current?.children[Math.max(at, 0)]?.scrollIntoView({ block: 'nearest' });
   }, [place]);
-  if (onPhone) {
-    return html`<select class="select" value=${now} disabled=${disabled} onChange=${(e) => onChange(e.currentTarget.value)}>
-      ${items.map(([v, l]) => html`<option value=${v}>${l}</option>`)}
-    </select>`;
-  }
   const pick = (v) => {
     setOpen(false);
     if (v !== now) onChange(v);

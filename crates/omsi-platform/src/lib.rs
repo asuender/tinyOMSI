@@ -24,30 +24,3 @@ pub const BUILD: &str = env!("OMSI_BUILD");
 
 /// The release version, `MAJOR.MINOR.PATCH` (see `build.rs` and docs/VERSIONING.md).
 pub const VERSION: &str = env!("OPENOMSI_VERSION");
-
-/// Android: the calls into Java the services need (the system's package installer, the
-/// browser), which only the app's activity can make - the app installs them at its start
-/// (`android_main`), before anything is updated or opened.
-pub mod android {
-    use std::sync::OnceLock;
-
-    pub struct Hooks {
-        /// Hand a downloaded APK to the system's package installer.
-        pub install_apk: fn(&std::path::Path) -> anyhow::Result<()>,
-        /// The package installer's answer so far (its code and message).
-        pub install_status: fn() -> Option<(i32, String)>,
-        /// A web page in the phone's browser.
-        pub open_url: fn(&str),
-    }
-
-    static HOOKS: OnceLock<Hooks> = OnceLock::new();
-
-    /// Set once, at the start (a second call changes nothing).
-    pub fn install(hooks: Hooks) {
-        let _ = HOOKS.set(hooks);
-    }
-
-    pub fn hooks() -> Option<&'static Hooks> {
-        HOOKS.get()
-    }
-}

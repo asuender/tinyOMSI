@@ -144,7 +144,7 @@ pub fn start(kind: Kind) -> bool {
     journal::update(|j| j.begin(kind, version, omsi_platform::BUILD, pid));
     // SAFETY of the environment: called first thing in `main`, before any other thread
     std::env::set_var(STATE_VAR, format!("{pid}:{}", state.display()));
-    if kind == Kind::Launcher && cfg!(not(target_os = "android")) {
+    if kind == Kind::Launcher {
         watch::spawn(pid, &state);
     }
     true
@@ -164,7 +164,6 @@ pub fn healthy(kind: Kind) {
     }
     // a version that runs needs no way back any more: the watcher drops it once it knows the
     // project does not list this version as broken; without a watcher it goes now
-    #[cfg(not(target_os = "android"))]
     if kind == Kind::Launcher && own_state().is_none() {
         omsi_platform::updater::cleanup_after_update();
     }

@@ -84,7 +84,7 @@ mod disconnect_tests {
 }
 
 /// The run went down while a Vulkan driver compiled the shaders: the LAST it said was a stage
-/// of that, and it drew with Vulkan (as the phone's shell decides it, `android.rs`). Any
+/// of that, and it drew with Vulkan. Any
 /// compile stage anywhere in the log said so of every silent end - a phone run out of memory
 /// 75 % into loading a map on OpenGL was told its Vulkan driver had failed (#848).
 pub fn died_compiling_on_vulkan(log: &str) -> bool {

@@ -174,7 +174,7 @@ pub fn omsi_options(root: &Path) -> Option<OmsiOptions> {
     let mut v = json!({});
     let num = |k: &str| o.str(k).and_then(|x| x.trim().replace(',', ".").parse::<f64>().ok()).filter(|x| x.is_finite());
     // (not on a phone: the PC's OMSI caps at 30, and a phone played at 30 frames)
-    if let Some(x) = num("maxfps").filter(|_| !cfg!(any(target_os = "android", target_os = "ios"))) {
+    if let Some(x) = num("maxfps").filter(|_| !cfg!(target_os = "ios")) {
         v["max_fps"] = json!(x.max(0.0) as i64);
     }
     if let Some(x) = num("performance_minobjsize") {
@@ -2075,7 +2075,7 @@ pub fn perf_overlay_mode(value: &str) -> &'static str {
 
 /// The page's view of a `settings.cfg` text (None: no file yet, the game's defaults).
 pub fn settings_from_text(text: Option<&str>) -> Value {
-    settings_from_text_on(text, cfg!(any(target_os = "android", target_os = "ios")))
+    settings_from_text_on(text, cfg!(target_os = "ios"))
 }
 
 pub fn settings_from_text_on(text: Option<&str>, phone: bool) -> Value {
@@ -2348,7 +2348,7 @@ pub fn option_presets() -> Vec<(String, Value)> {
         let Ok(o) = omsi_content::options::Options::load(&f) else { continue };
         let name = f.file_stem().unwrap_or_default().to_string_lossy().to_string();
         let mut v = json!({});
-        if !cfg!(any(target_os = "android", target_os = "ios")) {
+        if !cfg!(target_os = "ios") {
             v["max_fps"] = json!(o.i32("maxfps", 0).max(0));
         }
         v["min_obj_size"] = json!(o.f32("performance_minobjsize", 0.013) as f64);
@@ -3092,7 +3092,7 @@ pub fn cleanup() {
 }
 
 /// A phone runs one program: the launcher hands the game's command line over here and the
-/// same process plays it in the same window (see the app's `android.rs`) instead of starting
+/// same process plays it in the same window (see the app's `ios.rs`) instead of starting
 /// another process.
 static IN_PROCESS: std::sync::Mutex<Option<Vec<String>>> = std::sync::Mutex::new(None);
 
@@ -3103,7 +3103,7 @@ pub fn take_in_process_launch() -> Option<Vec<String>> {
 
 /// Whether games run inside the launcher's own process (a phone, an iPhone, an iPad: an app
 /// there may not start programs).
-pub const IN_PROCESS_GAMES: bool = cfg!(any(target_os = "android", target_os = "ios"));
+pub const IN_PROCESS_GAMES: bool = cfg!(target_os = "ios");
 
 pub use instances::{list as list_instances, log_tail, stop as stop_instance, Instance};
 

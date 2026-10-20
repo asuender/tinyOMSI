@@ -17,14 +17,9 @@ import { GamesPage } from './pages/games.js';
 import { TutorialsPage } from './pages/tutorials.js';
 import { TimetablePage } from './pages/timetable.js';
 import { SetupPage } from './pages/setup.js';
-import { MobileApp } from './mobile/mobile.js';
 import { GameEndDialogs, watchGameEnds } from './crash.js';
 import { UpdateDialog, startUpdates } from './updates.js';
-import { onPhone, onDrop } from './api.js';
-
-// (the phone app, or `?phone` for a look at it in a browser)
-const PHONE = onPhone || new URLSearchParams(location.search).has('phone');
-if (PHONE) document.documentElement.classList.add('phone');
+import { onDrop } from './api.js';
 
 const GROUPS = [
   ['Play', [['drive', 'Drive', 'bus', DrivePage], ['depot', 'Depot', 'garage', DepotPage], ['multiplayer', 'Multiplayer', 'users', MultiplayerPage], ['games', 'Running games', 'gamepad', GamesPage]]],
@@ -94,7 +89,6 @@ function App() {
   if (!s.ready) {
     return html`<div class="splash">${s.errors.boot ? html`<div class="notice danger" style="max-width:520px">${s.errors.boot}</div>` : html`<${Spinner} />`}</div>`;
   }
-  if (PHONE) return html`<${MobileApp} /><${GameEndDialogs} /><${UpdateDialog} /><${Toasts} />`;
   const page = PAGES.find((x) => x && x[0] === s.page) || PAGES[0];
   const Page = page[3];
   const resting = !s.boot?.selftest && s.settings?.launcher_rest !== false && s.poll.instances?.length > 0 && !focused;

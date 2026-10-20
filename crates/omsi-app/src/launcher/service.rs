@@ -7,9 +7,6 @@
 //! (`id`, what it says, `len`) followed by `len` bytes: a JPEG for a picture, nothing else
 //! otherwise. Pictures are drawn on the service's thread, maps are read on workers, so a map
 //! that takes a second to read does not stop the bus from turning.
-//!
-//! A phone runs the launcher's page inside the game program itself: there the same service
-//! runs on a thread of its own (`in_process`), asked through a channel instead of a pipe.
 
 use super::showroom::{Look, PreviewView, Quality, Showroom};
 use omsi_render::Renderer;
@@ -72,45 +69,6 @@ pub fn run() -> anyhow::Result<()> {
     });
     serve(rx, reply);
     Ok(())
-}
-
-/// The service in this process (the phone's launcher page): a thread of its own, asked with
-/// `ask`.
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
-pub struct InProcess {
-    tx: Mutex<std::sync::mpsc::Sender<Value>>,
-    waiting: Arc<Mutex<std::collections::HashMap<u64, std::sync::mpsc::Sender<(Value, Vec<u8>)>>>>,
-    next: std::sync::atomic::AtomicU64,
-}
-
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
-impl InProcess {
-    pub fn start() -> InProcess {
-        let (tx, rx) = std::sync::mpsc::channel::<Value>();
-        let waiting: Arc<Mutex<std::collections::HashMap<u64, std::sync::mpsc::Sender<(Value, Vec<u8>)>>>> = Arc::default();
-        let w = waiting.clone();
-        let reply: Reply = Arc::new(move |id, head, body| {
-            if let Some(tx) = id.as_u64().and_then(|i| w.lock().unwrap_or_else(|e| e.into_inner()).remove(&i)) {
-                let _ = tx.send((head, body.to_vec()));
-            }
-        });
-        std::thread::Builder::new().name("launcher service".into()).spawn(move || serve(rx, reply)).ok();
-        InProcess { tx: Mutex::new(tx), waiting, next: std::sync::atomic::AtomicU64::new(1) }
-    }
-
-    /// Ask the service; its answer and the bytes after it.
-    pub fn ask(&self, mut req: Value, wait: std::time::Duration) -> Result<(Value, Vec<u8>), String> {
-        let id = self.next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        req["id"] = json!(id);
-        let (tx, rx) = std::sync::mpsc::channel();
-        self.waiting.lock().unwrap_or_else(|e| e.into_inner()).insert(id, tx);
-        self.tx.lock().unwrap_or_else(|e| e.into_inner()).send(req).map_err(|_| "the preview service ended".to_string())?;
-        let (head, body) = rx.recv_timeout(wait).map_err(|_| "the preview service did not answer".to_string())?;
-        if head.get("ok").and_then(Value::as_bool) == Some(false) {
-            return Err(head.get("error").and_then(Value::as_str).unwrap_or("the preview service failed").to_string());
-        }
-        Ok((head, body))
-    }
 }
 
 /// Answer requests until they stop coming.

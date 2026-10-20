@@ -1,7 +1,7 @@
 //! The launcher's side in this program. The launchers are other programs or other front ends:
 //! the desktop launcher (`launcher/`, a Tauri window beside this program, see `launcher_link`),
-//! the launcher page in a web view on Android (`android_launcher`) and the Swift launcher on
-//! Apple's systems (`apple_bridge`). What they ask of the game is here: the helper service the
+//! and the Swift launcher on Apple's systems (`apple_bridge`). What they ask of the game is
+//! here: the helper service the
 //! desktop launcher runs (`openomsi --launcher-service`: the bus preview drawn with the game's
 //! own scene in `showroom`, the city map, the controllers), and the program's side of the
 //! launcher's model (`AppHost`): the interface's language, machine translation and the city map
@@ -12,12 +12,10 @@ mod pads;
 mod service;
 pub(crate) mod showroom;
 pub(crate) use service::run as run_service;
-#[cfg_attr(not(target_os = "android"), allow(unused_imports))]
-pub(crate) use service::InProcess;
 
 #[cfg_attr(not(any(target_os = "macos", target_os = "ios")), allow(unused_imports))]
 pub(crate) use omsi_launcher_model::mapview;
-#[cfg_attr(not(any(target_os = "android", target_os = "ios")), allow(unused_imports))]
+#[cfg_attr(not(target_os = "ios"), allow(unused_imports))]
 pub(crate) use omsi_launcher_model::crash_of;
 #[allow(unused_imports)]
 pub(crate) use omsi_launcher_model::state;
@@ -43,7 +41,7 @@ pub(crate) fn showroom_options(settings: &crate::settings::Settings) -> omsi_ren
 }
 
 pub(crate) fn showroom_enhanced(settings: &crate::settings::Settings) -> bool {
-    crate::startup::SessionSettings::for_showroom(settings).enhanced && !cfg!(any(target_os = "android", target_os = "ios"))
+    crate::startup::SessionSettings::for_showroom(settings).enhanced && !cfg!(target_os = "ios")
 }
 
 struct AppHost;
@@ -57,10 +55,6 @@ impl Host for AppHost {
     }
     fn mt_protect(&self, texts: &mut dyn Iterator<Item = &str>) {
         crate::mt::protect(texts);
-    }
-    #[cfg(target_os = "android")]
-    fn previous_run_crash(&self) -> Option<(String, String)> {
-        crate::android::previous_run_crash()
     }
     #[cfg(target_os = "ios")]
     fn previous_run_crash(&self) -> Option<(String, String)> {

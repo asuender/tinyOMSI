@@ -82,7 +82,6 @@ pub fn run(args: &[String]) -> i32 {
             }
             // a version that runs needs no way back any more
             None => {
-                #[cfg(not(target_os = "android"))]
                 omsi_platform::updater::cleanup_now();
             }
         }

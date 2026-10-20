@@ -154,13 +154,6 @@ impl Renderer {
             .or_else(|| {
                 surface.map(|s| {
                     let formats = s.get_capabilities(&adapter).formats;
-                    // (an Android driver lists the plain RGBA8 first: the picture, written in
-                    // linear light for an sRGB target, came out dark and flat)
-                    if cfg!(target_os = "android") {
-                        if let Some(f) = formats.iter().find(|f| f.is_srgb()) {
-                            return *f;
-                        }
-                    }
                     formats[0]
                 })
             })
@@ -423,9 +416,7 @@ impl Renderer {
         options: RenderOptions,
         mesh_pages: bool,
     ) -> Result<Renderer> {
-        // As few builds as can be: each one compiles every shader again, and four of them in
-        // a row - a phone whose driver failed the first went through them all - kept the
-        // launcher from opening for a minute until Android closed it (#1708, since 0.2.4).
+        // Minimize retries: each build compiles every shader again and delays the launcher.
         // What worked on this adapter before is remembered (`fallback_store`) and tried first;
         // after a failure the one most likely to work (no multisampling, basic pipelines).
         let found = fallback_load(name);
@@ -434,8 +425,8 @@ impl Renderer {
             // (a computer tries the full set again once with every new version of the game:
             // remembered for good, one failure - a driver of the time, a device lost once -
             // took the snowfall off DirectX 12 for ever; a phone keeps to what worked, its
-            // second build took long enough for Android to close the app, #1708)
-            Some((m, true, false)) if !cfg!(any(target_os = "android", target_os = "ios")) => vec![(m.min(options.msaa).max(1), false), (m.min(options.msaa).max(1), true), (1, true)],
+            // second build can exceed the system's startup deadline)
+            Some((m, true, false)) if !cfg!(target_os = "ios") => vec![(m.min(options.msaa).max(1), false), (m.min(options.msaa).max(1), true), (1, true)],
             // (and the multisampling chosen: one failure of it - a driver of the time, a
             // device lost while building - kept a computer at 1x MSAA for good, whatever the
             // options said, #2597)
@@ -443,15 +434,14 @@ impl Renderer {
             // once per version whatever comes of it: failed, it is not made again at every
             // start; crashing the driver or losing the device, the next start keeps to what
             // worked (see the device-lost path in `new_on`).
-            Some((m, b, false)) if !cfg!(any(target_os = "android", target_os = "ios")) && m < options.msaa => {
+            Some((m, b, false)) if !cfg!(target_os = "ios") && m < options.msaa => {
                 fallback_store(name, Some((m, b)));
                 MSAA_RETRY.store(true, std::sync::atomic::Ordering::Relaxed);
                 vec![(options.msaa, b), (m.max(1), b), (1, true)]
             }
             Some((m, b, _)) => vec![(m.min(options.msaa).max(1), b), (1, true)],
-            // (a phone starts with the basic set: the full one failed on Adreno and the
-            // second build after it took long enough for Android to close the app)
-            None if cfg!(any(target_os = "android", target_os = "ios")) => vec![(options.msaa, true), (1, true)],
+            // A phone starts with the basic set to avoid costly startup retries.
+            None if cfg!(target_os = "ios") => vec![(options.msaa, true), (1, true)],
             None => vec![(options.msaa, false), (1, false), (1, true)],
         };
         attempts.dedup();

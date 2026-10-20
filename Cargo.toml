@@ -103,13 +103,6 @@ lto = "thin"
 [profile.dev]
 opt-level = 1
 
-# the Android build (scripts/build-android.sh): the release profile without debug info (a
-# phone's app carries no 300 MB of symbols)
-[profile.android]
-inherits = "release"
-debug = 0
-strip = "debuginfo"
-
 # (a patch that no longer matches the version wgpu asks for is dropped with only a warning;
 # the Security audit workflow fails when Cargo.lock lists one as unused)
 [patch.crates-io]

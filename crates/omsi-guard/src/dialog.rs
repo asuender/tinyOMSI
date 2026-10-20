@@ -106,7 +106,7 @@ fn platform_show(text: &str, last: bool) {
     }
 }
 
-#[cfg(all(unix, not(target_os = "macos"), not(target_os = "android")))]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn platform_show(text: &str, last: bool) {
     let kind = if last { "--error" } else { "--info" };
     let shown = std::process::Command::new("zenity").arg(kind).arg("--title=openOMSI").arg(format!("--text={text}")).status().map(|s| s.code().is_some()).unwrap_or(false)
@@ -116,7 +116,7 @@ fn platform_show(text: &str, last: bool) {
     }
 }
 
-#[cfg(any(target_os = "android", not(any(unix, windows))))]
+#[cfg(not(any(unix, windows)))]
 fn platform_show(text: &str, _last: bool) {
     // (a phone: the launcher shows what happened; here it goes into the logs)
     eprintln!("openOMSI: {text}");

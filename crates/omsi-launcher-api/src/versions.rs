@@ -26,7 +26,7 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 pub fn available() -> bool {
-    !updater::STORE_BUILD && cfg!(not(any(target_os = "android", target_os = "ios")))
+    !updater::STORE_BUILD && cfg!(not(target_os = "ios"))
 }
 
 fn chosen_file() -> PathBuf {
@@ -155,7 +155,7 @@ pub fn list() -> Answer {
 }
 
 fn busy(s: &Status) -> bool {
-    matches!(s, Status::Checking | Status::Downloading { .. } | Status::Installing(_) | Status::WaitingForInstaller(_) | Status::Restarting(_))
+    matches!(s, Status::Checking | Status::Downloading { .. } | Status::Installing(_) | Status::Restarting(_))
 }
 
 pub fn install(version: String) -> Answer {

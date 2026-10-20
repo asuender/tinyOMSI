@@ -13,7 +13,7 @@
 //! of a name is not seen - as before) and kept in the flag. [`Flag::live_os`] and
 //! [`Flag::live_var`] read the environment itself every time, for the call sites that
 //! did so (a path read once at start, or a variable set at runtime: `OMSI_CONTENT` on
-//! Android, `OMSI_BACKEND` by the launcher).
+//! iOS, `OMSI_BACKEND` by the launcher).
 //!
 //! Call sites name a flag with its module, `omsi_cfg::flags::OMSI_X.is_set()` (or
 //! `flags::OMSI_X` after `use omsi_cfg::flags`), so that the test finds it.
@@ -149,7 +149,7 @@ flags! {
     OMSI_AUDIT_LINE: Num, Test, Test, "-", "bus_audit example: the line (number and letter code) the IBIS typist enters instead of the bus's own.";
     OMSI_AUTOPILOT: Num, Test, Use, "-", "Offscreen: the player's bus follows the lanes at this speed in km/h (finds where it falls through or leaves the road).";
     OMSI_AVATARS_DIR: Text, Setup, Use, "-", "The folder of the passenger avatars (its pack.json), instead of `avatars` beside the program or in ~/.openomsi.";
-    OMSI_BACKEND: Text, Setup, Use, "settings", "vulkan, dx12, metal, gl or angle (dx11, d3d11; Windows): the graphics API tried first (overrides the settings). Set at runtime by the launcher and on Android.";
+    OMSI_BACKEND: Text, Setup, Use, "settings", "vulkan, dx12, metal, gl or angle (dx11, d3d11; Windows): the graphics API tried first (overrides the settings). Set at runtime by the launcher.";
     OMSI_BACKGROUND: Bool, Test, Use, "off", "A test window that does not take the keyboard focus (OMSI_INPUT drives the handlers directly); with OMSI_INPUT it ignores the real mouse too.";
     OMSI_BASIC_PIPELINES: Bool, Switch, Once, "off", "Use the reduced (basic) render pipelines, as after a driver failed to build the full ones.";
     OMSI_BATCH: Num, Test, Use, "-", "Offscreen: prepare the map tiles this many at a time, as the window's streaming does.";
@@ -179,7 +179,7 @@ flags! {
     OMSI_CLOUDFLARED: Text, Setup, Use, "-", "Path of the cloudflared binary for the LAN tunnel (searched after the game's folder, before the PATH).";
     OMSI_CLOUDFLARED_OWN: Bool, Test, Use, "off", "LAN tunnel: only the game's own downloaded cloudflared, to test the download.";
     OMSI_CONDENSATION: Text, Test, Use, "-", "Offscreen: minutes,people[,engine] - the cabin air and condensation on the glass after that long.";
-    OMSI_CONTENT: Text, Setup, Use, "beside the game", "The content folder (mods, archives, screenshots). Set at runtime on Android and iOS.";
+    OMSI_CONTENT: Text, Setup, Use, "beside the game", "The content folder (mods, archives, screenshots). Set at runtime on iOS.";
     OMSI_CONTENT_ZIP: Text, Setup, Use, "-", "Extra content archives, separated like PATH (as --content-zip).";
     OMSI_CROSSING_DEFORM: Bool, Switch, Use, "off", "Apply the crossings' ground deformation again (A/B; Omsi.exe does not).";
     OMSI_CUT_PLAIN: Bool, Switch, Use, "off", "Road-cut textures uploaded without GPU-made mipmaps.";
@@ -440,7 +440,7 @@ flags! {
     OMSI_ROOT: Text, Setup, Use, "found", "The OMSI 2 installation folder (also the content root for tests that need real content).";
     OMSI_RT_REFL_HALF: Bool, Switch, Use, "off", "Trace reflections at half size.";
     OMSI_RUNNER_CHANCE: Num, Tuning, Use, "0.05", "Chance a late passenger runs for a bus standing at a stop (0: never, 1: every bus).";
-    OMSI_SAFE_GPU: Num, Setup, Use, "0", "Restarts after a lost graphics device: lighter on the card each time. Set at runtime on Android and by the restart.";
+    OMSI_SAFE_GPU: Num, Setup, Use, "0", "Restarts after a lost graphics device: lighter on the card each time. Set at runtime by the restart.";
     OMSI_SAFE_MODE: Bool, Setup, Use, "off", "Safe mode, set by the start guard after failed starts: the basic render pipelines and no plugins.";
     OMSI_SCENE_DIGEST: Bool, Test, Use, "off", "Log a hash of the renderer's scene (its instances in order, their places, materials and parameters) before each offscreen picture: two runs whose renderers saw the same calls log the same digests.";
     OMSI_SCREEN_AT: Text, Setup, Once, "-", "x,y: the screen (a point on the desktop, pixels) the game window opens on; the launcher sets it to where it stands.";
@@ -578,7 +578,7 @@ mod tests {
              - **Read** - `once` per process; `use`: each time the code passing it runs (start-up, loading, per step);\n  \
              `frame`: every frame in `Renderer::render_inner`; `test`: tests and examples only.\n\n\
              Values are read once per process and cached (`omsi_cfg::env`): changing the environment of a running game has no\n\
-             effect. On Android, `openOMSI/env.txt` holds `NAME=value` lines that are set before the game starts.\n\n",
+             effect. On iOS, `openOMSI/env.txt` holds `NAME=value` lines that are set before the game starts.\n\n",
         );
         let kinds = [(Kind::Debug, "Debug output"), (Kind::Test, "Test hooks"), (Kind::Switch, "A/B and kill switches"), (Kind::Tuning, "Tuning"), (Kind::Setup, "Set-up"), (Kind::Build, "Build")];
         for (kind, title) in kinds {

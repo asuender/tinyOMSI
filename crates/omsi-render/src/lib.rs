@@ -328,7 +328,7 @@ impl Default for RenderOptions {
 /// million pixels, a 4K screen showed a picture of 58 % its size, and the enhanced
 /// graphics looked like textures of low quality; the frame-rate governor still steps down
 /// on a card that cannot keep up.
-pub const AUTO_SCALE_PIXELS: f32 = if cfg!(any(target_os = "macos", target_os = "android", target_os = "ios")) { 2_800_000.0 } else { 8_400_000.0 };
+pub const AUTO_SCALE_PIXELS: f32 = if cfg!(any(target_os = "macos", target_os = "ios")) { 2_800_000.0 } else { 8_400_000.0 };
 
 /// Interior lamps one mesh may be lit by (OMSI: four; a model may list more in its
 /// `[illumination_interior]`), and the step of the lamp code sent to the shaders (`first *
@@ -459,7 +459,7 @@ fn scene_scale_for(requested: f32, width: u32, height: u32) -> f32 {
     let pixels = width as f32 * height as f32;
     if requested > 0.0 {
         let requested = requested.clamp(0.5, 1.0);
-        if cfg!(any(target_os = "macos", target_os = "android", target_os = "ios")) && pixels > AUTO_SCALE_PIXELS {
+        if cfg!(any(target_os = "macos", target_os = "ios")) && pixels > AUTO_SCALE_PIXELS {
             return requested.min((AUTO_SCALE_PIXELS / pixels).sqrt().clamp(0.5, 1.0));
         }
         return requested;

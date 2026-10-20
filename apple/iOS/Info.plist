@@ -87,7 +87,7 @@
 	<true/>
 	<key>UISupportsDocumentBrowser</key>
 	<false/>
-	<!-- a phone drives across, as on Android; an iPad (and the windows of iPadOS) any way -->
+	<!-- a phone drives across; an iPad (and the windows of iPadOS) any way -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationLandscapeRight</string>

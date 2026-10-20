@@ -59,7 +59,7 @@ final class GameHost {
             motion.startDeviceMotionUpdates(to: .main) { [weak self] m, _ in
                 guard let self, let g = m?.gravity else { return }
                 // held across (landscape either way round): gravity lies along the device's
-                // x axis, and turning it like a wheel moves it into y (as on Android)
+                // x axis, and turning it like a wheel moves it into y
                 let (ax, ay) = (Float(g.x), Float(g.y))
                 let angle = atan2(ay * (ax < 0 ? -1 : 1), abs(ax)) * 180 / .pi
                 let dead: Float = 2.5

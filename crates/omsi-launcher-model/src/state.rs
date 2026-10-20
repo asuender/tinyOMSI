@@ -392,7 +392,7 @@ impl State {
         s.poll_now();
         // (a phone runs the game in the launcher's process: a crash took both, and the
         // launcher learns of it from the previous run's log)
-        #[cfg(any(target_os = "android", target_os = "ios"))]
+        #[cfg(target_os = "ios")]
         {
             s.crash = host().previous_run_crash();
         }

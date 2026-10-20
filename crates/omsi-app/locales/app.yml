@@ -39919,16 +39919,6 @@ _version: 2
   tl: "{roads} kalsada | {stops} hintuan | {entries} entry point"
   sr: "{roads} puteva | {stops} zaustavlja | {entries} ulazne tačke"
 
-"Copy the whole OMSI 2 folder (with Omsi.exe, maps and Vehicles) from a computer into openOMSI/OMSI 2 in the phone's internal storage; it is found there by itself.":
-  zh-tw: "從電腦將完整的 OMSI 2 資料夾（包含 Omsi.exe、maps 及 Vehicles）複製至手機內部儲存空間的 openOMSI/OMSI 2，系統會自動找到它。"
-  es: "Copia toda la carpeta de OMSI 2 (con Omsi.exe, maps y Vehicles) desde un equipo a openOMSI/OMSI 2 en el almacenamiento interno del teléfono; se detectará automáticamente."
-  de: "Kopiere den ganzen OMSI-2-Ordner (mit Omsi.exe, maps und Vehicles) vom Computer nach openOMSI/OMSI 2 im internen Speicher des Telefons; dort wird er von selbst gefunden."
-  ru: "Скопируйте всю папку OMSI 2 (с Omsi.exe, maps и Vehicles) с компьютера в openOMSI/OMSI 2 во внутренней памяти телефона: там она найдётся сама."
-  sv: "Kopiera hela OMSI 2-mappen (med Omsi.exe, maps och Vehicles) från en dator till openOMSI/OMSI 2 i telefonens internminne; den hittas där automatiskt."
-  ca: "Copia tota la carpeta d'OMSI 2 (amb Omsi.exe, maps i Vehicles) des d'un ordinador a openOMSI/OMSI 2 de l'emmagatzematge intern del telèfon; es detecta automàticament en aquesta ubicació."
-  fr: "Copiez tout le dossier OMSI 2 (avec Omsi.exe, maps et Vehicles) depuis un ordinateur vers openOMSI/OMSI 2 dans la mémoire interne du téléphone ; il y est trouvé tout seul."
-  sr: "Kopirajte celu fasciklu OMSI 2 (sa Omsi.exe, mapama i vozilima) sa računara u openOMSI/OMSI 2 u internu memoriju telefona; sistem će je tamo automatski pronaći."
-
 "Time and date":
   es: "Hora y fecha"
   zh-tw: "時間與日期"
@@ -44076,35 +44066,6 @@ _version: 2
   hi: "openOMSI {version} इंस्टॉल हो गया: इसे खुद फिर से शुरू करें ({e})।"
   ca: "openOMSI {version} està instal·lat: torna'l a obrir tu mateix ({e})."
   sr: "openOMSI {version} je instaliran: pokrenite ga ponovo sami ({e})."
-
-"You have {current}. The launcher downloads the new version ({size}) from GitHub and Android installs it; openOMSI then starts again. Your mods and settings stay as they are.":
-  de: "Du hast {current}. Der Launcher lädt die neue Version ({size}) von GitHub herunter und Android installiert sie; danach startet openOMSI neu. Deine Mods und Einstellungen bleiben, wie sie sind."
-  fr: "Vous avez la {current}. Le launcher télécharge la nouvelle version ({size}) depuis GitHub et Android l'installe ; openOMSI redémarre ensuite. Vos mods et réglages restent tels quels."
-  ru: "У вас {current}. Лаунчер загрузит новую версию ({size}) с GitHub, Android её установит, затем openOMSI запустится снова. Ваши моды и настройки останутся прежними."
-  uk: "У вас {current}. Лаунчер завантажить нову версію ({size}) з GitHub, Android її встановить, потім openOMSI запуститься знову. Ваші моди й налаштування залишаться без змін."
-  be: "У вас {current}. Лаўнчар спампуе новую версію ({size}) з GitHub, Android яе ўсталюе, потым openOMSI запусціцца зноў. Вашы моды і налады застануцца як былі."
-  kk: "Сізде {current}. Іске қосқыш жаңа нұсқаны ({size}) GitHub-тан жүктейді, Android оны орнатады, содан кейін openOMSI қайта іске қосылады. Модтарыңыз бен баптауларыңыз сол күйінде қалады."
-  pl: "Masz {current}. Launcher pobierze nową wersję ({size}) z GitHuba, a Android ją zainstaluje; potem openOMSI uruchomi się ponownie. Twoje mody i ustawienia pozostaną bez zmian."
-  cs: "Máte {current}. Spouštěč stáhne novou verzi ({size}) z GitHubu a Android ji nainstaluje; openOMSI se pak znovu spustí. Vaše módy a nastavení zůstanou beze změny."
-  hu: "A te verziód: {current}. Az indító letölti az új verziót ({size}) a GitHubról, az Android telepíti, majd az openOMSI újraindul. A modjaid és beállításaid megmaradnak."
-  es: "Tienes la {current}. El lanzador descarga la nueva versión ({size}) desde GitHub y Android la instala; después openOMSI se vuelve a abrir. Tus mods y ajustes se quedan como están."
-  pt: "Você tem a {current}. O launcher baixa a nova versão ({size}) do GitHub e o Android a instala; depois o openOMSI abre de novo. Seus mods e configurações continuam como estão."
-  pt-pt: "Tem a {current}. O launcher transfere a nova versão ({size}) do GitHub e o Android instala-a; depois o openOMSI volta a abrir. Os seus mods e definições ficam como estão."
-  it: "Hai la {current}. Il launcher scarica la nuova versione ({size}) da GitHub e Android la installa; poi openOMSI si riavvia. Le tue mod e impostazioni restano come sono."
-  nl: "Je hebt {current}. De launcher downloadt de nieuwe versie ({size}) van GitHub en Android installeert die; daarna start openOMSI opnieuw. Je mods en instellingen blijven zoals ze zijn."
-  tr: "Sizde {current} var. Başlatıcı yeni sürümü ({size}) GitHub'dan indirir ve Android yükler; ardından openOMSI yeniden başlar. Modlarınız ve ayarlarınız olduğu gibi kalır."
-  ja: "現在は {current} です。ランチャーが新しいバージョン ({size}) を GitHub からダウンロードし、Android がインストールします。その後 openOMSI が再起動します。MOD と設定はそのまま残ります。"
-  zh-tw: "你目前是 {current}。啟動器會從 GitHub 下載新版本（{size}），由 Android 安裝，之後 openOMSI 會重新啟動。你的模組與設定都會保留。"
-  ko: "현재 {current}입니다. 런처가 GitHub에서 새 버전({size})을 내려받고 Android가 설치한 뒤 openOMSI가 다시 시작됩니다. 모드와 설정은 그대로 유지됩니다."
-  th: "คุณมี {current} ตัวเปิดเกมจะดาวน์โหลดเวอร์ชันใหม่ ({size}) จาก GitHub และ Android จะติดตั้ง จากนั้น openOMSI จะเริ่มใหม่ ม็อดและการตั้งค่าของคุณยังอยู่เหมือนเดิม"
-  vi: "Bạn đang dùng {current}. Trình khởi chạy tải phiên bản mới ({size}) từ GitHub và Android cài đặt; sau đó openOMSI mở lại. Mod và cài đặt của bạn vẫn giữ nguyên."
-  id: "Anda memakai {current}. Peluncur mengunduh versi baru ({size}) dari GitHub dan Android memasangnya; lalu openOMSI mulai lagi. Mod dan pengaturan Anda tetap seperti semula."
-  ms: "Anda menggunakan {current}. Pelancar memuat turun versi baharu ({size}) dari GitHub dan Android memasangnya; kemudian openOMSI bermula semula. Mod dan tetapan anda kekal seperti biasa."
-  tl: "Mayroon kang {current}. Ida-download ng launcher ang bagong bersyon ({size}) mula sa GitHub at ii-install ito ng Android; saka magsisimula ulit ang openOMSI. Mananatili ang mga mod at setting mo."
-  zh: "你当前是 {current}。启动器会从 GitHub 下载新版本（{size}），由 Android 安装，之后 openOMSI 会重新启动。你的模组和设置都会保留。"
-  hi: "आपके पास {current} है। लॉन्चर नया संस्करण ({size}) GitHub से डाउनलोड करता है और Android उसे इंस्टॉल करता है; फिर openOMSI दोबारा शुरू होता है। आपके मॉड और सेटिंग्स वैसे ही रहते हैं।"
-  ca: "Tens la {current}. El launcher baixa la nova versió ({size}) de GitHub i Android la instal·la; després openOMSI torna a obrir-se. Els teus mods i ajustos es queden com estan."
-  sr: "Imate {current}. Pokretač preuzima novu verziju ({size}) sa GitHub-a i Android je instalira; openOMSI zatim ponovo počinje. Vaši modovi i podešavanja ostaju onakvi kakvi jesu."
 
 "You have {current}. The launcher downloads the new version ({size}) from GitHub, puts it in place of this one and starts again. Your mods and settings stay as they are.":
   de: "Du hast {current}. Der Launcher lädt die neue Version ({size}) von GitHub herunter, ersetzt diese und startet neu. Deine Mods und Einstellungen bleiben, wie sie sind."
@@ -49589,15 +49550,6 @@ _version: 2
   fr: "arrêt - enregistrement du service..."
   sr: "zaustavljanje – čuvanje vožnje..."
   ru: "остановка — сохранение запуска…"
-
-"Android asks whether to update openOMSI: press Update there. The app then starts again by itself.":
-  es: "Android pregunta si quieres actualizar openOMSI: pulsa Actualizar. La aplicación se reiniciará automáticamente."
-  zh-tw: "Android 會詢問是否更新 openOMSI：請按「更新」。完成後應用程式會自動重新啟動。"
-  pt: "O Android pergunta se deseja atualizar o openOMSI: toque em Atualizar. Depois o app reinicia sozinho."
-  ca: "Android pregunta si vols actualitzar openOMSI: prem Actualitza. L'aplicació es tornarà a iniciar automàticament."
-  fr: "Android demande s'il faut mettre à jour openOMSI : appuyez sur Mettre à jour. L'appli redémarre ensuite toute seule."
-  sr: "Android pita da li da ažurira openOMSI: tamo pritisnite Ažuriraj. Aplikacija se zatim ponovo pokreće sama."
-  ru: "Android спрашивает, обновить ли openOMSI: нажмите там «Обновить». Приложение затем запустится заново само."
 
 "CHAT  (in the game: the chat key, see Controls)":
   ca: "XAT  (al joc: la tecla de xat, vegeu Controls)"

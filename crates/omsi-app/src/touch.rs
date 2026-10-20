@@ -680,7 +680,7 @@ impl App {
             }
             // The shell's pause menu owns its scroll areas (rail, pages and lists).
             // The legacy menu_top belongs to the old renderer, so moving it here no
-            // longer scrolls anything on Android (#2108).
+            // longer scrolls anything in the shell.
             Role::Menu => {
                 if self.input.touch.fingers[k].moved {
                     if self.shell_takes_mouse() {

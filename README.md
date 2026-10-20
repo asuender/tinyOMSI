@@ -21,6 +21,9 @@ removal. The inherited website, repository policy bots and Docker server packagi
 have been removed; multiplayer runtime code remains. Expect bugs and incomplete
 functionality.
 
+Android support has been removed. iOS/iPadOS and desktop touch controls remain; broader
+mobile removal is still planned. Existing settings files are unchanged.
+
 ## Requirements
 
 An installed copy of **OMSI 2** is required. tinyOMSI contains no original game

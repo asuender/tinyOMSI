@@ -70,10 +70,8 @@ pub struct Input {
 }
 
 /// Shift, Ctrl, Alt and the logo key as the launcher knows them. The window says when they
-/// change (`ModifiersChanged`) - except on Android, whose winit backend never does: Shift or
-/// Ctrl held on a phone's keyboard went unseen there, a key bound with Shift was saved as the
-/// letter alone and Ctrl+V typed a "v" (#634). Until the window has said it once, the
-/// modifier keys' own presses and releases tell what is held.
+/// change (`ModifiersChanged`). Until the window has said it once, the modifier keys' own
+/// presses and releases tell what is held.
 #[derive(Default, Clone, Copy)]
 pub struct Modifiers {
     /// The modifier keys held, a bit each (left and right apart: one let go of while the
@@ -1423,7 +1421,7 @@ mod tests {
         assert!(layers.len() < 128, "{} layers", layers.len());
     }
 
-    /// Where the window never says which modifiers are held (Android), their keys do: a key
+    /// Where the window never says which modifiers are held, their keys do: a key
     /// bound with Shift or Ctrl held keeps them, and Ctrl+V is a paste (#634).
     #[test]
     fn modifier_keys_count_where_the_window_does_not_tell_them() {

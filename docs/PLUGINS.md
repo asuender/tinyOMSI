@@ -4,7 +4,7 @@ openOMSI runs three kinds of plugins from the `plugins` folder of the game (and 
 content root):
 
 * **Lua plugins** (`.lua`) - a text file, no compiler, works the same on Windows, macOS,
-  Linux and Android, and is loaded again the moment you save it. They reach the whole game
+  Linux and iOS, and is loaded again the moment you save it. They reach the whole game
   through the plugin API: the player's bus, the duty and timetable, the map, the AI traffic
   and the people, the weather and the clock, the camera, input, sound, panels of their own
   on the screen, storage, settings and the LAN session - about 270 functions and 60 events.
@@ -783,7 +783,7 @@ declared to call the function (a plain `.lua` file has them all).
 | `omsi.game.has(name)` | boolean | Whether this game has an API function (`"weather.set"`): for a plugin that should also run in an older openOMSI. | 0.2.22 |
 | `omsi.game.menu_open()` | boolean | Whether the game menu is open. | 0.2.22 |
 | `omsi.game.notify(text, [kind], [seconds])` | boolean | A notification of the game's own (the cards the server's messages use): `kind` `"info"`, `"warning"` or `"alert"`. *Permission: `ui`.* | 0.2.22 |
-| `omsi.game.platform()` | string | The system the game runs on: `"windows"`, `"macos"`, `"linux"`, `"android"`. | 0.2.22 |
+| `omsi.game.platform()` | string | The system the game runs on: `"windows"`, `"macos"`, `"linux"`. | 0.2.22 |
 | `omsi.game.screenshot()` | string or nil | Takes a screenshot with the next frame, as the camera key does; the file it goes to (the `screenshot` event says when it is there). *Permission: `ui`.* | 0.2.22 |
 | `omsi.game.settings()` | table | The settings a plugin may read: `graphics` (`"vanilla"`, `"vanilla_plus"`, `"enhanced"`), `language` (the cockpit's, `"ENG"`), `ui_language`, `ui_scale`, `volume`, `fov`, `render_scale`, `max_fps`, `fullscreen`, `vsync`, `msaa`, `shadows`, `time_speed`, `units` (`"metric"`: speeds are km/h everywhere), ... | 0.2.22 |
 | `omsi.game.stats()` | table | This session's counts, as the personnel file has them: `km`, `stops_served`, `stops_skipped`, `crashes`, `heavy_crashes`, `pedestrians`, `tickets`, `cash`, `passengers`, ... | 0.2.22 |

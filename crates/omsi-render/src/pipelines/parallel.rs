@@ -32,7 +32,7 @@ fn threads() -> usize {
     if crate::gl_backend() || omsi_cfg::flags::OMSI_SERIAL_PIPELINES.is_set() {
         return 1;
     }
-    let most = if cfg!(any(target_os = "android", target_os = "ios")) { 4 } else { 8 };
+    let most = if cfg!(target_os = "ios") { 4 } else { 8 };
     std::thread::available_parallelism().map_or(1, |n| n.get()).clamp(1, most)
 }
 

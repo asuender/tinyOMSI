@@ -4,7 +4,7 @@
 //!
 //! What goes out is a random id made for this session alone (not kept anywhere, a new one
 //! every start), the game's version and the kind of system (windows, macos, linux,
-//! android) - no name, no map, nothing of the computer. The service keeps an id for 25
+//! ios) - no name, no map, nothing of the computer. The service keeps an id for 25
 //! minutes after its last word and stores no addresses.
 //!
 //! Setting `presence` (on by default; the launcher's Settings → General: "Count me on the
@@ -47,9 +47,7 @@ fn session_id() -> String {
 
 /// The system, as the service counts it.
 fn system() -> &'static str {
-    if cfg!(target_os = "android") {
-        "android"
-    } else if cfg!(target_os = "ios") {
+    if cfg!(target_os = "ios") {
         "ios"
     } else if cfg!(windows) {
         "windows"

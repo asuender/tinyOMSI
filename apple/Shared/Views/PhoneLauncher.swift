@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// The launcher on a phone, as the phone launcher of the other systems lays it out
-/// (`launcher/ui/js/mobile/mobile.js`): a layout of its own for a landscape phone and a
+/// The launcher on a phone: a layout of its own for a landscape phone and a
 /// finger, not the desktop page made small. A rail of icons on the left; Drive is the bus
 /// turning on the left with the Start button over it and the duty as grouped rows on the
 /// right, each opening a full-screen sheet to choose from.

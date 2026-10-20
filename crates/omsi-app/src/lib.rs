@@ -5,9 +5,8 @@
 //! omsi --root ... --map ... --offscreen out.png --size 1600x900            # PNG
 //! ```
 //!
-//! The game is this library; `main.rs` calls [`run`], and on Android the NativeActivity
-//! calls `android_main` (see `android.rs`), which runs the launcher and the game in one
-//! window of one process. On an iPhone or an iPad the Swift app calls `openomsi_ios_main`
+//! The game is this library; `main.rs` calls [`run`]. On an iPhone or an iPad the Swift
+//! app calls `openomsi_ios_main`
 //! (see `ios.rs`); its launcher, and the Mac's Swift launcher, read and change what the
 //! launcher knows through `apple_bridge`.
 
@@ -22,10 +21,6 @@ pub(crate) use omsi_scene::head_idle;
 use omsi_input::headtrack;
 #[cfg(windows)]
 use omsi_xr::openxr;
-#[cfg(target_os = "android")]
-mod android;
-#[cfg(target_os = "android")]
-mod android_launcher;
 #[cfg(target_os = "ios")]
 mod ios;
 #[cfg(target_os = "ios")]
@@ -386,7 +381,7 @@ pub(crate) fn prepare(mut args: Args, bare: bool) -> Result<Option<(Args, Option
                 } else {
                     fatal_dialog("openOMSI cannot start", &text);
                 }
-                if cfg!(any(target_os = "android", target_os = "ios")) {
+                if cfg!(target_os = "ios") {
                     // (a phone's app is not ended from inside: back to the launcher)
                     return Ok(None);
                 }

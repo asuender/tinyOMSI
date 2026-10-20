@@ -36,11 +36,9 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "naga"
         update-types: ["version-update:semver-major"]
-      # glam 0.34 moved the camera matrices (perspective_rh, look_to_rh...) to glam::camera,
-      # and jni 0.22 changed the Android bridge's API: both are moved to by hand
+      # glam 0.34 moved the camera matrices (perspective_rh, look_to_rh...) to glam::camera:
+      # it is moved to by hand
       - dependency-name: "glam"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      - dependency-name: "jni"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # glow is the one wgpu's GL backend uses (the ANGLE setup hands it wgpu-hal's context)
       - dependency-name: "glow"

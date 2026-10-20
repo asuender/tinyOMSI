@@ -5,40 +5,6 @@
 const tauri = window.__TAURI__;
 export const inTauri = !!tauri;
 
-// The phone app: the same page in the game's web view (`OmsiActivity`), its commands answered
-// by the game program itself (`omsi-app`'s `android_launcher`). `OmsiLauncher.call(id, cmd,
-// args)` runs one on a worker and answers through `window.__omsiReply`; the pictures come as
-// the answers of requests the web view hands to the game (`http://omsi.localhost/bytes/...`).
-const android = window.OmsiLauncher
-  ? (() => {
-      const waiting = new Map();
-      let next = 1;
-      window.__omsiReply = (id, ok, text) => {
-        const w = waiting.get(id);
-        waiting.delete(id);
-        if (!w) return;
-        if (ok) w.resolve(text ? JSON.parse(text) : null);
-        else w.reject(new Error(text));
-      };
-      return {
-        call(cmd, args) {
-          if (BYTES.has(cmd)) {
-            return fetch('http://omsi.localhost/bytes/' + cmd + '?args=' + encodeURIComponent(JSON.stringify(args))).then(async (r) => {
-              if (!r.ok) throw new Error(await r.text());
-              return r.arrayBuffer();
-            });
-          }
-          const id = next++;
-          return new Promise((resolve, reject) => {
-            waiting.set(id, { resolve, reject });
-            window.OmsiLauncher.call(id, cmd, JSON.stringify(args || {}));
-          });
-        },
-      };
-    })()
-  : null;
-export const onPhone = !!android;
-
 async function mock(cmd) {
   // (raw answers - the preview's pictures - as .bin)
   if (cmd === 'preview_frame') return (await fetch('../mock/preview_frame.bin')).arrayBuffer();
@@ -55,7 +21,6 @@ const BYTES = new Set(['preview_frame', 'route_map', 'map_ground']);
 
 /** Call a command; rejects with the error text the command gave. */
 export function call(cmd, args = {}) {
-  if (android) return android.call(cmd, args);
   if (!inTauri) return mock(cmd);
   const p = OWN.has(cmd) ? tauri.core.invoke(cmd, args) : tauri.core.invoke(BYTES.has(cmd) ? 'call_bytes' : 'call', { cmd, args });
   return p.catch((e) => {
@@ -65,11 +30,6 @@ export function call(cmd, args = {}) {
 
 /** Listen to an event of the launcher's (returns the function that stops listening). */
 export function on(event, fn) {
-  if (android) {
-    const h = (e) => fn(e.detail);
-    window.addEventListener('omsi:' + event, h);
-    return () => window.removeEventListener('omsi:' + event, h);
-  }
   if (!inTauri) return () => {};
   let stop = null;
   let gone = false;
@@ -102,9 +62,9 @@ export function onDrop(fn, over) {
 }
 
 // (custom protocols are `omsi://localhost/` on macOS and Linux, `http://omsi.localhost/` on
-// Windows and Android)
-const base = /windows|android/i.test(navigator.userAgent) ? 'http://omsi.localhost/' : 'omsi://localhost/';
+// Windows)
+const base = /windows/i.test(navigator.userAgent) ? 'http://omsi.localhost/' : 'omsi://localhost/';
 const enc = (p) => p.split('/').map(encodeURIComponent).join('/');
 
 /** A picture of the content (`maps/Grundorf/picture.jpg`). */
-export const contentUrl = (rel) => (inTauri || onPhone ? base + 'content/' + enc(rel.replace(/\\/g, '/')) : '../mock/' + rel.split('/').pop());
+export const contentUrl = (rel) => (inTauri ? base + 'content/' + enc(rel.replace(/\\/g, '/')) : '../mock/' + rel.split('/').pop());

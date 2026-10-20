@@ -80,7 +80,7 @@ static FETCHING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::
 /// drawn from the next drive on.
 pub fn fetch_if_missing() {
     static STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if cfg!(target_os = "android") || find_dir().is_some() || STARTED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+    if find_dir().is_some() || STARTED.swap(true, std::sync::atomic::Ordering::Relaxed) {
         return;
     }
     let Some(dir) = user_dir() else { return };

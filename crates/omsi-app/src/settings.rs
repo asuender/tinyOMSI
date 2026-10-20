@@ -656,7 +656,7 @@ impl Settings {
                 "max_fps" | "maxfps" => {
                     s.max_fps = v.parse::<f32>().map(|x| x.max(0.0) as u32).unwrap_or(s.max_fps);
                     // a phone given the PC OMSI's 30 by the settings import: 60
-                    if cfg!(any(target_os = "android", target_os = "ios")) && s.max_fps == 30 {
+                    if cfg!(target_os = "ios") && s.max_fps == 30 {
                         s.max_fps = 60;
                     }
                 }

@@ -149,12 +149,6 @@ impl App {
                 ) } {
                 Ok(()) => {
                     log::info!("input script: window picture written to {}", path.display());
-                    if !include_touch {
-                        crate::platform::to_gallery(&path);
-                        if cfg!(target_os = "android") {
-                            self.service_msg = Some((omsi_ui::tr("Screenshot saved to the gallery").into_owned(), 4.0));
-                        }
-                    }
                 }
                 Err(e) => log::warn!(
                     "input script: {} could not be written: {e}",

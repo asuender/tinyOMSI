@@ -401,7 +401,6 @@ impl crate::App {
                 Ok(path) => {
                     log::info!("photo mode: saved {}", path.display());
                     crate::plugins::queue_event(&mut self.integrations.plugin_events, "screenshot", vec![omsi_plugin::InfoValue::Text(path.to_string_lossy().into_owned())]);
-                    crate::platform::to_gallery(&path);
                     ph.saved = Some(path);
                     (omsi_ui::tr(if crate::platform::MOBILE { "Photo saved to the gallery" } else { "Photo saved" }).into_owned(), 8.0)
                 }

@@ -75,7 +75,7 @@ impl Pack {
     /// the user's openOMSI folder. They play from the next drive on.
     pub fn fetch_if_missing() {
         static STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-        if cfg!(target_os = "android") || STARTED.swap(true, std::sync::atomic::Ordering::Relaxed) || Pack::find_dir().is_some() {
+        if STARTED.swap(true, std::sync::atomic::Ordering::Relaxed) || Pack::find_dir().is_some() {
             return;
         }
         let Some(dir) = Pack::user_dir() else { return };

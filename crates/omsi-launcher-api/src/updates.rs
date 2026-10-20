@@ -19,7 +19,6 @@ fn release_json(r: &Release) -> Value {
 
 pub fn status() -> Value {
     with(|u| {
-        u.poll();
         let mut v = match u.status() {
             Status::Idle => json!({ "state": "idle" }),
             Status::Checking => json!({ "state": "checking" }),
@@ -28,7 +27,6 @@ pub fn status() -> Value {
             Status::Downloaded(r) => json!({ "state": "available", "release": release_json(&r), "downloaded": true }),
             Status::Downloading { release, done, total } => json!({ "state": "downloading", "release": release_json(&release), "done": done, "total": total }),
             Status::Installing(r) => json!({ "state": "installing", "release": release_json(&r) }),
-            Status::WaitingForInstaller(r) => json!({ "state": "installer", "release": release_json(&r) }),
             Status::Restarting(r) => json!({ "state": "restarting", "release": release_json(&r) }),
             Status::Failed(msg) => json!({ "state": "failed", "message": msg }),
         };

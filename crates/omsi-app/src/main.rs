@@ -22,8 +22,9 @@ pub static AmdPowerXpressRequestHighPerformance: u32 = 1;
 /// and middle-sized blocks (traffic, people, scripts, the render lists), which the system
 /// allocators serve slowly - Windows' heap especially, and macOS's with its large-block
 /// cache turned off (see `startup::restart_with_allocator_settings`), where every big
-/// block was a call into the kernel. (Not on Android: the game is a library there.)
-#[cfg(not(target_os = "android"))]
+/// block was a call into the kernel.
+
+#[cfg(not(target_os = "ios"))]
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 

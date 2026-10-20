@@ -15,7 +15,7 @@ pub fn basic_pipelines() -> bool {
 }
 pub(crate) static RAINFALL_LEFT_OUT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 pub(crate) fn rainfall_pipeline() -> bool {
-    !basic_pipelines() || !(cfg!(any(target_os = "android", target_os = "ios")) || RAINFALL_LEFT_OUT.load(std::sync::atomic::Ordering::Relaxed) || omsi_cfg::flags::OMSI_SAFE_MODE.is_set())
+    !basic_pipelines() || !(cfg!(target_os = "ios") || RAINFALL_LEFT_OUT.load(std::sync::atomic::Ordering::Relaxed) || omsi_cfg::flags::OMSI_SAFE_MODE.is_set())
 }
 
 /// One of the pipelines a picture can do without (the snowfall, the lamps in the fog, the

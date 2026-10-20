@@ -487,7 +487,7 @@ pub(crate) fn apply_holds(d: Option<&DevTools>, v: &mut omsi_sim::VehicleInstanc
 
 /// Text onto the system's clipboard; false where there is none.
 fn copy_text(text: &str) -> bool {
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[cfg(not(target_os = "ios"))]
     {
         thread_local! {
             // (kept alive: on X11 the text is gone when the clipboard is dropped)
@@ -505,11 +505,6 @@ fn copy_text(text: &str) -> bool {
     {
         crate::apple::set_clipboard(text)
     }
-    #[cfg(target_os = "android")]
-    {
-        let _ = text;
-        false
-    }
 }
 
 /// Open a file with the program the system gives its kind (a text editor for the log).
@@ -518,9 +513,9 @@ fn open_file(path: &std::path::Path) {
     let _ = std::process::Command::new("open").arg(path).spawn();
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("cmd").args(["/C", "start", ""]).arg(path).spawn();
-    #[cfg(all(unix, not(target_os = "macos"), not(target_os = "android"), not(target_os = "ios")))]
+    #[cfg(all(unix, not(target_os = "macos"), not(target_os = "ios")))]
     let _ = std::process::Command::new("xdg-open").arg(path).spawn();
-    #[cfg(any(target_os = "android", target_os = "ios"))]
+    #[cfg(target_os = "ios")]
     let _ = path;
 }
 

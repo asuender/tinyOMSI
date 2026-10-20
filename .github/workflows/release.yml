@@ -1,9 +1,9 @@
-# Builds openOMSI for Windows and Linux (x64, ARM64), macOS (Apple silicon, Intel) and Android
+# Builds openOMSI for Windows and Linux (x64, ARM64), macOS (Apple silicon, Intel)
 # (plus the dedicated server for Linux and Windows) when a maintainer runs it from main
 # (Actions -> Release -> Run workflow) and publishes them as the beta (pre-release)
 # v<MAJOR.MINOR.PATCH>; promote.yml makes a tested beta the stable release. A push to main
 # builds every platform and publishes nothing. See docs/VERSIONING.md.
-# Pull requests build Windows x64, macOS (Apple silicon), Linux x64 and Android, without publishing;
+# Pull requests build Windows x64, macOS (Apple silicon), Linux x64, without publishing;
 # the label ci:all-platforms builds all seven (from the next push or run).
 name: Release
 
@@ -21,7 +21,7 @@ on:
         description: Platform to build and release alone
         type: choice
         default: all
-        options: [all, windows, macos, linux, android]
+        options: [all, windows, macos, linux]
 
 concurrency:
   group: release-${{ github.event_name }}-${{ github.ref }}
@@ -330,58 +330,10 @@ jobs:
           name: linux-${{ matrix.arch }}
           path: out/*.zip
 
-  android:
-    needs: version
-    if: ${{ !inputs.only || inputs.only == 'all' || inputs.only == 'android' }}
-    timeout-minutes: 90
-    runs-on: ubuntu-latest
-    env:
-      OPENOMSI_VERSION: ${{ needs.version.outputs.version }}
-      # the signing key (base64 of a keystore, alias openomsi, password android); without
-      # it every build is signed with a new key and does not install over the last one
-      ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-      # a pull request's APK is an app of its own beside the release (scripts/build-android.sh)
-      OPENOMSI_PR: ${{ github.event.pull_request.number }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-      - uses: actions/setup-java@v6
-        with:
-          distribution: zulu
-          java-version: '17'
-      - name: Android SDK
-        run: |
-          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$sdkmanager" --licenses >/dev/null || true
-          "$sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;28.2.13676358" >/dev/null
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
-      - name: Build
-        run: scripts/build-android.sh
-      - name: Package
-        run: |
-          mkdir -p out
-          cp "dist/android/openOMSI-$OPENOMSI_VERSION.apk" "out/openOMSI-$OPENOMSI_VERSION-android-arm64.apk"
-          # (and under a name of its own: releases/latest/download/openOMSI-android.apk is
-          # always the newest stable APK - for a phone whose installed build cannot update itself)
-          cp "dist/android/openOMSI-$OPENOMSI_VERSION.apk" "out/openOMSI-android.apk"
-      - uses: actions/upload-artifact@v7
-        with:
-          # (a release keeps its files; a pull request's test builds are fetched within days)
-          retention-days: 14
-          name: android
-          path: out/*.apk
-
   release:
     # (the platforms not built again are skipped, not failed)
     if: ${{ !cancelled() && !failure() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
-    needs: [version, windows, windows-tests, macos, linux, android]
+    needs: [version, windows, windows-tests, macos, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -418,7 +370,7 @@ jobs:
           git push origin "v$VERSION"
           sh scripts/release-notes.sh "$VERSION" > notes.md
           cd out
-          files=$(ls *.zip *.apk *.dmg *.exe 2>/dev/null || true)
+          files=$(ls *.zip *.dmg *.exe 2>/dev/null || true)
           sha256sum $files > SHA256SUMS
           gh release create "v$VERSION" $files SHA256SUMS \
             --verify-tag \

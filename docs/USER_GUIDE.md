@@ -90,9 +90,7 @@ is the same thing for an offscreen run.
 [github.com/openOMSI-org/openOMSI](https://github.com/openOMSI-org/openOMSI) for the latest release
 and, when there is a newer one, offers it in a dialog: **Update now** downloads it (checked
 against the SHA-256 GitHub lists), puts the new program in place of the old one and starts the
-launcher again; mods, content and settings stay. On Android the system's installer asks
-whether to update the app; Update replaces openOMSI and starts it again, Cancel leaves it as
-it was. No update is installed while a game runs. Settings → General → *Updates*: *Look for
+launcher again; mods, content and settings stay. No update is installed while a game runs. Settings → General → *Updates*: *Look for
 updates when the launcher starts* (on by default), *Update channel* (Stable, the tested
 releases, by default; Beta, every beta as soon as it is published, for testers), *Install
 updates without asking* (off by default), and the version line with **Check now**. A folder
@@ -131,9 +129,7 @@ computer, only a newer one. The project can also list a released version as brok
 (`release/health.json`); such a version goes back to the one before, or on to a fixed one, at
 the next start even when it starts well. A crash in the middle of a drive is not a broken
 start: nothing is changed then. The guard keeps its own record in `~/.openomsi/guard/`
-(`guard.log`, `starts.json`, `bad-versions`). `OMSI_NO_GUARD=1` switches it off. On Android
-the next start after one that never reached the launcher looks for an update at once (the
-system's installer asks); going back is the system's business there.
+(`guard.log`, `starts.json`, `bad-versions`). `OMSI_NO_GUARD=1` switches it off.
 
 **Playing now.** While a session runs the game tells the project's counter (a Cloudflare
 Worker, `services/presence/`) every ten minutes that it is being played, and says goodbye
@@ -274,8 +270,7 @@ include it and its system is read-only: in Desktop Mode open Konsole and run
 (a password must be set first with `passwd`; when pacman complains about keys, run
 `sudo pacman-key --init` and `sudo pacman-key --populate archlinux holo` first; a SteamOS
 update can remove the package again, then run the same commands once more).
-On Android the same page shows in a web view over the game's window; iPhone, iPad and the Mac
-app have a launcher of their own (SwiftUI). The chosen bus is shown as a picture **drawn by
+iPhone, iPad and the Mac app have a launcher of their own (SwiftUI). The chosen bus is shown as a picture **drawn by
 the game's renderer** (the game program runs beside the launcher as its helper, `openomsi
 --launcher-service`) - its model, paint, materials, reflections and shadows exactly as in the
 game, under the light of the chosen time and weather; drag on it to turn the bus, scroll to
@@ -444,7 +439,7 @@ pace it is designed at), `collision_objects` (walls, poles and bridges stop the 
 option and is taken from OMSI's options when openOMSI starts the first time), `graphics_api`
 (`auto`, `vulkan`, `dx12` on Windows, `gl`, `angle` on Windows: which graphics interface the
 game asks first - with `auto` on Windows DirectX 12, then Vulkan, then OpenGL, then ANGLE;
-on Linux and Android Vulkan, then OpenGL; a Mac, iPhone and iPad always use Metal; see
+on Linux Vulkan, then OpenGL; a Mac, iPhone and iPad always use Metal; see
 *Graphics API* below), `ctrl_off` (game controllers switched off on the Controls page, by
 name, separated by `|`) and `language` (the language of the interface - `ENG`, `DEU`, `FRA`,
 `RUS` and the others Settings → General lists; OMSI's own texts, such as the names of cockpit

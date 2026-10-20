@@ -1,6 +1,6 @@
 //! WebAssembly plugins (`kind = "wasm"` in a `.oop`): a module built for wasm32-unknown-unknown,
 //! usually from Rust with the openOMSI plugin SDK, run by an interpreter (wasmi) on every platform
-//! the game runs on - the same file on Windows, macOS, Linux and Android.
+//! the game runs on - the same file on Windows, macOS, Linux and iOS.
 //!
 //! The module reaches the game through one import, `openomsi.call(name, args)`, which calls a
 //! function of the plugin API by the name Lua plugins know it under (`"var"`, `"ui.set"`), its

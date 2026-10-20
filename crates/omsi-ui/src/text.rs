@@ -138,15 +138,6 @@ fn fallback_fonts() -> &'static [(&'static str, FontVec)] {
             ("hi", "/System/Library/Fonts/Supplemental/Devanagari Sangam MN.ttc"),
             ("", "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
             ("", "/System/Library/Fonts/GeezaPro.ttc"),
-            // Android
-            ("", "/system/fonts/NotoSansCJK-Regular.ttc"),
-            ("", "/system/fonts/NotoSerifCJK-Regular.ttc"),
-            ("th", "/system/fonts/NotoSansThai-Regular.ttf"),
-            ("hi", "/system/fonts/NotoSansDevanagari-Regular.otf"),
-            ("hi", "/system/fonts/NotoSansDevanagariUI-VF.ttf"),
-            ("hi", "/system/fonts/NotoSansDevanagari-VF.ttf"),
-            ("", "/system/fonts/NotoNaskhArabic-Regular.ttf"),
-            ("", "/system/fonts/DroidSansFallback.ttf"),
             // Linux
             ("", "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
             ("", "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"),

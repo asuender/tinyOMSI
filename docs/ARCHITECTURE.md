@@ -27,7 +27,7 @@ change behaviour is checked is in [REFACTOR_CHECKS.md](REFACTOR_CHECKS.md).
 | `mc_Form_Main`, main loop              | `omsi-app`                    | offscreen + window, start menu, HUD, tile streaming; the original's dialogs are the launcher |
 | vehicle runtime (`TRoadVehicleInst`)   | `omsi-sim`                    | scripts, animations, dynamic materials, keyboard/mouse input, IBIS typing, coupled parts |
 | AI (`mc_path`, `mc_pathrule`), humans, physics (ODE) | `omsi-sim` | `traffic` + `ai_motion` (rules, light programs, following, passing), `human` + `crowd` (poses, queues, avoidance), `rigid` + `physics` (wheels, collisions) |
-| Optionen and the start dialogs         | `launcher/` (Tauri) + `omsi-launcher-core`, `omsi-launcher-api`, `omsi-launcher-model` | the desktop launcher, a program of its own (its page also in Android's web view; SwiftUI on Apple's systems): profile, bus, map, duty, weather, settings, mods, running games; the game has no launcher window |
+| Optionen and the start dialogs         | `launcher/` (Tauri) + `omsi-launcher-core`, `omsi-launcher-api`, `omsi-launcher-model` | the desktop launcher, a program of its own (SwiftUI on Apple's systems): profile, bus, map, duty, weather, settings, mods, running games; the game has no launcher window |
 | - (no original counterpart)            | `omsi-net`, `omsi-lan`, `omsi-app::lan` | LAN play: UDP session, bit-packed vehicle states, chat |
 
 ## Crates
@@ -44,7 +44,7 @@ Bottom up:
 | beside the simulation | `omsi-htmlengine`, `omsi-weather`, `omsi-career` | the `[htmltexture]` engine; the weather and season models; the driver's career and real-time mode |
 | presentation | `omsi-render`, `omsi-audio`, `omsi-soundscape`, `omsi-photo`, `omsi-scene` | the renderer (`gpu/`, `resources/`, `scene/`, `lighting/`, `frame_plan`, shader parts); the mixer; ambience, scenery sounds and the radio; photo mode's lens and darkroom; the scene: loaded content turned into renderer data |
 | devices and services | `omsi-input`, `omsi-xr`, `omsi-net`, `omsi-lan`, `omsi-platform`, `omsi-plugin`, `omsi-plugin-ui` | controllers, force feedback, head tracking, key names; OpenXR; the LAN transport and the game-side session; updater, Discord, the presence count, version stamp; plugin hosting and its UI |
-| launcher | `omsi-launcher-core`, `omsi-launcher-api`, `omsi-launcher-model` | the launcher's data side; the page's commands (desktop launcher and Android's web view); the window-free model the Swift launcher works on (`state`, the map as data), asking the game through `omsi_launcher_model::host::Host`. The launcher's window is `launcher/` (Tauri, a workspace of its own) |
+| launcher | `omsi-launcher-core`, `omsi-launcher-api`, `omsi-launcher-model` | the launcher's data side; the page's commands (desktop launcher); the window-free model the Swift launcher works on (`state`, the map as data), asking the game through `omsi_launcher_model::host::Host`. The launcher's window is `launcher/` (Tauri, a workspace of its own) |
 | app | `omsi-app` | the glue: `App` and its field groups, the frame (`frame_stages`: one declared list of stages for the window and one for the offscreen run, one runner), view sync, the adapters that hold the crates' state in `App` |
 
 ## Threading

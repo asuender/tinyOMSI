@@ -1,13 +1,13 @@
 import { html } from '../vendor/preact-htm.js';
 import { S, set, toast, useStore } from './store.js';
 import { t } from './i18n.js';
-import { call, on, onPhone } from './api.js';
+import { call, on } from './api.js';
 import { Button, Dialog, Toggle } from './ui.js';
 import { saveSettings } from './data.js';
 
-const BUSY = ['checking', 'downloading', 'installing', 'installer', 'restarting'];
+const BUSY = ['checking', 'downloading', 'installing', 'restarting'];
 const mb = (n) => `${((n || 0) / 1000000).toFixed(1)} MB`;
-const playing = () => !!S.poll?.instances?.length || (onPhone && !!S.gameStarted);
+const playing = () => !!S.poll?.instances?.length;
 const looking = () => S.settings?.update_check !== false;
 const putAside = (u) => u.dismissed || u.release?.version === u.dismissed_version;
 const autoStarted = new Set();
@@ -26,7 +26,7 @@ async function refresh() {
     autoStarted.add(u.release.version);
     installUpdate();
   }
-  if (u.state === 'restarting' && !relaunching && !onPhone) {
+  if (u.state === 'restarting' && !relaunching) {
     relaunching = true;
     call('update_relaunch').catch((e) => {
       relaunchError = t('openOMSI {version} is installed: start it again yourself ({e}).', { version: u.release.version, e: e.message });
@@ -90,9 +90,7 @@ export function UpdateDialog() {
   return html`<${Dialog} title=${title} onClose=${busy ? null : dismissUpdate} footer=${footer}>
     <div class="stack" style="gap:14px">
       ${u.state === 'available' && html`
-        <p class="dim">${t(onPhone
-          ? 'You have {current}. The launcher downloads the new version ({size}) from GitHub and Android installs it; openOMSI then starts again. Your mods and settings stay as they are.'
-          : 'You have {current}. The launcher downloads the new version ({size}) from GitHub, puts it in place of this one and starts again. Your mods and settings stay as they are.', { current: u.current, size: mb(r.size) })}</p>
+        <p class="dim">${t('You have {current}. The launcher downloads the new version ({size}) from GitHub, puts it in place of this one and starts again. Your mods and settings stay as they are.', { current: u.current, size: mb(r.size) })}</p>
         <${Toggle} checked=${!!s.settings?.update_auto} label="Install updates without asking from now on" onChange=${(v) => saveSettings({ update_auto: v })} />`}
       ${u.state === 'downloading' && html`
         <p class="dim">${t('{done} of {total} from GitHub', { done: mb(u.done), total: mb(u.total) })}</p>
@@ -100,7 +98,6 @@ export function UpdateDialog() {
       ${(u.state === 'installing' || u.state === 'restarting') && html`
         <p class="dim">${t('The new version is put in place; the launcher starts again in a moment.')}</p>
         <div class="progress"><div style="width:100%"></div></div>`}
-      ${u.state === 'installer' && html`<p class="dim">${t('Android asks whether to update openOMSI: press Update there. The app then starts again by itself.')}</p>`}
       ${u.state === 'failed' && html`<p class="dim selectable">${u.message}</p>`}
     </div>
   </${Dialog}>`;
@@ -114,7 +111,7 @@ export function UpdateRow() {
     : u.state === 'up_to_date' ? t('openOMSI {version} is the latest version.', { version: u.current })
     : u.state === 'available' ? t('openOMSI {version} is available', { version: u.release.version })
     : u.state === 'downloading' ? `${t('Downloading openOMSI {version}', { version: u.release.version })} (${t('{done} of {total} from GitHub', { done: mb(u.done), total: mb(u.total) })})`
-    : u.state === 'installing' || u.state === 'installer' || u.state === 'restarting' ? t('Installing openOMSI {version}', { version: u.release.version })
+    : u.state === 'installing' || u.state === 'restarting' ? t('Installing openOMSI {version}', { version: u.release.version })
     : u.state === 'failed' ? u.message
     : '';
   return html`<div class="setting-row full">

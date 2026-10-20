@@ -56,7 +56,6 @@ cat <<NOTES
 | macOS (Intel) | \`openOMSI-$version-macos-x64.dmg\` (disk image) or \`openOMSI-$version-macos-x64.zip\` |
 | Linux x64 | \`openOMSI-$version-linux-x64.zip\` |
 | Linux ARM64 | \`openOMSI-$version-linux-arm64.zip\` |
-| Android (arm64, 8.0+) | \`openOMSI-$version-android-arm64.apk\` |
 | Dedicated server, Linux | \`openOMSI-$version-server-linux-x64.zip\`, \`openOMSI-$version-server-linux-arm64.zip\` |
 | Dedicated server, Windows | \`openOMSI-$version-server-windows-x64.zip\`, \`openOMSI-$version-server-windows-arm64.zip\` |
 

@@ -28,7 +28,7 @@ pub fn physical_memory() -> Option<u64> {
         };
         (r == 0 && v > 0).then_some(v)
     }
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         // MemTotal in kB
         let text = std::fs::read_to_string("/proc/meminfo").ok()?;
@@ -44,7 +44,7 @@ pub fn physical_memory() -> Option<u64> {
         unsafe { GlobalMemoryStatusEx(&mut m) }.ok()?;
         (m.ullTotalPhys > 0).then_some(m.ullTotalPhys)
     }
-    #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "linux", target_os = "android", windows)))]
+    #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "linux", windows)))]
     {
         None
     }
